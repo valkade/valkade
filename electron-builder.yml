@@ -1,6 +1,6 @@
 # Packaging: https://www.electron.build/configuration/configuration
-appId: com.clara.coder
-productName: Clara Coder
+appId: com.valkade.app
+productName: ValkAde
 icon: build/icon.png
 
 directories:
@@ -12,8 +12,8 @@ directories:
 # to the built commit. GitHub ignores channels: every release carries plain latest*.yml.
 publish:
   provider: github
-  owner: dpere122
-  repo: ClaraCoder
+  owner: valkade
+  repo: valkade
 
 # dist/ is gitignored; list it explicitly so it is still shipped.
 files:
@@ -43,7 +43,7 @@ extraResources:
     to: runtime-python
     filter:
       - "**/*"
-  # Pinned ripgrep from `npm run bundle:rg`; the sidecar gets its path as CLARA_RG_PATH.
+  # Pinned ripgrep from `npm run bundle:rg`; the sidecar gets its path as VALKADE_RG_PATH.
   - from: runtime-bundle/ripgrep
     to: ripgrep
     filter:
@@ -66,13 +66,13 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: Clara-Coder-${version}-Windows-${arch}.${ext}
+  artifactName: ValkAde-${version}-Windows-${arch}.${ext}
   # What a signed build signs: the app, its installer and uninstaller, and electron-builder's
   # elevation helper. electron-builder would otherwise sign every bundled .exe as the publisher
   # (Python, node, ripgrep, pip's launchers) and replace the signatures Microsoft and OpenJS put
   # on theirs. A path matches by its ending; "!.exe" turns the rest away. No effect when unsigned.
   signExts:
-    - "Clara Coder.exe"
+    - "ValkAde.exe"
     - "-Windows-x64.exe"
     - "-Windows-arm64.exe"
     - "__uninstaller.exe"
@@ -80,6 +80,9 @@ win:
     - "!.exe"
 
 nsis:
+  # Pinned to the UUIDv5 derived from the former appId (`com.clara.coder`) so Windows upgrades
+  # uninstall Clara Coder in place instead of installing ValkAde side-by-side.
+  guid: ffde8062-591c-5d75-b490-4c9f6467c205
   oneClick: false
   allowToChangeInstallationDirectory: true
   # Update relaunch from the Finish page (see the file's header).
@@ -96,7 +99,7 @@ mac:
         - x64
         - arm64
   category: public.app-category.developer-tools
-  artifactName: Clara-Coder-${version}-mac-${arch}.${ext}
+  artifactName: ValkAde-${version}-mac-${arch}.${ext}
 
 linux:
   # .deb installs without FUSE. AppImage needs libfuse.so.2 (Debian/Ubuntu: libfuse2t64).
@@ -106,15 +109,21 @@ linux:
   category: Development
   # Multi-size hicolor PNGs (build/icons/NxN.png) so DEs render the launcher icon.
   icon: build/icons
-  # Required by fpm for .deb (package.json author is empty).
-  maintainer: Clara Coder <dev@clara.coder>
+  # Required by fpm for .deb.
+  maintainer: ValkAde <dev@valkade.dev>
   syncDesktopName: true
-  artifactName: Clara-Coder-${version}-Linux-${arch}.${ext}
+  artifactName: ValkAde-${version}-Linux-${arch}.${ext}
 
-# Package was renamed from nemo-wrapper → clara-coder; both ship
-# /usr/share/applications/clara-coder.desktop and /opt/Clara Coder/.
+# Package was renamed nemo-wrapper → clara-coder → valkade; replaces/conflicts let apt
+# cleanly remove /opt/Clara Coder/ and clara-coder.desktop on upgrade.
 deb:
   fpm:
+    - --replaces
+    - clara-coder
+    - --conflicts
+    - clara-coder
+    - --provides
+    - clara-coder
     - --replaces
     - nemo-wrapper
     - --conflicts

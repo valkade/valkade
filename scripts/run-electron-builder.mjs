@@ -18,10 +18,12 @@ const releaseDir = path.join(projectRoot, 'release');
 
 function tryKillPackagedWindowsApp() {
   if (process.platform !== 'win32') return;
-  try {
-    execFileSync('taskkill', ['/F', '/IM', 'Clara Coder.exe', '/T'], { stdio: 'ignore' });
-  } catch {
-    /* not running or cannot kill */
+  for (const exe of ['ValkAde.exe', 'Clara Coder.exe']) {
+    try {
+      execFileSync('taskkill', ['/F', '/IM', exe, '/T'], { stdio: 'ignore' });
+    } catch {
+      /* not running or cannot kill */
+    }
   }
 }
 
@@ -45,7 +47,7 @@ async function tryRemoveReleaseDir() {
     } catch (err) {
       if (process.platform === 'win32' && isBusyError(err) && !triedKill) {
         triedKill = true;
-        console.warn('release/ is locked (often the packaged app). Stopping "Clara Coder.exe" and retrying…');
+        console.warn('release/ is locked (often the packaged app). Stopping "ValkAde.exe" and retrying…');
         tryKillPackagedWindowsApp();
         await new Promise((r) => setTimeout(r, 1200));
         continue;

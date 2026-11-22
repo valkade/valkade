@@ -39,9 +39,9 @@ if (missing.length) {
 }
 
 async function boot() {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'clara-tutorial-smoke-'));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'valkade-tutorial-smoke-'));
   const appData = path.join(tempRoot, 'app-data');
-  const userData = path.join(appData, app.isPackaged ? 'clara-coder' : 'clara-coder-dev');
+  const userData = path.join(appData, app.isPackaged ? 'valkade' : 'valkade-dev');
   const sessionData = path.join(tempRoot, 'session');
   const home = path.join(tempRoot, 'home');
   const temp = path.join(tempRoot, 'tmp');
@@ -79,7 +79,7 @@ async function boot() {
   try {
     // Never inherit a dev bridge, real provider credentials, model commands, or local paths.
     for (const key of Object.keys(process.env)) {
-      if (/^(CLARA_|NEMO_|LM_STUDIO_|LLAMACPP_|LLAMA_SERVER_|OPENROUTER_|OPENAI_|ANTHROPIC_|HF_|HUGGING_FACE_|HUGGINGFACE_|TRANSFORMERS_)/i.test(key)) {
+      if (/^(VALKADE_|CLARA_|NEMO_|LM_STUDIO_|LLAMACPP_|LLAMA_SERVER_|OPENROUTER_|OPENAI_|ANTHROPIC_|HF_|HUGGING_FACE_|HUGGINGFACE_|TRANSFORMERS_)/i.test(key)) {
         delete process.env[key];
       }
     }
@@ -96,7 +96,7 @@ async function boot() {
       XDG_STATE_HOME: path.join(tempRoot, 'xdg-state'),
       TMP: temp,
       TEMP: temp,
-      CLARA_CUSTOM_MODELS_DIR: models,
+      VALKADE_CUSTOM_MODELS_DIR: models,
       HF_HOME: path.join(tempRoot, 'hf'),
       HF_HUB_OFFLINE: '1',
     });
@@ -536,7 +536,7 @@ async function boot() {
     homeWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
     homeWindow.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
     homeWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
-    await expectStep(homeWindow, 'intro', 'welcome', 'Welcome to Clara Coder');
+    await expectStep(homeWindow, 'intro', 'welcome', 'Welcome to ValkAde');
     console.log('[tutorial-smoke] PASS keyboard activation');
     await checkReducedMotion(homeWindow);
     console.log('[tutorial-smoke] PASS reduced-motion mascot');
@@ -891,7 +891,7 @@ async function boot() {
     await waitFor('invitation after workspace restoration', async () => (await card(homeWindow))?.primary === 'Start tour');
     assert.equal(await evaluate(homeWindow, () => !!document.querySelector('[data-tutorial="home-start"]')), false);
     await clickPrimary(homeWindow, /^start tour$/i);
-    await expectStep(homeWindow, 'intro', 'welcome', 'Welcome to Clara Coder');
+    await expectStep(homeWindow, 'intro', 'welcome', 'Welcome to ValkAde');
     await clickPrimary(homeWindow, /^next$/i);
     await expectStep(homeWindow, 'intro', 'home-workspace', 'Your workspace');
     const afterTour = JSON.parse(fs.readFileSync(configFile, 'utf8'));

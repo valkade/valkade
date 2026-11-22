@@ -8,15 +8,15 @@ function apiRelease(tag: string, extra: Record<string, unknown> = {}) {
   const version = tag.replace(/^v/, '');
   return {
     tag_name: tag,
-    name: `Clara Coder ${version}`,
+    name: `ValkAde ${version}`,
     body: '## What changed\n* fix',
     draft: false,
     prerelease: version.includes('-'),
     published_at: '2026-10-30T12:00:00Z',
     html_url: 'https://evil.example/not-used',
     assets: [
-      { name: `Clara-Coder-${version}-Windows-x64.exe`, size: 1000, state: 'uploaded', digest: `sha256:${SHA256}` },
-      { name: `Clara-Coder-${version}-Windows-x64.exe.blockmap`, size: 10, state: 'uploaded' },
+      { name: `ValkAde-${version}-Windows-x64.exe`, size: 1000, state: 'uploaded', digest: `sha256:${SHA256}` },
+      { name: `ValkAde-${version}-Windows-x64.exe.blockmap`, size: 10, state: 'uploaded' },
       { name: 'latest.yml', size: 300, state: 'uploaded' },
     ],
     ...extra,
@@ -25,17 +25,30 @@ function apiRelease(tag: string, extra: Record<string, unknown> = {}) {
 
 describe('parseGithubReleases', () => {
   it('keeps the platform installer and latest.yml of each release', () => {
-    const [r] = parseGithubReleases([apiRelease('v0.2.0')], WIN);
+    const [r] = parseGithubReleases([apiRelease('v0.6.0')], WIN);
     expect(r!.summary).toMatchObject({
-      version: '0.2.0',
-      tag: 'v0.2.0',
-      name: 'Clara Coder 0.2.0',
+      version: '0.6.0',
+      tag: 'v0.6.0',
+      name: 'ValkAde 0.6.0',
       prerelease: false,
-      htmlUrl: 'https://github.com/dpere122/ClaraCoder/releases/tag/v0.2.0',
-      installer: { fileName: 'Clara-Coder-0.2.0-Windows-x64.exe', size: 1000 },
+      htmlUrl: 'https://github.com/valkade/valkade/releases/tag/v0.6.0',
+      installer: { fileName: 'ValkAde-0.6.0-Windows-x64.exe', size: 1000 },
     });
-    expect(r!.installer).toEqual({ name: 'Clara-Coder-0.2.0-Windows-x64.exe', size: 1000, sha256: SHA256 });
+    expect(r!.installer).toEqual({ name: 'ValkAde-0.6.0-Windows-x64.exe', size: 1000, sha256: SHA256 });
     expect(r!.updateInfo?.name).toBe('latest.yml');
+  });
+
+  it('still matches legacy Clara-Coder installers for releases before the rename', () => {
+    const legacy = apiRelease('v0.5.4', {
+      name: 'Clara Coder 0.5.4',
+      assets: [
+        { name: 'Clara-Coder-0.5.4-Windows-x64.exe', size: 950, state: 'uploaded', digest: `sha256:${SHA256}` },
+        { name: 'latest.yml', size: 300, state: 'uploaded' },
+      ],
+    });
+    const [r] = parseGithubReleases([legacy], WIN);
+    expect(r!.summary.installer).toEqual({ fileName: 'Clara-Coder-0.5.4-Windows-x64.exe', size: 950 });
+    expect(r!.installer?.name).toBe('Clara-Coder-0.5.4-Windows-x64.exe');
   });
 
   it('drops drafts and tags that are not versions', () => {
@@ -80,9 +93,9 @@ describe('parseGithubReleases', () => {
 
 describe('releaseAssetUrl', () => {
   it('builds the download URL from the pinned repo, encoding tag and name', () => {
-    expect(releaseAssetUrl('v0.2.0', 'Clara-Coder-0.2.0-Windows-x64.exe')).toBe(
-      'https://github.com/dpere122/ClaraCoder/releases/download/v0.2.0/Clara-Coder-0.2.0-Windows-x64.exe',
+    expect(releaseAssetUrl('v0.6.0', 'ValkAde-0.6.0-Windows-x64.exe')).toBe(
+      'https://github.com/valkade/valkade/releases/download/v0.6.0/ValkAde-0.6.0-Windows-x64.exe',
     );
-    expect(releaseAssetUrl('v1/../x', 'a b')).toBe('https://github.com/dpere122/ClaraCoder/releases/download/v1%2F..%2Fx/a%20b');
+    expect(releaseAssetUrl('v1/../x', 'a b')).toBe('https://github.com/valkade/valkade/releases/download/v1%2F..%2Fx/a%20b');
   });
 });

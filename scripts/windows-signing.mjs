@@ -22,7 +22,10 @@ export const AZURE_SIGNING = {
 export const AZURE_CREDENTIAL_VARS = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET'];
 
 /** Set by the release workflow: a release must not go out unsigned because a secret went missing. */
-export const REQUIRE_SIGNING_VAR = 'CLARA_REQUIRE_SIGNING';
+export const REQUIRE_SIGNING_VAR = 'VALKADE_REQUIRE_SIGNING';
+
+/** Former name of {@link REQUIRE_SIGNING_VAR}; honored as a fallback until v0.7. */
+export const LEGACY_REQUIRE_SIGNING_VAR = 'CLARA_REQUIRE_SIGNING';
 
 /**
  * electron-builder arguments that turn signing on, or none when this build is unsigned.
@@ -32,8 +35,11 @@ export function azureSigningArgs(env = process.env, platform = process.platform)
   if (platform !== 'win32') return [];
   const missing = AZURE_CREDENTIAL_VARS.filter((name) => !String(env[name] ?? '').trim());
   if (missing.length === AZURE_CREDENTIAL_VARS.length) {
-    if (String(env[REQUIRE_SIGNING_VAR] ?? '').trim()) {
-      throw new Error(`${REQUIRE_SIGNING_VAR} is set but ${missing.join(', ')} are not: refusing to build an unsigned release.`);
+    const requiredBy = [REQUIRE_SIGNING_VAR, LEGACY_REQUIRE_SIGNING_VAR].find((name) =>
+      String(env[name] ?? '').trim(),
+    );
+    if (requiredBy) {
+      throw new Error(`${requiredBy} is set but ${missing.join(', ')} are not: refusing to build an unsigned release.`);
     }
     return [];
   }
@@ -53,10 +59,10 @@ export function signatureProblem(info, publisher = AZURE_SIGNING.publisherName) 
 /** Reads a file's Authenticode signature via PowerShell (path passed in env, never interpolated). */
 export function readAuthenticode(file) {
   const script =
-    '$s = Get-AuthenticodeSignature -LiteralPath $env:CLARA_SIG_PATH; ' +
+    '$s = Get-AuthenticodeSignature -LiteralPath $env:VALKADE_SIG_PATH; ' +
     '[pscustomobject]@{ status = [string]$s.Status; subject = $(if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { $null }) } | ConvertTo-Json -Compress';
   const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], {
-    env: { ...process.env, CLARA_SIG_PATH: file },
+    env: { ...process.env, VALKADE_SIG_PATH: file },
     encoding: 'utf8',
     windowsHide: true,
     timeout: 60_000,

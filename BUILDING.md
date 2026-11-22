@@ -1,6 +1,8 @@
-# Building Clara Coder
+# Building ValkAde
 
-Clara Coder is an Electron app with an Angular UI and a Python (FastAPI + LangGraph) backend. For Python API details, env vars and layout, see [python/README.md](python/README.md). For how agent tools are written, see [python/TOOLS.md](python/TOOLS.md).
+*Your local-first agentic dev environment.*
+
+ValkAde (formerly ClaraCoder) is an Electron app with an Angular UI and a Python (FastAPI + LangGraph) backend. For Python API details, env vars and layout, see [python/README.md](python/README.md). For how agent tools are written, see [python/TOOLS.md](python/TOOLS.md).
 
 A fresh clone takes roughly 5–15 minutes to set up, depending on network speed (PyTorch and Kokoro are the slow parts).
 
@@ -21,8 +23,8 @@ Optional:
 ### 1. Clone and install Node dependencies
 
 ```bash
-git clone https://github.com/dpere122/ClaraCoder.git
-cd ClaraCoder
+git clone https://github.com/valkade/valkade.git
+cd valkade
 npm install
 ```
 
@@ -106,9 +108,9 @@ The CI workflow (`.github/workflows/ci.yml`) runs all three suites, the theme re
 npm run pack:dir
 ```
 
-`pack` / `pack:dir` run two bundling steps first: `bundle:python` (downloads a portable CPython into `runtime-bundle/python/`, installs `python/requirements.txt` into that interpreter, and writes `.clara-runtime-manifest.json`) and `bundle:rg` (a pinned ripgrep for workspace search). They then compile and invoke electron-builder. After a successful pack, `scripts/verify-packed-runtime.mjs` checks the unpacked resources (interpreter, manifest, backend sources, ripgrep). Packaged output lands under `release/` (or `release-pack-<timestamp>/` if the folder is locked on Windows). The TypeScript/JavaScript language server is not in the installer: users download it from the Dependencies window.
+`pack` / `pack:dir` run two bundling steps first: `bundle:python` (downloads a portable CPython into `runtime-bundle/python/`, installs `python/requirements.txt` into that interpreter, and writes `.valkade-runtime-manifest.json`) and `bundle:rg` (a pinned ripgrep for workspace search). They then compile and invoke electron-builder. After a successful pack, `scripts/verify-packed-runtime.mjs` checks the unpacked resources (interpreter, manifest, backend sources, ripgrep). Packaged output lands under `release/` (or `release-pack-<timestamp>/` if the folder is locked on Windows). The TypeScript/JavaScript language server is not in the installer: users download it from the Dependencies window.
 
-In packaged builds only the bundled runtime is used. `CLARA_PYTHON`, the repo-root `.venv`, and system Python apply to development only.
+In packaged builds only the bundled runtime is used. `VALKADE_PYTHON`, the repo-root `.venv`, and system Python apply to development only.
 
 To regenerate `python/requirements.lock` from the bundled interpreter:
 
@@ -123,7 +125,7 @@ On **Linux**, `npm run pack` builds a `.deb` and an AppImage. Prefer the `.deb` 
 
 Desktop launchers give the app a stripped GUI `PATH`, so agent `run_command` cannot find CLIs that work in a login terminal (`gh`, `cargo`, `~/.local/bin`, nvm/fnm/asdf shims, Homebrew, …). The workspace terminal is unaffected — it is an interactive shell that sources your profile.
 
-Clara Coder reconstructs user bins once at startup (login-shell `PATH` probe + well-known directories that exist) and applies that to the sidecar that agent commands inherit. Add extra directories in **Settings → Tools → Extra PATH directories** (one per line). The login probe reads `PATH` only; it does not copy API keys or other profile secrets into agent env.
+ValkAde reconstructs user bins once at startup (login-shell `PATH` probe + well-known directories that exist) and applies that to the sidecar that agent commands inherit. Add extra directories in **Settings → Tools → Extra PATH directories** (one per line). The login probe reads `PATH` only; it does not copy API keys or other profile secrets into agent env.
 
 </details>
 
@@ -146,6 +148,21 @@ Heavy pieces are on-demand; the packaged app ships a portable Python with core b
 </details>
 
 <details>
+<summary><b>App data and upgrading from ClaraCoder</b></summary>
+
+<a id="app-data-and-upgrading-from-claracoder"></a>
+
+App data (settings, chats, workspaces, themes, the `runtime/` downloads) lives in a `valkade` folder under the OS app-data root, for example `%APPDATA%\valkade` on Windows. Dev builds (`npm run dev`) use `valkade-dev` so they never touch an installed app's state.
+
+When an older `clara-coder` folder exists (`clara-coder-dev` for dev builds), a window asks before anything else starts whether to migrate it. Accepting copies the app-owned files into the new folder and keeps the original as a backup; **Start fresh** leaves it alone. Nothing migrates without that choice.
+
+Model weights are never moved. New installs download models to `~/ValkAde/models` (`%USERPROFILE%\ValkAde\models` on Windows); an existing `~/ClaraCoder/models` keeps being used.
+
+Per-workspace metadata (`system-prompt.md`, `checks.json`, `build-plans/`) lives in `.valkade/` at the workspace root. A legacy `.clara/` or `.nemo/` folder is migrated into it automatically, and all three names stay hidden from the file tree and agent search.
+
+</details>
+
+<details>
 <summary><b>llama-server GPU acceleration (auto-detected)</b></summary>
 
 The `llama-server` installer probes the host and picks a GPU-accelerated build when one is available, falling back to CPU otherwise:
@@ -162,7 +179,7 @@ The `llama-server` installer probes the host and picks a GPU-accelerated build w
 
 Detection uses `nvidia-smi` plus the NVIDIA driver library (`nvcuda.dll` / `libcuda.so.1`) to read the CUDA driver-API version. The installed variant shows in the Dependencies window as the version label, e.g. `b12182 (cuda-12.4)`, `b12182 (cuda-13.5)` or `b12182 (vulkan)`.
 
-Force a specific build with `CLARA_LLAMA_SERVER_CUDA`:
+Force a specific build with `VALKADE_LLAMA_SERVER_CUDA`:
 
 | Value | Result |
 | ----- | ------ |
@@ -173,9 +190,9 @@ Force a specific build with `CLARA_LLAMA_SERVER_CUDA`:
 | `vulkan` | Force the Vulkan prebuilt (Linux/Windows x64) |
 | `compile` | Compile from source with `-DGGML_CUDA=ON` (Linux). Requires `cmake`, `gcc`, and the NVIDIA CUDA toolkit; the installer errors with a clear message listing what's missing before attempting the build |
 
-> **Note:** The Linux CUDA prebuilts bundle `libcudart`/`libcublas`, so no CUDA toolkit is needed, only the NVIDIA driver. `b10867` and older don't have them; if you pin an older release with `CLARA_LLAMA_SERVER_VERSION`, force `vulkan` too. `compile` is still available if you want a build tuned to your own GPU.
+> **Note:** The Linux CUDA prebuilts bundle `libcudart`/`libcublas`, so no CUDA toolkit is needed, only the NVIDIA driver. `b10867` and older don't have them; if you pin an older release with `VALKADE_LLAMA_SERVER_VERSION`, force `vulkan` too. `compile` is still available if you want a build tuned to your own GPU.
 
-Pin a different llama.cpp release with `CLARA_LLAMA_SERVER_VERSION` (e.g. `b12182`).
+Pin a different llama.cpp release with `VALKADE_LLAMA_SERVER_VERSION` (e.g. `b12182`).
 
 Managed chat servers keep llama-server's default 8 GiB host-RAM prompt cache, which restores a conversation quickly after its prompt changes. On a machine with under 24 GiB of RAM they start with `--cache-ram 2048` instead. A `--cache-ram <MiB>` in the run command always wins (`0` turns the cache off).
 
@@ -187,8 +204,8 @@ Release builds are signed through [Azure Artifact Signing](https://learn.microso
 
 - A local `npm run pack` has none of the three and builds unsigned.
 - With all three set, the app and its installer are signed, then checked for a valid signature from the publisher. A failed check fails the build.
-- Only ClaraCoder's own programs are signed (`win.signExts` in `electron-builder.yml`). The bundled Python, node and ripgrep keep the signatures they came with.
-- A release in this repository fails without the secrets instead of going out unsigned (`CLARA_REQUIRE_SIGNING`). A fork builds unsigned.
+- Only ValkAde's own programs are signed (`win.signExts` in `electron-builder.yml`). The bundled Python, node and ripgrep keep the signatures they came with.
+- A release in this repository fails without the secrets instead of going out unsigned (`VALKADE_REQUIRE_SIGNING`). A fork builds unsigned.
 
 A signed app only installs an update signed by the same publisher (name, organization and country). Changing the certificate's name therefore cuts existing installs off from updates.
 
@@ -215,13 +232,15 @@ A signed app only installs an update signed by the same publisher (name, organiz
 
 | Variable             | Purpose |
 | -------------------- | ------- |
-| `CLARA_PYTHON`       | Dev only: absolute path to Python executable (skips auto `.venv` detection). Ignored in packaged builds. |
-| `CLARA_PYTORCH_CPU=1` | Same as `setup:python:cpu` — CPU-only PyTorch |
+| `VALKADE_PYTHON`       | Dev only: absolute path to Python executable (skips auto `.venv` detection). Ignored in packaged builds. |
+| `VALKADE_PYTORCH_CPU=1` | Same as `setup:python:cpu` — CPU-only PyTorch |
 | `PYTHON`             | Base interpreter for creating `.venv` if it does not exist yet |
 | `DEV_SERVER_URL`     | Set automatically by `npm run dev` |
-| `CLARA_LLAMA_SERVER_VERSION` | Pin a llama.cpp release tag for the managed `llama-server` dep (e.g. `b12182`) |
-| `CLARA_LLAMA_SERVER_CUDA` | Force the `llama-server` build variant: `auto` (default) \| `cpu` \| `cuda-12` \| `cuda-13` \| `vulkan` \| `compile` |
-| `CLARA_FASTEMBED_THREADS` | ONNX Runtime CPU threads for the in-process workspace embedder (`0` = auto, `min(4, cores)`). Lower it if background indexing competes with a CPU-offloaded `llama-server` |
+| `VALKADE_LLAMA_SERVER_VERSION` | Pin a llama.cpp release tag for the managed `llama-server` dep (e.g. `b12182`) |
+| `VALKADE_LLAMA_SERVER_CUDA` | Force the `llama-server` build variant: `auto` (default) \| `cpu` \| `cuda-12` \| `cuda-13` \| `vulkan` \| `compile` |
+| `VALKADE_FASTEMBED_THREADS` | ONNX Runtime CPU threads for the in-process workspace embedder (`0` = auto, `min(4, cores)`). Lower it if background indexing competes with a CPU-offloaded `llama-server` |
+
+`CLARA_*` and `NEMO_*` names still work until v0.7.
 
 ---
 
@@ -247,7 +266,7 @@ To recreate from scratch: `rm -rf .venv && npm run setup:python`.
 
 ### Backend uses the wrong Python
 
-Dev mode prefers `<repo>/.venv/bin/python` (or `.venv\Scripts\python.exe`). If that venv is missing, it falls back to system `python3`. Run `npm run setup:python` or set `CLARA_PYTHON`. Packaged builds use only the bundled runtime.
+Dev mode prefers `<repo>/.venv/bin/python` (or `.venv\Scripts\python.exe`). If that venv is missing, it falls back to system `python3`. Run `npm run setup:python` or set `VALKADE_PYTHON`. Packaged builds use only the bundled runtime.
 
 ### Native modules (`better-sqlite3` / `node-pty`)
 
@@ -255,7 +274,7 @@ Dev mode prefers `<repo>/.venv/bin/python` (or `.venv\Scripts\python.exe`). If t
 
 `node-pty` 1.1 also ships a Node-API binary, for Windows and macOS only. There `npm install` and `npm run dev` only check that Electron loads it and compile nothing while it does; on Linux they compile it from source. If you see `NODE_MODULE_VERSION` / `was compiled against a different Node.js version`, or the terminal is broken, run `npm run rebuild:pty` to compile it from source for this repo's Electron. When that rebuild fails and Electron can still load the addon from its prebuilt binary, the command still passes.
 
-Compiling `node-pty` on Windows may require **MSVC Spectre-mitigated libraries** (Visual Studio Installer → Individual components). If you cannot install them locally, set `CLARA_ALLOW_WIN_PTY_NON_SPECTRE=1` before `npm run rebuild:pty` for a non-Spectre local build (see `scripts/rebuild-native.mjs`).
+Compiling `node-pty` on Windows may require **MSVC Spectre-mitigated libraries** (Visual Studio Installer → Individual components). If you cannot install them locally, set `VALKADE_ALLOW_WIN_PTY_NON_SPECTRE=1` before `npm run rebuild:pty` for a non-Spectre local build (see `scripts/rebuild-native.mjs`).
 
 ### Kokoro / TTS errors at runtime
 
@@ -273,7 +292,7 @@ On NVIDIA GPUs, Kokoro uses CUDA via PyTorch. If TTS is slow or falls back to CP
 | `src/preload/`             | Preload bridge between the renderer and main process |
 | `src/renderer/`            | Angular UI ([src/renderer/README.md](src/renderer/README.md)) |
 | `src/shared/`              | Types shared by main and renderer; `theme/` holds the theme schema, token catalog, generated group registry, and built-in themes |
-| `python/`                  | FastAPI backend (`server.py`, `clara_coder_backend/`) |
+| `python/`                  | FastAPI backend (`server.py`, `valkade_backend/`; `clara_coder_backend/` is a compatibility shim) |
 | `.venv/`                   | Project Python environment (gitignored; created by `setup:python`) |
 | `scripts/`                 | Build, bundling, native-rebuild, and theme-registry scripts (`setup-python.mjs` creates `.venv` and installs PyTorch + deps + Kokoro) |
 | `docs/media/`              | README screenshots and clips, plus the [press kit](docs/media/README.md) |

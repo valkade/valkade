@@ -30,7 +30,7 @@ const writeLock = process.argv.includes('--write-lock');
 /** Pinned: CPython 3.12.16 from python-build-standalone 20261026 (Kokoro-friendly). */
 const RELEASE = '20261026';
 const PY_VER = '3.12.16';
-const MANIFEST_NAME = '.clara-runtime-manifest.json';
+const MANIFEST_NAME = '.valkade-runtime-manifest.json';
 
 const CORE_SMOKE_IMPORTS =
   'import fastapi, uvicorn, langchain, langgraph, onnxruntime, fastembed, basedpyright, black; print(\'ok\')';

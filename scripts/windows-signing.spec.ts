@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AZURE_CREDENTIAL_VARS,
   AZURE_SIGNING,
+  LEGACY_REQUIRE_SIGNING_VAR,
   REQUIRE_SIGNING_VAR,
   assertSigned,
   azureSigningArgs,
@@ -46,8 +47,9 @@ describe('azureSigningArgs', () => {
     }
   });
 
-  it('refuses an unsigned build when a release requires signing', () => {
+  it('refuses an unsigned build when a release requires signing (VALKADE_ and legacy CLARA_)', () => {
     expect(() => azureSigningArgs({ [REQUIRE_SIGNING_VAR]: '1' }, 'win32')).toThrow(/unsigned release/);
+    expect(() => azureSigningArgs({ [LEGACY_REQUIRE_SIGNING_VAR]: '1' }, 'win32')).toThrow(/unsigned release/);
     expect(azureSigningArgs({ ...CREDENTIALS, [REQUIRE_SIGNING_VAR]: '1' }, 'win32')).toHaveLength(4);
   });
 });
@@ -86,12 +88,18 @@ describe('what a signed build signs (win.signExts)', () => {
     WinPackager.prototype.shouldSignFile.call({ platformSpecificBuildOptions: { signExts: config.win.signExts } }, file, true);
   const unpacked = 'release/win-unpacked/';
 
-  it("signs ClaraCoder's own programs", () => {
-    expect(signs(`${unpacked}Clara Coder.exe`)).toBe(true);
+  it('pins nsis.guid to the former Clara Coder appId UUIDv5 for in-place upgrades', () => {
+    expect(config.appId).toBe('com.valkade.app');
+    expect(config.productName).toBe('ValkAde');
+    expect(config.nsis.guid).toBe('ffde8062-591c-5d75-b490-4c9f6467c205');
+  });
+
+  it("signs ValkAde's own programs", () => {
+    expect(signs(`${unpacked}ValkAde.exe`)).toBe(true);
     expect(signs(`${unpacked}resources/elevate.exe`)).toBe(true);
-    expect(signs('release/Clara-Coder-0.4.8-Windows-x64.exe')).toBe(true);
-    expect(signs('release/Clara-Coder-0.4.8-Windows-x64.__uninstaller.exe')).toBe(true);
-    expect(signs('release/Clara-Coder-1.0.0-beta.3-Windows-arm64.exe')).toBe(true);
+    expect(signs('release/ValkAde-0.6.0-Windows-x64.exe')).toBe(true);
+    expect(signs('release/ValkAde-0.6.0-Windows-x64.__uninstaller.exe')).toBe(true);
+    expect(signs('release/ValkAde-1.0.0-beta.3-Windows-arm64.exe')).toBe(true);
   });
 
   it('leaves bundled programs as they came', () => {

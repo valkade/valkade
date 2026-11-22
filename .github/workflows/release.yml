@@ -92,7 +92,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          CLARA_REQUIRE_SIGNING: ${{ github.repository == 'dpere122/ClaraCoder' && '1' || '' }}
+          VALKADE_REQUIRE_SIGNING: ${{ github.repository == 'valkade/valkade' && '1' || '' }}
         run: npm run pack -- --publish never
 
       - uses: actions/upload-artifact@v4
@@ -136,6 +136,6 @@ jobs:
           fi
           gh release create "$TAG" assets/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Clara Coder $VERSION" \
+            --title "ValkAde $VERSION" \
             --generate-notes \
             "${flags[@]}"

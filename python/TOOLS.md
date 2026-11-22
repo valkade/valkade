@@ -1,13 +1,13 @@
-# nemo tool authoring standard
+# ValkAde tool authoring standard
 
-Single source of truth for how tools in `python/clara_coder_backend/tools/` are
+Single source of truth for how tools in `python/valkade_backend/tools/` are
 described, parameterized, and kept under the per-mode token budget. Follow this
 when adding or editing any tool.
 
 ## 1. Description template
 
 Every tool description uses the uniform template, built with
-`describe(...)` from `clara_coder_backend.tools.tool_conventions`:
+`describe(...)` from `valkade_backend.tools.tool_conventions`:
 
 ```
 purpose. When: … Not: … Shape: … Verify: …
@@ -26,7 +26,7 @@ punctuation (one terminal stop per part, no `..` / `.;`), so pass fragments.
 ## 2. Compose, don't duplicate
 
 Import the shared convention constants from
-`clara_coder_backend.tools.tool_conventions` and compose them into `describe(...)`.
+`valkade_backend.tools.tool_conventions` and compose them into `describe(...)`.
 Do **not** re-state these rules in a tool docstring:
 
 | Constant            | Replaces                                                |
@@ -67,7 +67,7 @@ won't pick them up. Pass the description explicitly:
 
 ```python
 from langchain_core.tools import tool
-from clara_coder_backend.tools.tool_conventions import describe, RELATIVE_PATH, ONE_BASED
+from valkade_backend.tools.tool_conventions import describe, RELATIVE_PATH, ONE_BASED
 
 my_tool = tool(
     MY_TOOL_NAME,
@@ -85,7 +85,7 @@ my_tool = tool(
 
 Bound tool schemas (via `convert_to_openai_tool`, `cl100k_base`, MCP tools
 excluded) must stay ≤ **9,000 tokens** per mode (`TOOL_BUDGET_CAP`). Enforced in
-CI by `clara_coder_backend.hitl.tool_budget.assert_under_budget` via
+CI by `valkade_backend.hitl.tool_budget.assert_under_budget` via
 `tests/test_tool_budget.py` (including the editor + web + formatters worst case):
 
 ```bash
@@ -108,7 +108,7 @@ information silently.
 
 ## 6. Plan-mode catalog: grouped one-line summaries
 
-`format_tools_catalog` (in `clara_coder_backend.hitl.tool_registry`) emits grouped
+`format_tools_catalog` (in `valkade_backend.hitl.tool_registry`) emits grouped
 one-line summaries bucketed by `TOOL_FAMILIES` — **not** full descriptions.
 This avoids duplicating the schema text in the planner prompt. Each line:
 
@@ -121,14 +121,14 @@ planner catalog stays organized.
 
 ## 7. Single source for edit semantics
 
-Edits write straight to disk (`clara_coder_backend/tools/edit.py`): no staging,
+Edits write straight to disk (`valkade_backend/tools/edit.py`): no staging,
 landing step or diff card. The first mutation of each path per turn emits a
 `file_journal` row; Electron keeps those per turn so the user can review and
 reset that turn's files after the reply. Auto Run gates only command / web /
 MCP approval cards, never edits.
 
 That policy lives in **exactly one place**: `edit_semantics_block()` in
-`clara_coder_backend/llm/prompt_blocks.py`, injected **once** via
+`valkade_backend/llm/prompt_blocks.py`, injected **once** via
 `messages._outer_agent_operational_block`. Model suffixes must not re-embed it,
 and tool descriptions must not restate it—extend `edit_semantics_block` instead.
 New mutating tools must journal through `session/file_journal.py`
@@ -139,7 +139,7 @@ New mutating tools must journal through `session/file_journal.py`
 Long per-family playbooks (when to use overview→search→section, PDF page
 semantics, etc.) belong in **context packs**, not always-on operational prose.
 
-- Module: `clara_coder_backend/context_packs/`
+- Module: `valkade_backend/context_packs/`
 - Register with `register_pack(ContextPack(...))` from the pack module
 - Attach `tool_prefixes` and/or `tool_names` (+ optional `path_suffixes`) so the
   pack **auto-activates** on first matching tool use
@@ -155,14 +155,14 @@ shape; packs carry workflow knowledge.
 
 ## 9. Sub-agents (`spawn_subagent`, `wait_for_subagents`, `stop_subagent`)
 
-`spawn_subagent(task, name, background=false)` (`clara_coder_backend/tools/spawn_subagent.py`)
+`spawn_subagent(task, name, background=false)` (`valkade_backend/tools/spawn_subagent.py`)
 hands a self-contained task to an independent clone of the main agent. With roles in Settings it
 also takes `role`.
 `wait_for_subagents(names?, timeout_seconds=600)` and `stop_subagent(name)`
-(`clara_coder_backend/tools/subagent_control.py`) address sub-agents by name (unique among a
+(`valkade_backend/tools/subagent_control.py`) address sub-agents by name (unique among a
 session's live ones: a repeated name gets `-2`, `-3`, …) or id. Family `Sub-agents`. The session
 fork, ownership, report delivery and the event contract live in
-`clara_coder_backend/lang_agent/subagents.py`.
+`valkade_backend/lang_agent/subagents.py`.
 
 - **Where they are bound:** only the agent-mode chat turn of a main session
   (`build_clara_single_outer_graph(..., allow_subagents=True)` from
@@ -180,7 +180,7 @@ fork, ownership, report delivery and the event contract live in
 - **Waiting or not:** by default the spawn call waits and returns the report.
   With `background=true` it returns at once ("Started sub-agent `x` in the
   background …"). Calls in one response run in parallel, up to the cloud limit
-  in Settings (default 3; `CLARA_SUBAGENT_MAX_CONCURRENCY` until Settings
+  in Settings (default 3; `VALKADE_SUBAGENT_MAX_CONCURRENCY` until Settings
   arrive) per main session and source, and one at a time on a local source;
   the rest wait for a slot.
 - **Roles** (Settings, Subagents; `RuntimeSubagentRole`): the user defines
@@ -226,18 +226,18 @@ New tools that must not run inside a sub-agent are dropped in
 ## 10. Turn verification (harness, not a tool)
 
 When an editing turn's model answers without tool calls, `TurnVerificationMiddleware`
-(`clara_coder_backend/middleware/turn_verification_middleware.py`) checks the work before the turn
+(`valkade_backend/middleware/turn_verification_middleware.py`) checks the work before the turn
 ends. It is not a tool and takes no schema budget. It is off by default ("Verify changes before a turn
 ends" in Settings → Tools): most models check their own work, and a failure sends a model that has
 already given its final answer back to write another.
 
-- **Evidence** (`clara_coder_backend/verify/evidence.py`): error-severity LSP diagnostics on the
+- **Evidence** (`valkade_backend/verify/evidence.py`): error-severity LSP diagnostics on the
   paths journaled this turn, minus the errors each path already had when the turn first touched it;
-  then the enabled commands of `.clara/checks.json` whose `paths` globs match a touched path, run one
+  then the enabled commands of `.valkade/checks.json` whose `paths` globs match a touched path, run one
   after another through `run_harness_command` (each with its own timeout, in a terminal tab).
 - **Who may run commands:** only a trusted workspace (`workspace_is_trusted`), with no approval
   card, Auto Run on or off. In return the agent cannot change the file: the edit, copy and delete
-  tools refuse `.clara/checks.json` (`is_user_owned_meta_path` in `workspace/meta.py`). A new mutating
+  tools refuse `.valkade/checks.json` (`is_user_owned_meta_path` in `workspace/meta.py`). A new mutating
   tool must refuse it too.
 - **Failure:** the failures go back to the model as a message and the graph jumps to the model, at
   most `verify_max_fix_rounds` times per turn (Settings → Tools). After that, or when the model
@@ -265,8 +265,8 @@ requires Allow web access and an active session; Auto Run off stages approval
 before any DNS lookup or network request. The card shows the configured safe
 User-Agent and capture sandbox limitations.
 
-Electron supplies `CLARA_SCREENSHOT_URL` (exactly
-`http://127.0.0.1:<port>/capture`) and `CLARA_SCREENSHOT_TOKEN`. Python posts the
+Electron supplies `VALKADE_SCREENSHOT_URL` (exactly
+`http://127.0.0.1:<port>/capture`) and `VALKADE_SCREENSHOT_TOKEN` (`CLARA_*` and `NEMO_*` names still work until v0.7). Python posts the
 URL, dimensions and configured User-Agent with bearer authentication, no
 environment proxies or redirects, a 40-second timeout and a 16 KiB response cap.
 Both layers enforce public-only targets; Python rejects credentials and emails

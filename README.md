@@ -1,22 +1,24 @@
 <p align="center">
-  <img src="docs/media/marketing/banner-1920x1080.png" alt="Clara Coder, an agentic development environment, showing a before and after diff next to the agent's change list" width="100%">
+  <img src="docs/media/marketing/banner-1920x1080.png" alt="ValkAde, a local-first agentic dev environment, showing a before and after diff next to the agent's change list" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/dpere122/ClaraCoder/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/dpere122/ClaraCoder?style=flat-square&color=4da3ff&label=release"></a>
+  <a href="https://github.com/valkade/valkade/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/valkade/valkade?style=flat-square&color=4da3ff&label=release"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-ffb35c?style=flat-square"></a>
 </p>
 
-<h3 align="center">An agentic development environment for working in real repositories, with cloud or local models.</h3>
+<h3 align="center">Your local-first agentic dev environment.</h3>
+
+<p align="center">Work in real repositories, with cloud or local models. Formerly ClaraCoder.</p>
 
 <p align="center">
-  <a href="https://github.com/dpere122/ClaraCoder/releases/latest"><b>Download for Windows</b></a> ·
+  <a href="https://github.com/valkade/valkade/releases/latest"><b>Download for Windows</b></a> ·
   <a href="BUILDING.md">Build from source</a> ·
   <a href="THEMES.md">Themes</a>
 </p>
 
 <p align="center">
-  <img src="docs/media/clips/agent-turn.gif" alt="Clara, running Gemma 4 12B locally, adds a 5-day forecast strip to a weather app across several files" width="100%">
+  <img src="docs/media/clips/agent-turn.gif" alt="ValkAde, running Gemma 4 12B locally, adds a 5-day forecast strip to a weather app across several files" width="100%">
   <br><sub>Gemma 4 12B running locally on an RTX 5070 Ti. Waits sped up.</sub>
 </p>
 
@@ -60,7 +62,7 @@ Or connect **Claude**, **OpenAI**, **OpenRouter**, **LM Studio** or any OpenAI-c
 | - | - |
 | **Agent tools** | Edit, search, shell, web, LSP, MCP, sub-agents and build plans |
 | **Semantic search** | A local index, so you can search code by intent |
-| **Themes** | Full theme engine, or [ask Clara to design one](THEMES.md) |
+| **Themes** | Full theme engine, or [ask ValkAde to design one](THEMES.md) |
 | **Health** | Live GPU, VRAM, CPU and runtime status |
 | **Dependencies** | Local engine, Java LSP and speech, installed on demand |
 
@@ -68,9 +70,11 @@ Or connect **Claude**, **OpenAI**, **OpenRouter**, **LM Studio** or any OpenAI-c
 
 ## Install
 
-**Windows:** [download the installer](https://github.com/dpere122/ClaraCoder/releases/latest). Everything is bundled. Add a model under **Sources** and go.
+**Windows:** [download the installer](https://github.com/valkade/valkade/releases/latest). Everything is bundled. Add a model under **Sources** and go.
 
 **macOS and Linux:** [build from source](BUILDING.md).
+
+**Coming from ClaraCoder?** On first launch ValkAde offers to bring over your settings, chats and workspaces from the old `clara-coder` app-data folder. It copies them only if you accept, and keeps the old folder as a backup. Models stay where they are: an existing `~/ClaraCoder/models` keeps being used, and new installs default to `~/ValkAde/models`. See [BUILDING.md](BUILDING.md#app-data-and-upgrading-from-claracoder) for details.
 
 ---
 
