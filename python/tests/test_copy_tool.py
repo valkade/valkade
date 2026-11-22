@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.tools.copy import copy_workspace_files
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.copy import copy_workspace_files
+from valkade_backend.session.state import current_session_id, get_session
 
 
 @pytest.fixture()
@@ -105,7 +105,7 @@ def test_copy_workspace_files_rejects_duplicate_destinations(copy_env) -> None:
 
 def test_copy_reports_items_copied_before_a_destination_appears(copy_env, monkeypatch) -> None:
     """A parallel call creating a later destination mid-copy stops the batch; the earlier copy is reported."""
-    import clara_coder_backend.tools.copy as copy_mod
+    import valkade_backend.tools.copy as copy_mod
 
     ws = copy_env.workspace
     (ws / 'one.txt').write_text('one', encoding='utf-8')

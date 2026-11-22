@@ -90,10 +90,10 @@ describe('scopeThemeCss', () => {
 
   it('removes dangerous declarations and disallowed urls', () => {
     const out = scopeThemeCss(
-      '.a { behavior: url(x.htc); color: red; background: url(https://evil.example/a.png); border-image: url("clara-theme://asset/t/a.png") }',
+      '.a { behavior: url(x.htc); color: red; background: url(https://evil.example/a.png); border-image: url("valkade-theme://asset/t/a.png"); list-style-image: url("clara-theme://asset/t/b.png") }',
       SCOPE,
     );
-    expect(out.css).toBe(wrap(`:scope .a { color: red; background: none; border-image: url("clara-theme://asset/t/a.png"); }`));
+    expect(out.css).toBe(wrap(`:scope .a { color: red; background: none; border-image: url("valkade-theme://asset/t/a.png"); list-style-image: url("clara-theme://asset/t/b.png"); }`));
     expect(out.warnings.some((w) => w.includes('unsafe'))).toBe(true);
     expect(out.warnings.some((w) => w.includes('disallowed scheme'))).toBe(true);
   });

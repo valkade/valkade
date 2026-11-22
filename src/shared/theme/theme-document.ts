@@ -1,5 +1,5 @@
 /**
- * The Clara theme document: a JSON-serializable description of an app theme.
+ * The ValkAde theme document: a JSON-serializable description of an app theme.
  *
  * - `tokens` — global `--t-*` values (see `theme-tokens.ts`). Partial documents are fine;
  *   the engine layers them over the built-in theme for the same `mode`.
@@ -30,7 +30,7 @@ export const THEME_MONACO_BASES: readonly ThemeMonacoBase[] = ['vs', 'vs-dark', 
 
 export interface ThemeGroupBackground {
   enabled: boolean;
-  /** Key into {@link ClaraThemeDocument.assets}. */
+  /** Key into {@link ValkAdeThemeDocument.assets}. */
   asset: string;
   /** Overlay opacity, 0–1. */
   opacity: number;
@@ -61,7 +61,7 @@ export interface ThemeMonacoDefinition {
   rules: ThemeMonacoRule[];
 }
 
-export interface ClaraThemeDocument {
+export interface ValkAdeThemeDocument {
   version: typeof THEME_DOCUMENT_VERSION;
   id: string;
   name: string;
@@ -76,6 +76,9 @@ export interface ClaraThemeDocument {
   assets?: Record<string, string>;
 }
 
+/** @deprecated Use {@link ValkAdeThemeDocument}. Kept for one release after the ValkAde rename. */
+export type ClaraThemeDocument = ValkAdeThemeDocument;
+
 export interface ThemeValidationIssue {
   path: string;
   message: string;
@@ -83,7 +86,7 @@ export interface ThemeValidationIssue {
 
 export interface ThemeValidationResult {
   ok: boolean;
-  doc: ClaraThemeDocument | null;
+  doc: ValkAdeThemeDocument | null;
   errors: ThemeValidationIssue[];
   warnings: ThemeValidationIssue[];
 }
@@ -227,7 +230,7 @@ export function slugifyThemeId(input: string): string {
   return slug.length === 1 ? `${slug}-theme` : 'custom-theme';
 }
 
-export function emptyThemeDocument(id: string, name: string, mode: ThemeMode): ClaraThemeDocument {
+export function emptyThemeDocument(id: string, name: string, mode: ThemeMode): ValkAdeThemeDocument {
   return {
     version: THEME_DOCUMENT_VERSION,
     id,
@@ -239,12 +242,12 @@ export function emptyThemeDocument(id: string, name: string, mode: ThemeMode): C
   };
 }
 
-export function cloneThemeDocument(doc: ClaraThemeDocument): ClaraThemeDocument {
-  return JSON.parse(JSON.stringify(doc)) as ClaraThemeDocument;
+export function cloneThemeDocument(doc: ValkAdeThemeDocument): ValkAdeThemeDocument {
+  return JSON.parse(JSON.stringify(doc)) as ValkAdeThemeDocument;
 }
 
 /** Group ids in `doc` with an enabled background overlay that references a known asset. */
-export function themeBackgroundGroupIds(doc: ClaraThemeDocument): string[] {
+export function themeBackgroundGroupIds(doc: ValkAdeThemeDocument): string[] {
   const out: string[] = [];
   for (const groupId of Object.keys(doc.groups)) {
     const bg = doc.groups[groupId]?.background;
@@ -508,7 +511,7 @@ function validateMonaco(raw: unknown, mode: ThemeMode, warnings: ThemeValidation
 }
 
 /**
- * Coerce unknown JSON into a {@link ClaraThemeDocument}. Structural problems are errors
+ * Coerce unknown JSON into a {@link ValkAdeThemeDocument}. Structural problems are errors
  * (`ok: false`, `doc: null`); recoverable problems are warnings and the offending piece is
  * dropped or defaulted.
  */
@@ -578,7 +581,7 @@ export function validateThemeDocument(raw: unknown, options: ValidateThemeOption
     return { ok: false, doc: null, errors, warnings };
   }
 
-  const doc: ClaraThemeDocument = {
+  const doc: ValkAdeThemeDocument = {
     version: THEME_DOCUMENT_VERSION,
     id,
     name,
@@ -605,6 +608,6 @@ export function validateThemeDocument(raw: unknown, options: ValidateThemeOption
 }
 
 /** Tokens in the catalog that `doc` does not define (inherited from the mode built-in). */
-export function missingThemeTokens(doc: ClaraThemeDocument): string[] {
+export function missingThemeTokens(doc: ValkAdeThemeDocument): string[] {
   return THEME_TOKENS.filter((t) => !(t.name in doc.tokens)).map((t) => t.name);
 }

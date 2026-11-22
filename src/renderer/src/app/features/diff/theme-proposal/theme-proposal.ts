@@ -3,7 +3,7 @@ import type { DiffReviewStatus, ThemeProposalFinishedEvent, ThemeProposalPayload
 import {
   builtInThemeForMode,
   validateThemeDocument,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ThemeValidationResult,
 } from '@shared/theme';
 import { ElectronService } from '../../../core/electron.service';
@@ -40,7 +40,7 @@ export class ThemeProposalComponent implements OnDestroy {
 
   /** Re-validated locally; the card refuses to preview or save an unusable document. */
   readonly validation = computed<ThemeValidationResult>(() => validateThemeDocument(this.payload().theme));
-  readonly doc = computed<ClaraThemeDocument | null>(() => this.validation().doc);
+  readonly doc = computed<ValkAdeThemeDocument | null>(() => this.validation().doc);
 
   readonly swatches = computed<string[]>(() => {
     const doc = this.doc();
@@ -95,7 +95,7 @@ export class ThemeProposalComponent implements OnDestroy {
         this.error.set(created.error ?? 'Could not create the theme.');
         return;
       }
-      const toSave: ClaraThemeDocument = { ...doc, id: created.theme.id, builtIn: undefined };
+      const toSave: ValkAdeThemeDocument = { ...doc, id: created.theme.id, builtIn: undefined };
       delete toSave.builtIn;
       const saved = await this.electron.saveTheme(toSave);
       if (!saved.ok || !saved.theme) {

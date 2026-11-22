@@ -9,11 +9,11 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.domain import RuntimePythonLspConfig, RuntimeToolsConfig
-from clara_coder_backend.lsp.manager import get_session_lsp_manager, shutdown_all_lsp_managers
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.tools import lsp_tools
-from clara_coder_backend.tools.lsp_tools import lsp_get_diagnostics
+from valkade_backend.domain import RuntimePythonLspConfig, RuntimeToolsConfig
+from valkade_backend.lsp.manager import get_session_lsp_manager, shutdown_all_lsp_managers
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.tools import lsp_tools
+from valkade_backend.tools.lsp_tools import lsp_get_diagnostics
 
 
 def _diag(message: str) -> dict[str, Any]:

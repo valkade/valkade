@@ -1,4 +1,4 @@
-"""Tests for :mod:`clara_coder_backend.workspace_index.thread_priority`."""
+"""Tests for :mod:`valkade_backend.workspace_index.thread_priority`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from clara_coder_backend.workspace_index import thread_priority as tp
+from valkade_backend.workspace_index import thread_priority as tp
 
 
 def test_lists_this_threads_id() -> None:

@@ -183,7 +183,7 @@ function ensurePip(py) {
 }
 
 function installTorchCpu(py) {
-  console.info('[setup:python] CPU-only PyTorch (CLARA_PYTORCH_CPU / setup:python:cpu)…');
+  console.info('[setup:python] CPU-only PyTorch (VALKADE_PYTORCH_CPU / setup:python:cpu)…');
   runPipOrExit(
     py,
     ['torch', '--index-url', 'https://download.pytorch.org/whl/cpu'],
@@ -241,7 +241,7 @@ function main() {
   const py = ensureVenvPython();
   if (!ensurePip(py)) process.exit(1);
 
-  const cpu = envFlag('CLARA_PYTORCH_CPU', 'NEMO_PYTORCH_CPU');
+  const cpu = envFlag('VALKADE_PYTORCH_CPU', 'CLARA_PYTORCH_CPU', 'NEMO_PYTORCH_CPU');
 
   if (cpu) installTorchCpu(py);
   else installTorchCuda(py);

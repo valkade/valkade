@@ -1,6 +1,6 @@
 /**
  * Fetch a pinned ripgrep release into runtime-bundle/ripgrep/ for electron-builder
- * extraResources. The Python sidecar finds it through CLARA_RG_PATH and uses it for
+ * extraResources. The Python sidecar finds it through VALKADE_RG_PATH and uses it for
  * `search_workspace` (gitignore-aware, parallel) instead of a system grep.
  *
  * Skip download when the binary already matches the pinned version unless --force is passed.
@@ -19,7 +19,7 @@ const outDir = path.join(root, 'runtime-bundle', 'ripgrep');
 const force = process.argv.includes('--force');
 
 export const RG_VERSION = '15.2.0';
-const VERSION_FILE = '.clara-rg-version';
+const VERSION_FILE = '.valkade-rg-version';
 
 /** SHA256 from the release's per-asset .sha256 files — fail closed if download/cache mismatches. */
 export const EXPECTED_RG_SHA256 = {

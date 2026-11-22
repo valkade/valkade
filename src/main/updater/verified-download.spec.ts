@@ -16,15 +16,15 @@ import { compareSignatures, installerArgs, publisherIdentity, subjectAttributes 
 const PAYLOAD = Buffer.from('pretend this is an NSIS installer'.repeat(50));
 const SHA512 = createHash('sha512').update(PAYLOAD).digest('base64');
 const SHA256 = createHash('sha256').update(PAYLOAD).digest('hex');
-const ASSET = 'https://github.com/dpere122/ClaraCoder/releases/download/v0.2.0/Clara-Coder-0.2.0-Windows-x64.exe';
+const ASSET = 'https://github.com/valkade/valkade/releases/download/v0.6.0/ValkAde-0.6.0-Windows-x64.exe';
 const CDN = 'https://release-assets.githubusercontent.com/github-production-release-asset/1/abc?sig=1';
 
-const LATEST_YML = `version: 0.2.0
+const LATEST_YML = `version: 0.6.0
 files:
-  - url: Clara-Coder-0.2.0-Windows-x64.exe
+  - url: ValkAde-0.6.0-Windows-x64.exe
     sha512: ${SHA512}
     size: ${PAYLOAD.length}
-path: Clara-Coder-0.2.0-Windows-x64.exe
+path: ValkAde-0.6.0-Windows-x64.exe
 sha512: ${SHA512}
 releaseDate: '2026-10-31T21:37:05.933Z'
 `;
@@ -48,8 +48,8 @@ const EXPECTED: ExpectedInstaller = { size: PAYLOAD.length, sha512: SHA512, sha2
 describe('parseUpdateInfoYaml / expectedInstallerFrom', () => {
   it('reads electron-builder latest.yml', () => {
     expect(parseUpdateInfoYaml(LATEST_YML)).toEqual({
-      version: '0.2.0',
-      files: [{ url: 'Clara-Coder-0.2.0-Windows-x64.exe', sha512: SHA512, size: PAYLOAD.length }],
+      version: '0.6.0',
+      files: [{ url: 'ValkAde-0.6.0-Windows-x64.exe', sha512: SHA512, size: PAYLOAD.length }],
     });
   });
 
@@ -57,21 +57,21 @@ describe('parseUpdateInfoYaml / expectedInstallerFrom', () => {
     const info = parseUpdateInfoYaml(LATEST_YML);
     expect(
       expectedInstallerFrom(info, {
-        version: '0.2.0',
-        installer: { name: 'Clara-Coder-0.2.0-Windows-x64.exe', size: PAYLOAD.length, sha256: SHA256 },
+        version: '0.6.0',
+        installer: { name: 'ValkAde-0.6.0-Windows-x64.exe', size: PAYLOAD.length, sha256: SHA256 },
       }),
     ).toEqual(EXPECTED);
   });
 
   it.each([
-    ['another version', { version: '0.2.1' }, /not 0\.2\.1/],
+    ['another version', { version: '0.6.1' }, /not 0\.6\.1/],
     ['another file', { name: 'Other.exe' }, /does not list/],
     ['another size', { size: 1 }, /size mismatch/],
   ])('refuses latest.yml for %s', (_label, change, error) => {
     const info = parseUpdateInfoYaml(LATEST_YML);
-    const installer = { name: 'Clara-Coder-0.2.0-Windows-x64.exe', size: PAYLOAD.length, sha256: SHA256, ...change };
+    const installer = { name: 'ValkAde-0.6.0-Windows-x64.exe', size: PAYLOAD.length, sha256: SHA256, ...change };
     expect(() =>
-      expectedInstallerFrom(info, { version: (change as { version?: string }).version ?? '0.2.0', installer }),
+      expectedInstallerFrom(info, { version: (change as { version?: string }).version ?? '0.6.0', installer }),
     ).toThrow(error);
   });
 });

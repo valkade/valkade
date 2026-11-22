@@ -8,14 +8,14 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from clara_coder_backend.chat.chat_attachment_vision import (
+from valkade_backend.chat.chat_attachment_vision import (
     ATTACHED_IMAGE_PREFIX,
     attached_image_path_from_text,
     attached_image_paths_from_text,
     prepare_chat_attachment_vision_turn,
 )
-from clara_coder_backend.session.state import current_session_id, get_active_connection, get_session
-from clara_coder_backend.tools.workspace_image import vision_payload_from_data_url
+from valkade_backend.session.state import current_session_id, get_active_connection, get_session
+from valkade_backend.tools.workspace_image import vision_payload_from_data_url
 
 
 def _png_data_url(*, color: tuple[int, int, int] = (0, 128, 255)) -> str:

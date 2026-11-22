@@ -9,26 +9,26 @@ from types import SimpleNamespace
 
 import pytest
 
-from clara_coder_backend.logging.app_logging import configure_logging, get_recent_records, reset_logging_handlers
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.logging.app_logging import configure_logging, get_recent_records, reset_logging_handlers
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.lsp.manager import (
     activate_session_lsp_scope,
     get_session_lsp_manager,
     shutdown_all_lsp_managers,
     shutdown_session_lsp,
     sync_session_document,
 )
-from clara_coder_backend.tools.lsp_tools import (
+from valkade_backend.tools.lsp_tools import (
     lsp_find_definition,
     lsp_find_references,
     lsp_get_diagnostics,
     lsp_get_document_symbols,
     lsp_hover,
 )
-from clara_coder_backend.routes.session import clear_session, set_workspace_context
-from clara_coder_backend.routes.lsp import lsp_diagnostics
-from clara_coder_backend.session.schemas import ClearRequest, WorkspaceContextRequest
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.routes.session import clear_session, set_workspace_context
+from valkade_backend.routes.lsp import lsp_diagnostics
+from valkade_backend.session.schemas import ClearRequest, WorkspaceContextRequest
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
 
 
 class _FakeLspClient:
@@ -209,7 +209,7 @@ def test_typescript_lsp_read_tools(monkeypatch, lsp_env) -> None:
         kwargs.setdefault('client_factory', lsp_env.factory)
         return get_session_lsp_manager(*a, **kwargs)
 
-    monkeypatch.setattr('clara_coder_backend.tools.lsp_tools.get_session_lsp_manager', _inject)
+    monkeypatch.setattr('valkade_backend.tools.lsp_tools.get_session_lsp_manager', _inject)
 
     diag_text = lsp_get_diagnostics.invoke({'relative_path': 'app.ts', 'refresh_active_document': True})
     assert 'LSP context:' in diag_text
@@ -256,7 +256,7 @@ def test_lsp_get_diagnostics_returns_tool_error_when_lsp_bootstrap_fails(monkeyp
             del relative_path, kwargs
             raise RuntimeError("LSP request failed for 'initialize': LSP client closed")
 
-    monkeypatch.setattr('clara_coder_backend.tools.lsp_tools.get_session_lsp_manager', lambda *a, **k: _BrokenManager())
+    monkeypatch.setattr('valkade_backend.tools.lsp_tools.get_session_lsp_manager', lambda *a, **k: _BrokenManager())
 
     result = lsp_get_diagnostics.invoke({'relative_path': 'pkg/mod.py', 'refresh_active_document': True})
 
@@ -285,10 +285,10 @@ def test_sync_session_document_retry_restarts_only_failed_server(monkeypatch, ls
     def _fake_shutdown_session_lsp_server(session_id: str, server_id: str) -> None:
         shutdown_calls.append((session_id, server_id))
 
-    monkeypatch.setattr('clara_coder_backend.lsp.manager.get_session_lsp_manager', _fake_get_session_lsp_manager)
-    monkeypatch.setattr('clara_coder_backend.lsp.manager.shutdown_session_lsp_server', _fake_shutdown_session_lsp_server)
+    monkeypatch.setattr('valkade_backend.lsp.manager.get_session_lsp_manager', _fake_get_session_lsp_manager)
+    monkeypatch.setattr('valkade_backend.lsp.manager.shutdown_session_lsp_server', _fake_shutdown_session_lsp_server)
     monkeypatch.setattr(
-        'clara_coder_backend.lsp.manager.shutdown_session_lsp',
+        'valkade_backend.lsp.manager.shutdown_session_lsp',
         lambda session_id: (_ for _ in ()).throw(AssertionError(f'should not shut down all LSPs: {session_id}')),
     )
 
@@ -351,7 +351,7 @@ def test_clear_session_shuts_down_lsp_state(lsp_env) -> None:
 
 
 def test_post_edit_checks_footer_steers_on_indent_diagnostics() -> None:
-    from clara_coder_backend.lsp.diagnostics import post_edit_checks_footer
+    from valkade_backend.lsp.diagnostics import post_edit_checks_footer
 
     saved = runtime_config.tools
     runtime_config.tools = RuntimeToolsConfig(enable_agent_formatters=True)
@@ -384,7 +384,7 @@ def test_post_edit_checks_footer_steers_on_indent_diagnostics() -> None:
 
 
 def test_post_edit_checks_footer_omits_format_tools_when_disabled() -> None:
-    from clara_coder_backend.lsp.diagnostics import post_edit_checks_footer
+    from valkade_backend.lsp.diagnostics import post_edit_checks_footer
 
     saved = runtime_config.tools
     runtime_config.tools = RuntimeToolsConfig(enable_agent_formatters=False)
@@ -433,7 +433,7 @@ def test_python_lsp_events_flow_into_clara_logging(lsp_env, tmp_path: Path) -> N
 
 
 def test_format_hover_contents_fences_marked_string_with_language() -> None:
-    from clara_coder_backend.tools.lsp_tools import _format_hover_contents
+    from valkade_backend.tools.lsp_tools import _format_hover_contents
 
     # Legacy MarkedString {language, value} → fenced code block (regression: previously dropped the language).
     out = _format_hover_contents({'language': 'typescript', 'value': 'const x = 1'})
@@ -461,7 +461,7 @@ def test_format_hover_contents_fences_marked_string_with_language() -> None:
 def test_digest_equal_refresh_after_timed_out_wait_still_did_change(lsp_env, monkeypatch: pytest.MonkeyPatch) -> None:
     """A timed-out wait must not freeze the digest skip; same-text refresh re-sends didChange."""
 
-    import clara_coder_backend.lsp.manager as mgr_mod
+    import valkade_backend.lsp.manager as mgr_mod
 
     monkeypatch.setattr(mgr_mod, '_DIAG_WAIT_TIMEOUT_S', 0.08)
     monkeypatch.setattr(mgr_mod, '_DIAG_FIRST_OPEN_TIMEOUT_S', 0.08)
@@ -731,11 +731,11 @@ def test_unversioned_publish_right_after_change_is_not_fresh(lsp_env, monkeypatc
 
 
 def test_agent_diagnostics_flag_pending_publish(lsp_env, monkeypatch: pytest.MonkeyPatch) -> None:
-    import clara_coder_backend.lsp.manager as mgr_mod
+    import valkade_backend.lsp.manager as mgr_mod
 
     monkeypatch.setattr(mgr_mod, '_DIAG_FIRST_OPEN_TIMEOUT_S', 0.05)
     manager, _ = _recording_manager(lsp_env, publish=False)
-    monkeypatch.setattr('clara_coder_backend.tools.lsp_tools.get_session_lsp_manager', lambda *a, **k: manager)
+    monkeypatch.setattr('valkade_backend.tools.lsp_tools.get_session_lsp_manager', lambda *a, **k: manager)
 
     out = lsp_get_diagnostics.invoke({'relative_path': 'pkg/mod.py'})
 
@@ -780,7 +780,7 @@ def test_workspace_context_forwards_watcher_batch_to_lsp(lsp_env, monkeypatch: p
         calls.append((sid, paths, kinds))
         done.set()
 
-    monkeypatch.setattr('clara_coder_backend.routes.session.notify_session_lsp_disk_changes', _record)
+    monkeypatch.setattr('valkade_backend.routes.session.notify_session_lsp_disk_changes', _record)
 
     asyncio.run(
         set_workspace_context(
@@ -806,7 +806,7 @@ def test_close_document_keeps_generation_monotonic(lsp_env) -> None:
 
 
 def test_edit_sync_reconciles_open_peers(lsp_env) -> None:
-    import clara_coder_backend.lsp.manager as mgr_mod
+    import valkade_backend.lsp.manager as mgr_mod
 
     (lsp_env.workspace / 'lib.py').write_text('a = 1\n', encoding='utf-8')
     lsp_env.manager.sync_workspace_document('lib.py')
@@ -839,7 +839,7 @@ def test_change_to_one_document_outdates_open_dependents(lsp_env) -> None:
 def test_silent_server_settles_on_silence_once_it_has_published(lsp_env, monkeypatch: pytest.MonkeyPatch) -> None:
     """vtsls publishes nothing for clean files: silence after a change must not read as pending."""
 
-    import clara_coder_backend.lsp.manager as mgr_mod
+    import valkade_backend.lsp.manager as mgr_mod
 
     monkeypatch.setattr(mgr_mod, '_DIAG_WAIT_TIMEOUT_S', 0.05)
     manager, _ = _recording_manager(lsp_env, publish=False)
@@ -856,7 +856,7 @@ def test_silent_server_settles_on_silence_once_it_has_published(lsp_env, monkeyp
 
 
 def test_publishing_server_silence_stays_pending(lsp_env, monkeypatch: pytest.MonkeyPatch) -> None:
-    import clara_coder_backend.lsp.manager as mgr_mod
+    import valkade_backend.lsp.manager as mgr_mod
 
     monkeypatch.setattr(mgr_mod, '_DIAG_WAIT_TIMEOUT_S', 0.05)
     monkeypatch.setattr(mgr_mod, '_DIAG_FIRST_OPEN_TIMEOUT_S', 0.05)

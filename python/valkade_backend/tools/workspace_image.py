@@ -1,0 +1,241 @@
+"""Workspace image loading for vision-capable models (e.g. Qwen3.5-27B)."""
+
+from __future__ import annotations
+
+from valkade_backend.config import env_clara
+
+import base64
+import io
+import logging
+import mimetypes
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Annotated
+
+from langchain_core.tools import tool
+from PIL import Image, UnidentifiedImageError
+
+from valkade_backend.session.state import current_session_id, get_active_connection
+from valkade_backend.tools.tool_conventions import RELATIVE_PATH, describe
+from valkade_backend.tools.workspace import get_active_workspace_root, normalize_relative_path
+
+logger = logging.getLogger('clara.tools.workspace_image')
+
+READ_WORKSPACE_IMAGE_NAME = 'read_workspace_image'
+
+IMAGE_SUFFIXES: frozenset[str] = frozenset(
+    {
+        '.png',
+        '.jpg',
+        '.jpeg',
+        '.gif',
+        '.webp',
+        '.bmp',
+    }
+)
+
+_DEFAULT_MAX_IMAGE_BYTES = 15 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class VisionImagePayload:
+    relative_path: str
+    mime_type: str
+    width: int
+    height: int
+    size_bytes: int
+    data_url: str
+    focus: str
+
+
+def _max_image_bytes() -> int:
+    raw = env_clara('CLARA_MAX_WORKSPACE_IMAGE_BYTES', '').strip()
+    if raw.isdigit():
+        v = int(raw)
+        if v > 0:
+            return v
+    return _DEFAULT_MAX_IMAGE_BYTES
+
+
+def _mime_for_path(path: Path) -> str:
+    guessed, _ = mimetypes.guess_type(path.name)
+    if guessed and guessed.startswith('image/'):
+        return guessed
+    suffix = path.suffix.lower()
+    fallback = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+    }
+    return fallback.get(suffix, 'application/octet-stream')
+
+
+def _format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f'{size_bytes} B'
+    if size_bytes < 1024 * 1024:
+        return f'{size_bytes / 1024:.1f} KB'
+    return f'{size_bytes / (1024 * 1024):.1f} MB'
+
+
+def vision_payload_from_data_url(
+    data_url: str,
+    *,
+    relative_path: str,
+    focus: str = '',
+) -> VisionImagePayload | None:
+    """Build a vision payload from an inline ``data:...;base64,...`` URL."""
+    raw = (data_url or '').strip()
+    if not raw.startswith('data:'):
+        return None
+    try:
+        header, encoded = raw.split(',', 1)
+    except ValueError:
+        return None
+    mime = header[5:].split(';', 1)[0].strip().lower() or 'application/octet-stream'
+    if not mime.startswith('image/'):
+        return None
+    try:
+        # ``standard_b64decode`` has no ``validate=`` on Python 3.13; ``b64decode`` does.
+        data = base64.b64decode(encoded, validate=True)
+    except (ValueError, OSError):
+        return None
+    max_bytes = _max_image_bytes()
+    if len(data) > max_bytes:
+        return None
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            im.verify()
+        with Image.open(io.BytesIO(data)) as im:
+            width, height = im.size
+    except (UnidentifiedImageError, OSError, ValueError):
+        return None
+    rel_display = (relative_path or 'attached-image').replace('\\', '/')
+    return VisionImagePayload(
+        relative_path=rel_display,
+        mime_type=mime,
+        width=width,
+        height=height,
+        size_bytes=len(data),
+        data_url=raw,
+        focus=(focus or '').strip(),
+    )
+
+
+def _server_reports_no_vision() -> bool:
+    """True only on the server's word (``/props`` ``modalities.vision``); unknown still tries the image."""
+    caps = get_active_connection().chat_template_reasoning
+    return isinstance(caps, dict) and caps.get('vision') is False
+
+
+def load_workspace_image(relative_path: str, *, focus: str = '') -> tuple[str, VisionImagePayload | None]:
+    """Read a workspace image and prepare a vision payload for middleware injection."""
+    rel = (relative_path or '').strip()
+    if not rel:
+        return 'Tool note: provide a workspace-relative image path (e.g. `assets/logo.png`).', None
+
+    if not current_session_id.get():
+        return 'Tool error: no active session.', None
+
+    if _server_reports_no_vision():
+        # A text-only llama-server answers an image with HTTP 500, which fails the turn and loses the thread.
+        return (
+            'Tool error: the running model has no vision support, so images cannot be read. '
+            'Continue without the image, or tell the user to start a vision model (llama.cpp: with an mmproj file).'
+        ), None
+
+    try:
+        root = get_active_workspace_root()
+        target = normalize_relative_path(root, rel)
+    except ValueError as exc:
+        return f'Tool note: {exc}', None
+
+    rel_display = rel.replace('\\', '/')
+    suffix = target.suffix.lower()
+    if suffix not in IMAGE_SUFFIXES:
+        supported = ', '.join(sorted(IMAGE_SUFFIXES))
+        return (
+            f'Tool note: `{rel_display}` is not a supported image type (suffix `{suffix or "(none)"}`). '
+            f'Supported: {supported}.'
+        ), None
+
+    if not target.exists():
+        return (
+            f'Tool note: `{rel_display}` is not on the workspace disk yet. '
+            'Use `list_workspace_directory` to locate image files under the workspace root.'
+        ), None
+    if not target.is_file():
+        return (
+            f'Tool note: `{rel_display}` exists but is not a regular file. '
+            'Use `list_workspace_directory` to inspect directories.'
+        ), None
+
+    max_bytes = _max_image_bytes()
+    try:
+        size = target.stat().st_size
+        if size > max_bytes:
+            # Check the size before reading so a huge file is never loaded into memory.
+            return (
+                f'Tool note: `{rel_display}` is {_format_size(size)}; '
+                f'maximum allowed is {_format_size(max_bytes)}. '
+                'Use a smaller image or set `CLARA_MAX_WORKSPACE_IMAGE_BYTES`.'
+            ), None
+        data = target.read_bytes()
+    except OSError as exc:
+        logger.warning('read_workspace_image failed for %s: %s', rel_display, exc)
+        return f'Tool error: could not read `{rel_display}` ({exc}).', None
+
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            im.verify()
+        with Image.open(io.BytesIO(data)) as im:
+            width, height = im.size
+            fmt = (im.format or suffix.lstrip('.') or 'png').lower()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        return f'Tool note: `{rel_display}` is not a readable image ({exc}).', None
+
+    mime = _mime_for_path(target)
+    if mime == 'application/octet-stream':
+        mime = f'image/{fmt}'
+
+    encoded = base64.standard_b64encode(data).decode('ascii')
+    data_url = f'data:{mime};base64,{encoded}'
+    payload = VisionImagePayload(
+        relative_path=rel_display,
+        mime_type=mime,
+        width=width,
+        height=height,
+        size_bytes=len(data),
+        data_url=data_url,
+        focus=(focus or '').strip(),
+    )
+    summary = (
+        f'Loaded image: {rel_display}\n'
+        f'Type: {mime}\n'
+        f'Size: {width}x{height} px, {_format_size(len(data))}\n'
+        'The image is attached in the next vision turn for analysis.'
+    )
+    if payload.focus:
+        summary += f'\nFocus: {payload.focus}'
+    return summary, payload
+
+
+@tool(
+    READ_WORKSPACE_IMAGE_NAME,
+    description=describe(
+        'Load a workspace image into vision context for description, OCR, or UI/diagram analysis (vision models only)',
+        when='PNG/JPEG/GIF/WebP/BMP files such as screenshots, mockups and diagrams',
+        not_='text files or PDFs (use `read_workspace_file`)',
+    ),
+    # Artifact survives the ToolNode thread-pool handoff (ContextVars set inside sync tools do not).
+    response_format='content_and_artifact',
+)
+def read_workspace_image(
+    relative_path: Annotated[str, RELATIVE_PATH],
+    focus: Annotated[str, 'optional: what to look for'] = '',
+) -> tuple[str, VisionImagePayload | None]:
+    """Return ``(summary, vision_payload)``; middleware injects the image into the next model turn."""
+    return load_workspace_image(relative_path, focus=focus)

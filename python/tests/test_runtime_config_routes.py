@@ -58,10 +58,10 @@ def _payload(
 def test_runtime_config_updates_imported_runtime_config_references() -> None:
     import os
 
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.llm import messages
-    from clara_coder_backend.llm import model_tuning
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.llm import messages
+    from valkade_backend.llm import model_tuning
     orig = deepcopy(state.runtime_config)
     orig_path = os.environ.get('PATH', '')
     try:
@@ -92,11 +92,12 @@ def test_runtime_config_updates_imported_runtime_config_references() -> None:
             assert messages.runtime_config.tools.allow_web_access is True
 
             r4_body = _payload()
-            r4_body['tools']['extraUserPath'] = '/opt/clara-extra'
+            extra = os.path.abspath('/opt/valkade-extra')  # Python 3.13+ on Windows: '/opt/...' is not absolute
+            r4_body['tools']['extraUserPath'] = extra
             r4 = client.post('/runtime-config', json=r4_body)
             assert r4.status_code == 200
-            assert state.runtime_config.tools.extra_user_path == '/opt/clara-extra'
-            assert '/opt/clara-extra' in os.environ['PATH'].split(os.pathsep)
+            assert state.runtime_config.tools.extra_user_path == extra
+            assert extra in os.environ['PATH'].split(os.pathsep)
 
             r5_body = _payload()
             r5_body['tools']['enableAgentFormatters'] = False
@@ -124,8 +125,8 @@ def test_runtime_config_updates_imported_runtime_config_references() -> None:
 
 
 def test_runtime_config_passes_server_vision_through() -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
     body = _payload()
@@ -150,11 +151,11 @@ def test_runtime_config_passes_server_vision_through() -> None:
 def test_runtime_config_applies_whisper_custom_models_dir() -> None:
     import os
 
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
-    orig_models = os.environ.get('CLARA_CUSTOM_MODELS_DIR')
+    orig_models = os.environ.get('VALKADE_CUSTOM_MODELS_DIR')
     body = _payload()
     body['audio'] = {
         'provider': 'whisper',
@@ -170,12 +171,12 @@ def test_runtime_config_applies_whisper_custom_models_dir() -> None:
         assert state.runtime_config.audio.provider == 'whisper'
         assert state.runtime_config.audio.model == 'tiny'
         assert state.runtime_config.audio.custom_models_dir == '/tmp/clara-models'
-        assert os.environ.get('CLARA_CUSTOM_MODELS_DIR') == '/tmp/clara-models'
+        assert os.environ.get('VALKADE_CUSTOM_MODELS_DIR') == '/tmp/clara-models'
     finally:
         if orig_models is None:
-            os.environ.pop('CLARA_CUSTOM_MODELS_DIR', None)
+            os.environ.pop('VALKADE_CUSTOM_MODELS_DIR', None)
         else:
-            os.environ['CLARA_CUSTOM_MODELS_DIR'] = orig_models
+            os.environ['VALKADE_CUSTOM_MODELS_DIR'] = orig_models
         state.runtime_config.active_connection_id = orig.active_connection_id
         state.runtime_config.connections = orig.connections
         state.runtime_config.audio = orig.audio
@@ -186,12 +187,12 @@ def test_runtime_config_applies_whisper_custom_models_dir() -> None:
 def test_runtime_config_clears_custom_models_dir_when_empty() -> None:
     import os
 
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
-    orig_models = os.environ.get('CLARA_CUSTOM_MODELS_DIR')
-    os.environ['CLARA_CUSTOM_MODELS_DIR'] = '/tmp/stale-models'
+    orig_models = os.environ.get('VALKADE_CUSTOM_MODELS_DIR')
+    os.environ['VALKADE_CUSTOM_MODELS_DIR'] = '/tmp/stale-models'
     body = _payload()
     body['audio'] = {
         'provider': 'whisper',
@@ -205,12 +206,12 @@ def test_runtime_config_clears_custom_models_dir_when_empty() -> None:
             r = client.post('/runtime-config', json=body)
         assert r.status_code == 200
         assert state.runtime_config.audio.custom_models_dir == ''
-        assert 'CLARA_CUSTOM_MODELS_DIR' not in os.environ
+        assert 'VALKADE_CUSTOM_MODELS_DIR' not in os.environ
     finally:
         if orig_models is None:
-            os.environ.pop('CLARA_CUSTOM_MODELS_DIR', None)
+            os.environ.pop('VALKADE_CUSTOM_MODELS_DIR', None)
         else:
-            os.environ['CLARA_CUSTOM_MODELS_DIR'] = orig_models
+            os.environ['VALKADE_CUSTOM_MODELS_DIR'] = orig_models
         state.runtime_config.active_connection_id = orig.active_connection_id
         state.runtime_config.connections = orig.connections
         state.runtime_config.audio = orig.audio
@@ -219,8 +220,8 @@ def test_runtime_config_clears_custom_models_dir_when_empty() -> None:
 
 
 def test_runtime_config_stores_embeddings_configured() -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
     body = _payload()
@@ -244,8 +245,8 @@ def test_runtime_config_stores_embeddings_configured() -> None:
 def test_runtime_config_applies_hugging_face_token() -> None:
     import os
 
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
     orig_hf = os.environ.get('HF_TOKEN')
@@ -277,9 +278,9 @@ def test_runtime_config_applies_hugging_face_token() -> None:
 def test_runtime_config_applies_python_lsp_settings_and_restarts_basedpyright_only_when_they_change(
     monkeypatch,
 ) -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)
@@ -327,9 +328,9 @@ def test_runtime_config_applies_python_lsp_settings_and_restarts_basedpyright_on
 def test_runtime_config_applies_typescript_lsp_settings_and_restarts_vtsls_only_when_they_change(
     monkeypatch,
 ) -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)
@@ -383,8 +384,8 @@ def test_runtime_config_applies_typescript_lsp_settings_and_restarts_vtsls_only_
 
 
 def test_runtime_config_marks_settings_as_received_only_once_they_are_applied() -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     orig = deepcopy(state.runtime_config)
     state.runtime_config_received.clear()
@@ -409,9 +410,9 @@ def test_runtime_config_marks_settings_as_received_only_once_they_are_applied() 
 
 
 def test_runtime_config_applies_java_lsp_settings_and_restarts_jdt_ls_only_when_they_change(monkeypatch) -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)
@@ -492,10 +493,10 @@ def test_runtime_config_applies_java_lsp_settings_and_restarts_jdt_ls_only_when_
 def test_runtime_config_applies_lsp_settings_and_restarts_gdls_only_when_they_change(monkeypatch) -> None:
     import os
 
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
-    from clara_coder_backend.lsp.plugins import gdscript_plugin
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
+    from valkade_backend.lsp.plugins import gdscript_plugin
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)
@@ -544,10 +545,10 @@ def test_runtime_config_applies_lsp_settings_and_restarts_gdls_only_when_they_ch
 
 
 def test_runtime_config_applies_rust_lsp_settings_and_restarts_rust_analyzer_only_when_they_change(monkeypatch) -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
-    from clara_coder_backend.lsp.plugins import rust_plugin
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
+    from valkade_backend.lsp.plugins import rust_plugin
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)
@@ -595,10 +596,10 @@ def test_runtime_config_applies_rust_lsp_settings_and_restarts_rust_analyzer_onl
 
 
 def test_runtime_config_applies_workspace_trust_and_restarts_the_servers_that_read_it(monkeypatch, tmp_path) -> None:
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
-    from clara_coder_backend.lsp import manager as lsp_manager
-    from clara_coder_backend.workspace.trust import workspace_is_trusted
+    from valkade_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.lsp import manager as lsp_manager
+    from valkade_backend.workspace.trust import workspace_is_trusted
 
     stopped: list[str] = []
     monkeypatch.setattr(lsp_manager, 'shutdown_lsp_server_for_all_sessions', stopped.append)

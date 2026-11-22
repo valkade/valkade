@@ -178,7 +178,7 @@
         />
         <small class='lms-hint'>
           {{ contextReported() ? 'Reported by the server.' : "Most servers don't report this, so type it in." }}
-          Clara uses it to know when to compact.
+          ValkAde uses it to know when to compact.
         </small>
       </label>
       <label class='field'>
@@ -241,7 +241,7 @@
             <input type='checkbox' [ngModel]='compat().streamUsage' (ngModelChange)='s.updateOpenAiCompatSettings({ streamUsage: $event })' />
             <span>
               <strong>Ask for token usage</strong>
-              <small class='lms-hint'>Sends stream_options. Without it, Clara estimates how full the context is.</small>
+              <small class='lms-hint'>Sends stream_options. Without it, ValkAde estimates how full the context is.</small>
             </span>
           </label>
         </div>
@@ -255,7 +255,7 @@
 
         <div class='lms-control-grid lms-control-grid--two'>
           <label class='field'>
-            <span>Clara profile</span>
+            <span>ValkAde profile</span>
             <app-pill-select
               [options]='profileOptions()'
               [value]='c.optimizationPreset'
@@ -359,7 +359,7 @@
           @if (extraBodyError(); as err) {
             <small class='oc-json-error' role='alert'>{{ err }} This won't be sent until it's fixed.</small>
           } @else {
-            <small class='lms-hint'>For anything without a control here. Clara keeps its own model, messages, tools and stream fields.</small>
+            <small class='lms-hint'>For anything without a control here. ValkAde keeps its own model, messages, tools and stream fields.</small>
           }
         </label>
 

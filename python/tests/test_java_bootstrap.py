@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
-from clara_coder_backend.llm.prompt_blocks import edit_semantics_block
-from clara_coder_backend.tools.java_bootstrap import (
+from valkade_backend.domain import SessionState
+from valkade_backend.hitl.tool_registry import worker_tools_and_map
+from valkade_backend.llm.prompt_blocks import edit_semantics_block
+from valkade_backend.tools.java_bootstrap import (
     GRADLE_VERSION,
     JAVA_BOOTSTRAP_PROJECT_NAME,
     JAVAFX_GRADLE_PLUGIN_VERSION,

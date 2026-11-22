@@ -6,9 +6,9 @@ import json
 
 from langchain_core.messages import ToolMessage
 
-from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
-from clara_coder_backend.tools import edit_diffs
-from clara_coder_backend.tools.edit_diffs import edit_unified_diff, record_edit_diff, take_edit_diff
+from valkade_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
+from valkade_backend.tools import edit_diffs
+from valkade_backend.tools.edit_diffs import edit_unified_diff, record_edit_diff, take_edit_diff
 
 
 def test_unified_diff_of_one_edit() -> None:
@@ -99,7 +99,7 @@ def test_finished_status_without_a_diff_has_no_diff_field() -> None:
 
 
 def test_diffs_are_kept_per_session_and_appended_per_write() -> None:
-    from clara_coder_backend.session.state import current_session_id
+    from valkade_backend.session.state import current_session_id
 
     token = current_session_id.set('s-a')
     try:

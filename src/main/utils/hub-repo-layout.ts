@@ -18,7 +18,7 @@ export function isBlobLikeFileName(fileName: string): boolean {
  * Hub cache folder: ``models--org--repo``, or a tree with ``blobs/`` plus
  * ``snapshots/`` and/or ``refs/``.
  *
- * Clara downloads write ``blobs`` + ``snapshots`` and skip ``refs``. Detection
+ * ValkAde downloads write ``blobs`` + ``snapshots`` and skip ``refs``. Detection
  * must not require ``refs``, or a rename that drops the ``models--`` prefix
  * will leak hash-named blob files into the model list.
  */

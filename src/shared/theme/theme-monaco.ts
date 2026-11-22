@@ -7,7 +7,7 @@
  * resolver (the renderer resolves through the DOM) and skipped when that returns null.
  */
 
-import { defaultMonacoBaseForMode, type ClaraThemeDocument, type ThemeMonacoDefinition, type ThemeMonacoRule } from './theme-document';
+import { defaultMonacoBaseForMode, type ValkAdeThemeDocument, type ThemeMonacoDefinition, type ThemeMonacoRule } from './theme-document';
 
 export const MONACO_APP_THEME_NAME = 'clara-app-theme';
 
@@ -328,7 +328,7 @@ export interface DeriveMonacoThemeOptions {
  * the mode built-in, then the theme's global tokens, then the `editor.monaco` group's
  * scoped overrides.
  */
-export function deriveMonacoTheme(doc: ClaraThemeDocument, options: DeriveMonacoThemeOptions = {}): ThemeMonacoDefinition {
+export function deriveMonacoTheme(doc: ValkAdeThemeDocument, options: DeriveMonacoThemeOptions = {}): ThemeMonacoDefinition {
   const tokens: Record<string, string> = {
     ...(options.baseTokens ?? {}),
     ...doc.tokens,

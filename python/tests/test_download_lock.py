@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps import download as dl
+from valkade_backend.runtime.deps import download as dl
 
 
 def test_with_download_lock_acquires_and_releases(tmp_path: Path) -> None:

@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.lsp.manager import (
     SessionWorkspaceLspManager,
     java_workspace_is_ready,
     shutdown_all_lsp_managers,
 )
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.session.state import current_session_id, get_session
 
 
 def test_java_workspace_is_ready_statuses() -> None:
@@ -72,7 +72,7 @@ def test_wait_for_java_ready_treats_started(tmp_path: Path) -> None:
 def test_wait_for_java_ready_does_not_block_long_on_starting(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import clara_coder_backend.lsp.manager as lsp_manager
+    import valkade_backend.lsp.manager as lsp_manager
 
     monkeypatch.setattr(lsp_manager, '_JAVA_STARTING_GRACE_S', 0.3)
     shutdown_all_lsp_managers()
@@ -144,7 +144,7 @@ class _FakeJdtClient:
 def test_build_file_restart_starts_new_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Adding a build file restarts JDT LS in place; the manager must not stay ``shuttingDown``."""
 
-    from clara_coder_backend.lsp.plugins import java_plugin as java_plugin_mod
+    from valkade_backend.lsp.plugins import java_plugin as java_plugin_mod
 
     monkeypatch.delenv('CLARA_JAVA_LSP_PROJECT_ROOT', raising=False)
     monkeypatch.setattr(

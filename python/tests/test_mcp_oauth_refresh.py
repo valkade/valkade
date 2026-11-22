@@ -6,18 +6,18 @@ import time
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeMcpServer
-from clara_coder_backend.mcp import manager as manager_module
-from clara_coder_backend.mcp.manager import LiveServer, _fingerprint, mcp_manager
-from clara_coder_backend.mcp.oauth import (
+from valkade_backend.domain import RuntimeMcpServer
+from valkade_backend.mcp import manager as manager_module
+from valkade_backend.mcp.manager import LiveServer, _fingerprint, mcp_manager
+from valkade_backend.mcp.oauth import (
     _token_from_server,
     build_oauth_provider,
     has_usable_oauth_token,
     oauth_refresh_settings,
 )
-from clara_coder_backend.routes.mcp import mcp_oauth_tokens
-from clara_coder_backend.session.schemas import McpOAuthTokensRequest, McpOAuthTokensUpdateRequest
-from clara_coder_backend.session.state import runtime_config
+from valkade_backend.routes.mcp import mcp_oauth_tokens
+from valkade_backend.session.schemas import McpOAuthTokensRequest, McpOAuthTokensUpdateRequest
+from valkade_backend.session.state import runtime_config
 
 URL = 'https://mcp.example/mcp'
 
@@ -107,7 +107,7 @@ async def test_refreshed_tokens_reach_the_live_connection(monkeypatch: pytest.Mo
     mcp_manager._live[server.id] = live
     reconciles: list[bool] = []
     monkeypatch.setattr(manager_module, 'schedule_mcp_reconcile', lambda: reconciles.append(True))
-    monkeypatch.setattr('clara_coder_backend.routes.mcp.schedule_mcp_reconcile', lambda: reconciles.append(True))
+    monkeypatch.setattr('valkade_backend.routes.mcp.schedule_mcp_reconcile', lambda: reconciles.append(True))
     try:
         result = await mcp_oauth_tokens(
             McpOAuthTokensUpdateRequest(

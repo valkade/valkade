@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeJavaLspConfig
-from clara_coder_backend.lsp import java_server
-from clara_coder_backend.lsp.java_server import (
+from valkade_backend.domain import RuntimeJavaLspConfig
+from valkade_backend.lsp import java_server
+from valkade_backend.lsp.java_server import (
     JavaLspSetupError,
     build_java_initialization_options,
     build_java_lsp_command,
     get_java_lsp_cache_dir,
     resolve_java_executable,
 )
-from clara_coder_backend.runtime.deps import jdtls_product
+from valkade_backend.runtime.deps import jdtls_product
 
 
 def test_build_java_lsp_command_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

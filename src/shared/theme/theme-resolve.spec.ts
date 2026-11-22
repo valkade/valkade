@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_THEME } from './builtin';
-import type { ClaraThemeDocument } from './theme-document';
+import type { ValkAdeThemeDocument } from './theme-document';
 import { cssQuote, resolveThemeDocument, themeStylesheetText } from './theme-resolve';
 
-const custom: ClaraThemeDocument = {
+const custom: ValkAdeThemeDocument = {
   version: 1,
   id: 'neon',
   name: 'Neon',
@@ -46,11 +46,11 @@ describe('resolveThemeDocument', () => {
 
   it('emits stylesheet text with root tokens, group tokens, and overlay rules', () => {
     const resolved = resolveThemeDocument(custom);
-    const { tokensCss, groupsCss } = themeStylesheetText(resolved, (themeId, asset, value) => `clara-theme://asset/${themeId}/${value}`);
+    const { tokensCss, groupsCss } = themeStylesheetText(resolved, (themeId, asset, value) => `valkade-theme://asset/${themeId}/${value}`);
     expect(tokensCss).toContain(':root {');
     expect(tokensCss).toContain('  --t-primary: #ff00ff;');
     expect(tokensCss).toContain('[data-theme-group="chat.transcript"] {\n  --t-bg: #101010;\n}');
-    expect(tokensCss).toContain('background-image: url("clara-theme://asset/neon/wall.png");');
+    expect(tokensCss).toContain('background-image: url("valkade-theme://asset/neon/wall.png");');
     expect(tokensCss).toContain('opacity: 0.4;');
     expect(tokensCss).toContain('[data-theme-group="chat.transcript"] .chat-box {\n  background-color: transparent !important;');
     expect(groupsCss).toContain('/* chat.transcript */');

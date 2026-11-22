@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="1024" height="1024" role="img" aria-labelledby="valkadeATitle">
+  <title id="valkadeATitle">ValkAde (concept A: wing chevron)</title>
+  <!-- Master for scripts/render_valkade_icon.py --concept a. Split V-wing: light left wing, electric-blue right wing (a downward code chevron). -->
+  <rect width="64" height="64" rx="14" fill="#0f0f11"/>
+  <polygon points="8,14 20,14 31,37.83 31,50 28,50" fill="#f4f4f5"/>
+  <polygon points="33,37.83 44,14 56,14 36,50 33,50" fill="#4da3ff"/>
+</svg>

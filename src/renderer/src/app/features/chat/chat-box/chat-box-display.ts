@@ -785,7 +785,7 @@ export function mergeClaraBriefsFromChainIntoTimeline(
       }
       extras.push({
         streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
-        label: row.label || 'Clara',
+        label: row.label || 'ValkAde',
         text: row.text,
       });
     }

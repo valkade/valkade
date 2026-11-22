@@ -1,9 +1,9 @@
 /** Result shapes for the theme IPC surface (`themes:*` channels). */
-import type { ClaraThemeDocument, ThemeValidationIssue } from './theme-document';
+import type { ValkAdeThemeDocument, ThemeValidationIssue } from './theme-document';
 
 export interface ThemeSaveResult {
   ok: boolean;
-  theme?: ClaraThemeDocument;
+  theme?: ValkAdeThemeDocument;
   error?: string;
   errors?: ThemeValidationIssue[];
   warnings?: ThemeValidationIssue[];

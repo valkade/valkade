@@ -3,7 +3,7 @@
  * save, or dismiss from a chat card. Emitted by the Python `propose_theme` tool; never pauses
  * the agent, and the card's actions resolve locally through Electron (no Python round-trip).
  */
-import type { ClaraThemeDocument } from '../theme/theme-document';
+import type { ValkAdeThemeDocument } from '../theme/theme-document';
 
 export interface ThemeProposalPayload {
   version: 1;
@@ -12,7 +12,7 @@ export interface ThemeProposalPayload {
   /** One or two sentences from the agent describing the look. */
   summary: string;
   /** Raw document as proposed; the renderer re-validates before preview / save. */
-  theme: ClaraThemeDocument;
+  theme: ValkAdeThemeDocument;
   /** Normalization notes from the backend validator (dropped tokens, etc.). */
   warnings?: string[];
 }

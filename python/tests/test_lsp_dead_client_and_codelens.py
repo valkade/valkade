@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.lsp.editor_monaco import monaco_code_lens_to_lsp, serialize_code_lenses_payload
-from clara_coder_backend.lsp.manager import SessionWorkspaceLspManager, shutdown_all_lsp_managers
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.lsp.editor_monaco import monaco_code_lens_to_lsp, serialize_code_lenses_payload
+from valkade_backend.lsp.manager import SessionWorkspaceLspManager, shutdown_all_lsp_managers
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
 
 
 class _FakeLspClient:

@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeTypescriptLspConfig, SessionState
-from clara_coder_backend.lsp.client import configuration_values_for_items
-from clara_coder_backend.lsp.typescript_init_options import build_typescript_initialization_options
+from valkade_backend.domain import RuntimeTypescriptLspConfig, SessionState
+from valkade_backend.lsp.client import configuration_values_for_items
+from valkade_backend.lsp.typescript_init_options import build_typescript_initialization_options
 
 
 def test_defaults_match_vtsls_defaults() -> None:
@@ -75,7 +75,7 @@ def test_vtsls_whole_configuration_request_gets_every_section() -> None:
 
 
 def test_reads_runtime_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(runtime_config.lsp, 'typescript', RuntimeTypescriptLspConfig(quote_style='double'))
     opts = build_typescript_initialization_options()
@@ -83,8 +83,8 @@ def test_reads_runtime_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_plugin_starts_vtsls_with_the_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(runtime_config.lsp, 'typescript', RuntimeTypescriptLspConfig(inlay_parameter_names='literals'))
     (tmp_path / 'package.json').write_text('{}', encoding='utf-8')
@@ -95,7 +95,7 @@ def test_plugin_starts_vtsls_with_the_settings(tmp_path: Path, monkeypatch: pyte
 
 @pytest.mark.parametrize('path', ['src/app.js', 'src/App.jsx', 'lib/x.mjs', 'lib/x.cjs'])
 def test_javascript_reports_nothing_only_while_its_errors_are_off(path: str) -> None:
-    from clara_coder_backend.lsp.typescript_init_options import javascript_diagnostics_off_reason
+    from valkade_backend.lsp.typescript_init_options import javascript_diagnostics_off_reason
 
     assert javascript_diagnostics_off_reason(path, RuntimeTypescriptLspConfig()) == ''
     reason = javascript_diagnostics_off_reason(path, RuntimeTypescriptLspConfig(validate_javascript=False))
@@ -104,7 +104,7 @@ def test_javascript_reports_nothing_only_while_its_errors_are_off(path: str) -> 
 
 @pytest.mark.parametrize('path', ['src/app.ts', 'src/App.tsx', 'tool.py', 'README'])
 def test_typescript_and_other_files_always_report(path: str) -> None:
-    from clara_coder_backend.lsp.typescript_init_options import javascript_diagnostics_off_reason
+    from valkade_backend.lsp.typescript_init_options import javascript_diagnostics_off_reason
 
     assert javascript_diagnostics_off_reason(path, RuntimeTypescriptLspConfig(validate_javascript=False)) == ''
 
@@ -145,8 +145,8 @@ def test_agent_does_not_wait_for_javascript_diagnostics_that_are_off(
 ) -> None:
     import time
 
-    from clara_coder_backend.lsp.manager import get_session_lsp_manager, shutdown_all_lsp_managers
-    from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
+    from valkade_backend.lsp.manager import get_session_lsp_manager, shutdown_all_lsp_managers
+    from valkade_backend.session.state import current_session_id, get_session, runtime_config
 
     monkeypatch.setattr(runtime_config.lsp, 'typescript', RuntimeTypescriptLspConfig(validate_javascript=False))
     workspace = tmp_path / 'ws'

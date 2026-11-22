@@ -1,5 +1,5 @@
 /**
- * Clara-owned guard for Monaco IconLabel / suggest-widget hovers — no node_modules edits.
+ * ValkAde-owned guard for Monaco IconLabel / suggest-widget hovers — no node_modules edits.
  *
  * StandaloneCodeEditor overwrites a *global* hover-delegate factory with whatever
  * InstantiationService constructed that editor. Diff editors pass a *child* service

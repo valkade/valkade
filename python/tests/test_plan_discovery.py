@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
-from clara_coder_backend.plan.build_plan_store import ActionStep, BuildPlanModel, FileChangeEntry, render_build_plan_md
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.plan.plan_discovery import (
+from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+from valkade_backend.plan.build_plan_store import ActionStep, BuildPlanModel, FileChangeEntry, render_build_plan_md
+from valkade_backend.domain import SessionState
+from valkade_backend.plan.plan_discovery import (
     PLAN_DISCOVERY_EXECUTE_LABEL,
     build_answer_lookup_prompt,
     build_freeform_discovery_prompt,
     parse_discovery_unknowns,
 )
-from clara_coder_backend.plan.plan_execute import (
+from valkade_backend.plan.plan_execute import (
     _planner_markdown_chain,
     stream_plan_execute_langgraph,
 )
@@ -72,9 +72,9 @@ async def _fake_stream_planner_md(*_args: Any, **kwargs: Any):
     yield f'data: {json.dumps(payload, ensure_ascii=False)}\n\n'
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_freeform_discovery_runs_before_planner(
     mock_pause: AsyncMock,
@@ -122,9 +122,9 @@ async def test_freeform_discovery_runs_before_planner(
     assert outcome.state == AgentLoopOutcome.COMPLETED
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_freeform_discovery_emits_no_step_checklist(
     mock_pause: AsyncMock,
@@ -166,7 +166,7 @@ async def test_freeform_discovery_emits_no_step_checklist(
     assert all('"steps": []' in line for line in discovery_lines)
 
 
-@patch('clara_coder_backend.plan.plan_execute.build_llm')
+@patch('valkade_backend.plan.plan_execute.build_llm')
 def test_discovery_summary_passed_to_planner_markdown(mock_llm: MagicMock) -> None:
     mock_llm.return_value = MagicMock()
     chain = _planner_markdown_chain('planner-context', discovery_summary='Auth is in middleware/auth.py')

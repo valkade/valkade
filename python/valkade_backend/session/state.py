@@ -1,0 +1,295 @@
+"""Process-wide session store and runtime configuration.
+
+The Electron app can run multiple chat sessions (by id). Each maps to a
+:class:`~valkade_backend.domain.SessionState`. LLM/audio settings live in a single
+mutable :class:`~valkade_backend.domain.RuntimeConfig` updated via POST /runtime-config
+(including :class:`~valkade_backend.domain.RuntimeToolsConfig` from Settings → Tools).
+
+``current_session_id`` is a :class:`contextvars.ContextVar` so concurrent
+async requests do not cross wires when workspace tools resolve the active session.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextvars
+import logging
+import threading
+import time
+
+from fastapi import HTTPException
+
+from valkade_backend.config import (
+    CLARA_SUBAGENT_MAX_CONCURRENCY,
+    DEFAULT_LM_STUDIO_BASE_URL,
+    DEFAULT_LM_STUDIO_MODEL,
+    DEFAULT_OPENAI_BASE_URL,
+    DEFAULT_OPENAI_MODEL,
+    DEFAULT_WHISPER_MODEL,
+    MAX_FILE_READ_LINES,
+    MAX_SEARCH_RESULTS,
+    CLARA_EDIT_TOOLS_STRICT,
+)
+from valkade_backend.domain import (
+    RuntimeAudioConfig,
+    RuntimeConfig,
+    RuntimeConnection,
+    RuntimeHostConfig,
+    RuntimeSubagentsConfig,
+    RuntimeToolsConfig,
+    SessionState,
+)
+
+logger = logging.getLogger('clara.session.state')
+
+# Which session_id workspace tools and the agent should use for the current task.
+current_session_id: contextvars.ContextVar[str] = contextvars.ContextVar('current_session_id', default='')
+
+# Id of the model message whose tool calls are running (parallel calls share it); empty outside a tool call.
+current_tool_batch_id: contextvars.ContextVar[str] = contextvars.ContextVar('current_tool_batch_id', default='')
+
+# Id of the tool call now running (the model's ``tool_call_id``); empty outside a tool call.
+current_tool_call_id: contextvars.ContextVar[str] = contextvars.ContextVar('current_tool_call_id', default='')
+
+# Editor mode of the agent stream whose tools are running (None outside one). Unlike the session's
+# ``worker_apply_mode``, a read-only stream sees False while an Editor stream overlaps it.
+current_stream_apply_mode: contextvars.ContextVar[bool | None] = contextvars.ContextVar(
+    'current_stream_apply_mode', default=None
+)
+
+# Source pinned for the current task instead of the active one: a sub-agent whose role runs on another
+# source or model (None everywhere else). Set in the sub-agent's own task, so its model client, prompt
+# and per-provider middleware all resolve to it through :func:`get_active_connection`.
+current_connection_override: contextvars.ContextVar[RuntimeConnection | None] = contextvars.ContextVar(
+    'current_connection_override', default=None
+)
+
+# All known sessions; created on demand via get_session().
+sessions: dict[str, SessionState] = {}
+
+#: Idle sessions older than this may be evicted when the store grows.
+SESSION_IDLE_TTL_SEC = 2 * 3600
+#: Opportunistic prune runs from get_session when the dict exceeds this size.
+SESSION_PRUNE_THRESHOLD = 32
+
+#: Reentrancy guard for ``prune_idle_sessions`` (eviction cleanup can call ``get_session``).
+_pruning = False
+
+
+def build_default_runtime_config() -> RuntimeConfig:
+    """Factory used on startup: OpenAI + LM Studio presets with empty API keys."""
+    openai_connection = RuntimeConnection(
+        id='default-openai',
+        name='OpenAI Default',
+        provider='openai',
+        base_url=DEFAULT_OPENAI_BASE_URL,
+        model=DEFAULT_OPENAI_MODEL,
+        api_key='',
+        temperature=0.0,
+        parallel_tool_calls=True,
+        optimization_preset='generic',
+        max_output_tokens=0,
+    )
+    lmstudio_connection = RuntimeConnection(
+        id='default-lmstudio',
+        name='LM Studio Local',
+        provider='lmstudio',
+        base_url=DEFAULT_LM_STUDIO_BASE_URL,
+        model=DEFAULT_LM_STUDIO_MODEL,
+        api_key='lm-studio',
+        temperature=0.0,
+        parallel_tool_calls=True,
+        optimization_preset='generic',
+        max_output_tokens=0,
+    )
+    return RuntimeConfig(
+        active_connection_id=openai_connection.id,
+        connections=[openai_connection, lmstudio_connection],
+        audio=RuntimeAudioConfig(
+            provider='whisper',
+            base_url='',
+            model=DEFAULT_WHISPER_MODEL,
+            api_key='',
+        ),
+        host=RuntimeHostConfig(),
+        tools=RuntimeToolsConfig(
+            edit_tools_strict=CLARA_EDIT_TOOLS_STRICT,
+            max_file_read_lines=MAX_FILE_READ_LINES,
+            max_search_results=MAX_SEARCH_RESULTS,
+        ),
+        subagents=RuntimeSubagentsConfig(cloud_concurrency=CLARA_SUBAGENT_MAX_CONCURRENCY),
+    )
+
+
+# Live settings; replaced entirely when the client POSTs /runtime-config.
+runtime_config: RuntimeConfig = build_default_runtime_config()
+#: Set by the first POST /runtime-config. Until then ``runtime_config`` holds defaults, not the user's Settings.
+runtime_config_received = threading.Event()
+
+
+def touch_session(sess: SessionState, *, now: float | None = None) -> None:
+    """Mark a session as recently used (blocks idle eviction)."""
+    sess.last_touched = time.time() if now is None else now
+
+
+def _session_is_idle_evictable(sid: str, sess: SessionState, *, now: float, protected: str) -> bool:
+    if sid == protected:
+        return False
+    if sess.agent_pause_event is not None:
+        return False
+    if sess.active_langgraph_agent_streams > 0:
+        return False
+    # Sub-agents end (and tear down) on their own; a parent keeps its running ones and waiting reports.
+    if sess.subagent_parent_session_id or sess.subagent_children or sess.subagent_pending_reports:
+        return False
+    touched = float(sess.last_touched or 0.0)
+    if touched <= 0.0:
+        return True
+    return (now - touched) >= SESSION_IDLE_TTL_SEC
+
+
+async def _async_teardown_after_evict(sid: str) -> None:
+    from valkade_backend.session.lifecycle import teardown_session
+
+    try:
+        await teardown_session(sid)
+    except Exception:
+        logger.debug('async teardown after idle eviction failed sid=%s', sid, exc_info=True)
+
+
+def prune_idle_sessions(*, now: float | None = None) -> list[str]:
+    """Drop idle sessions (no pause, no active streams, older than TTL).
+
+    Never evicts ``current_session_id``. Pops from ``sessions`` immediately; schedules
+    full async teardown (checkpoints / bg commands) when an event loop is running.
+    Returns evicted session ids.
+    """
+    global _pruning
+    if _pruning:
+        # Re-entered from eviction cleanup (cleanup -> get_session -> prune): the
+        # outer prune already owns this pass; recursing here never terminates.
+        return []
+
+    ts = time.time() if now is None else now
+    protected = (current_session_id.get() or '').strip()
+    to_evict = [
+        sid
+        for sid, sess in list(sessions.items())
+        if _session_is_idle_evictable(sid, sess, now=ts, protected=protected)
+    ]
+    if not to_evict:
+        return []
+
+    from valkade_backend.workspace_index.lifecycle import invalidate_staging_index_disk
+
+    loop: asyncio.AbstractEventLoop | None
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    _pruning = True
+    try:
+        for sid in to_evict:
+            sess = sessions.get(sid)
+            if sess is None:
+                continue
+            try:
+                invalidate_staging_index_disk(sid)
+            except Exception:
+                logger.debug('invalidate staging index on idle eviction failed', exc_info=True)
+            sessions.pop(sid, None)
+            if loop is not None:
+                loop.create_task(_async_teardown_after_evict(sid))
+            logger.info('evicted idle session sid=%s', sid)
+    finally:
+        _pruning = False
+    return to_evict
+
+
+def get_session(session_id: str) -> SessionState:
+    """Return existing session state or create an empty one for this id."""
+    if len(sessions) > SESSION_PRUNE_THRESHOLD:
+        prune_idle_sessions()
+    sess = sessions.setdefault(session_id, SessionState())
+    touch_session(sess)
+    return sess
+
+
+def drop_frozen_prompt_tree(session: SessionState) -> None:
+    """The next render freezes the tree again. ``reset_for_new_thread`` would drop packs a kept thread still holds."""
+    session.prompt_tree = ''
+    session.prompt_tree_changes = []
+    session.prompt_tree_changes_reported = 0
+
+
+def reset_for_new_thread(session: SessionState) -> None:
+    """The turn starts a thread with no checkpoint: the model has seen no tree or context pack in it.
+
+    The one rule for every way a thread goes away (``/clear``, ``/load``, a failed turn, a new plan thread).
+    """
+    drop_frozen_prompt_tree(session)
+    session.activated_context_packs.clear()
+
+
+def agent_formatters_enabled() -> bool:
+    """True when Settings → Tools allows Black/Prettier in the agent flow (auto + format tools)."""
+    return bool(getattr(runtime_config.tools, 'enable_agent_formatters', False))
+
+
+def verify_after_edits_enabled() -> bool:
+    """True when Settings → Tools has end-of-turn verification on."""
+    return bool(getattr(runtime_config.tools, 'verify_after_edits', False))
+
+
+def verify_max_fix_rounds() -> int:
+    """How many failed verifications a turn hands back to the model (Settings → Tools; 0-5)."""
+    try:
+        rounds = int(getattr(runtime_config.tools, 'verify_max_fix_rounds', 2))
+    except (TypeError, ValueError):
+        rounds = 2
+    return max(0, min(5, rounds))
+
+
+def mutation_tools_blocked_reason(session_id: str | None = None) -> str | None:
+    """Return an error when mutation-capable tools are used while Editor mode is off."""
+    sid = (session_id or current_session_id.get() or '').strip()
+    if not sid:
+        return 'Tool error: no active session.'
+    sess = get_session(sid)
+    if not sess.worker_apply_mode:
+        return 'Tool error: Editor mode is off; workspace mutation tools are unavailable.'
+    return None
+
+
+def get_active_connection() -> RuntimeConnection:
+    """The LLM connection the current task talks to.
+
+    A sub-agent pinned to its role's source gets that one (:data:`current_connection_override`);
+    everything else gets :func:`get_main_connection`.
+    """
+    pinned = current_connection_override.get()
+    if pinned is not None:
+        return pinned
+    return get_main_connection()
+
+
+def get_main_connection() -> RuntimeConnection:
+    """The connection matching active_connection_id (else the first), ignoring any sub-agent pin.
+
+    For state shared by a whole conversation family, such as the workspace's semantic index.
+    """
+    if not runtime_config.connections:
+        raise HTTPException(status_code=500, detail='No LLM connections are configured.')
+
+    for connection in runtime_config.connections:
+        if connection.id == runtime_config.active_connection_id:
+            return connection
+
+    return runtime_config.connections[0]
+
+
+def require_openai_api_key(api_key: str, provider_label: str) -> None:
+    """Raise HTTP 500 if a feature needs an OpenAI key but none is configured."""
+    if not api_key:
+        raise HTTPException(status_code=500, detail=f'{provider_label} API key is not configured.')

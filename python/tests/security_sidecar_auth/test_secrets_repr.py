@@ -6,7 +6,7 @@ in repr/logs.
 """
 from __future__ import annotations
 
-from clara_coder_backend.domain import RuntimeAudioConfig, RuntimeConnection
+from valkade_backend.domain import RuntimeAudioConfig, RuntimeConnection
 
 
 def test_runtime_connection_api_key_masked() -> None:

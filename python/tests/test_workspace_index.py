@@ -8,23 +8,23 @@ from pathlib import Path
 import pytest
 from llama_index.core.base.embeddings.base import BaseEmbedding
 
-from clara_coder_backend.config import CLARA_LLAMA_INDEX_MAX_FILES
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.session.state import current_session_id
-from clara_coder_backend.workspace_index.fingerprint import workspace_content_fingerprint
-from clara_coder_backend.workspace_index.index_build import (
+from valkade_backend.config import CLARA_LLAMA_INDEX_MAX_FILES
+from valkade_backend.domain import SessionState
+from valkade_backend.session.state import current_session_id
+from valkade_backend.workspace_index.fingerprint import workspace_content_fingerprint
+from valkade_backend.workspace_index.index_build import (
     load_or_rebuild_index,
     load_or_rebuild_workspace_index,
     read_manifest,
 )
-from clara_coder_backend.workspace_index import lifecycle as lc
-from clara_coder_backend.workspace_index.paths import index_persist_dir, workspace_index_persist_dir
-from clara_coder_backend.workspace_index.incremental import (
+from valkade_backend.workspace_index import lifecycle as lc
+from valkade_backend.workspace_index.paths import index_persist_dir, workspace_index_persist_dir
+from valkade_backend.workspace_index.incremental import (
     flush_semantic_index_patches,
     schedule_semantic_index_background,
 )
-from clara_coder_backend.tools.semantic import retrieve_workspace_semantic
-from clara_coder_backend.workspace_index.walk import iter_index_workspace_files
+from valkade_backend.tools.semantic import retrieve_workspace_semantic
+from valkade_backend.workspace_index.walk import iter_index_workspace_files
 
 
 class _FakeEmb(BaseEmbedding):
@@ -43,13 +43,14 @@ class _FakeEmb(BaseEmbedding):
         return self._get_text_embedding(text)
 
 
-def test_iter_index_skips_dot_clara(tmp_path: Path) -> None:
-    (tmp_path / '.clara' / 'nested').mkdir(parents=True)
-    (tmp_path / '.clara' / 'nested' / 'hidden.txt').write_text('secret', encoding='utf-8')
+@pytest.mark.parametrize('meta_dir', ['.valkade', '.clara', '.nemo'])
+def test_iter_index_skips_meta_dirs(tmp_path: Path, meta_dir: str) -> None:
+    (tmp_path / meta_dir / 'nested').mkdir(parents=True)
+    (tmp_path / meta_dir / 'nested' / 'hidden.txt').write_text('secret', encoding='utf-8')
     (tmp_path / 'visible.txt').write_text('ok', encoding='utf-8')
     rels = {p.relative_to(tmp_path).as_posix() for p in iter_index_workspace_files(tmp_path, max_files=50)}
     assert 'visible.txt' in rels
-    assert not any(r.startswith('.clara/') for r in rels)
+    assert not any(r.startswith(f'{meta_dir}/') for r in rels)
 
 
 def test_iter_index_skips_runtime_bundle(tmp_path: Path) -> None:
@@ -89,7 +90,7 @@ def test_load_or_rebuild_persist_and_manifest(tmp_path: Path) -> None:
 
 def test_staging_index_dir_is_session_scoped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'root'))
-    from clara_coder_backend.workspace_index.paths import staging_index_persist_dir
+    from valkade_backend.workspace_index.paths import staging_index_persist_dir
 
     p = staging_index_persist_dir('my-session-id')
     assert 'sessions' in p.as_posix()
@@ -107,7 +108,7 @@ def test_internal_persist_dir_not_under_workspace(tmp_path: Path, monkeypatch: p
 
 
 def test_retrieve_workspace_semantic_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.tools import semantic as st
+    from valkade_backend.tools import semantic as st
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'semantic-root'))
     (tmp_path / 'notes.md').write_text('# Project\nUse the frobnitz handler for IO.\n', encoding='utf-8')
@@ -121,7 +122,7 @@ def test_retrieve_workspace_semantic_invocation(tmp_path: Path, monkeypatch: pyt
     sess = SessionState()
     sess.workspace_path = str(tmp_path)
     sess.workspace_id = 'ws-card-test'
-    from clara_coder_backend.session import state as st_state
+    from valkade_backend.session import state as st_state
     st_state.sessions[sid] = sess
     token = current_session_id.set(sid)
     try:
@@ -162,7 +163,7 @@ def test_incremental_patch_loads_existing_index_instead_of_rebuilding(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Watcher batches must patch the persisted index, not re-embed the whole workspace."""
-    from clara_coder_backend.workspace_index import index_build as ib
+    from valkade_backend.workspace_index import index_build as ib
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -226,7 +227,7 @@ def test_incremental_patch_builds_fresh_when_no_index_exists(
 
 def test_stale_index_is_reconciled_not_rebuilt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``ensure_corpus`` / semantic-tool path: a changed tree patches only the changed files."""
-    from clara_coder_backend.workspace_index import index_build as ib
+    from valkade_backend.workspace_index import index_build as ib
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -274,7 +275,7 @@ def test_stale_index_is_reconciled_not_rebuilt(tmp_path: Path, monkeypatch: pyte
 
 
 def test_stale_index_rebuilds_when_most_files_changed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import index_build as ib
+    from valkade_backend.workspace_index import index_build as ib
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -305,8 +306,8 @@ def test_previous_manifest_stays_loadable_while_build_runs(tmp_path: Path, monke
     """A build in progress must not look like "no index" to a concurrent caller."""
     import threading
 
-    from clara_coder_backend.workspace_index import index_build as ib
-    from clara_coder_backend.workspace_index.index_build import persisted_workspace_index_fingerprint
+    from valkade_backend.workspace_index import index_build as ib
+    from valkade_backend.workspace_index.index_build import persisted_workspace_index_fingerprint
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -353,7 +354,7 @@ def test_concurrent_callers_build_once(tmp_path: Path, monkeypatch: pytest.Monke
     """Background job + watcher flush + semantic tool racing on one workspace -> one build."""
     import threading
 
-    from clara_coder_backend.workspace_index import index_build as ib
+    from valkade_backend.workspace_index import index_build as ib
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -398,7 +399,7 @@ def test_concurrent_callers_build_once(tmp_path: Path, monkeypatch: pytest.Monke
 def test_persisted_workspace_index_fingerprint_requires_compatible_manifest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from clara_coder_backend.workspace_index.index_build import persisted_workspace_index_fingerprint
+    from valkade_backend.workspace_index.index_build import persisted_workspace_index_fingerprint
 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
@@ -480,7 +481,7 @@ def test_flush_requeues_pending_on_workspace_load_failure(tmp_path: Path, monkey
         raise OSError('simulated load failure')
 
     monkeypatch.setattr(
-        'clara_coder_backend.workspace_index.incremental.load_or_rebuild_workspace_index',
+        'valkade_backend.workspace_index.incremental.load_or_rebuild_workspace_index',
         _boom,
     )
     with pytest.raises(OSError, match='simulated'):
@@ -489,7 +490,7 @@ def test_flush_requeues_pending_on_workspace_load_failure(tmp_path: Path, monkey
 
 
 def test_schedule_semantic_index_background_coalesces_ensure_corpus(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import incremental as inc
+    from valkade_backend.workspace_index import incremental as inc
 
     calls: list[tuple[str, bool]] = []
 
@@ -511,8 +512,8 @@ def test_schedule_semantic_index_background_coalesces_ensure_corpus(monkeypatch:
 
 
 def test_run_semantic_index_background_builds_corpus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import incremental as inc
-    from clara_coder_backend.session import state as st
+    from valkade_backend.workspace_index import incremental as inc
+    from valkade_backend.session import state as st
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     root = tmp_path / 'proj'
     root.mkdir()
@@ -531,7 +532,7 @@ def test_run_semantic_index_background_builds_corpus(tmp_path: Path, monkeypatch
         return _FakeEmb(), ''
 
     monkeypatch.setattr(
-        'clara_coder_backend.workspace_index.embeddings_factory.build_embedding_model',
+        'valkade_backend.workspace_index.embeddings_factory.build_embedding_model',
         _fake_build,
     )
 

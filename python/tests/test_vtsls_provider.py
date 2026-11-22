@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps import registry
-from clara_coder_backend.runtime.deps.providers import vtsls
+from valkade_backend.runtime.deps import registry
+from valkade_backend.runtime.deps.providers import vtsls
 
 TAG = vtsls.DEFAULT_TAG
 NESTED = 'node_modules/vscode-languageserver/node_modules/vscode-jsonrpc'

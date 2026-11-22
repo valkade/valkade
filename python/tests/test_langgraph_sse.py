@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 
-from clara_coder_backend.domain import RuntimeConnection
-from clara_coder_backend.lang_agent.langgraph_sse import (
+from valkade_backend.domain import RuntimeConnection
+from valkade_backend.lang_agent.langgraph_sse import (
     GraphStreamState,
     finalize_unconsumed_gemma_previews,
     sse_lines_for_graph_event,
@@ -139,7 +139,7 @@ def test_outer_agent_brief_emits_status() -> None:
     assert '"id": "outer-brief-' in lines[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_outer_agent_brief_emits_status_for_gemma_preset(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -250,7 +250,7 @@ def test_chat_model_stream_clears_primary_when_step_requests_tools() -> None:
     assert state.deferred_agent_text == ''
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_gemma_preset_clears_primary_when_step_requests_tools(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -357,7 +357,7 @@ def test_chat_model_stream_emits_primary_live_and_skips_end_redump() -> None:
     assert state.deferred_agent_text == ''
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_splits_gemma_channel_to_reasoning(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -387,7 +387,7 @@ def test_chat_model_stream_splits_gemma_channel_to_reasoning(mock_conn: MagicMoc
     assert state.reasoning_emitted_this_step is True
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_parses_thought_after_empty_channel_close(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -432,7 +432,7 @@ def _sse_kwargs() -> dict[str, object]:
     }
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_after_tool_maps_prompt_opened_thought(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -469,7 +469,7 @@ def test_chat_model_stream_after_tool_maps_prompt_opened_thought(mock_conn: Magi
     assert any('next.' in ln and '"stream_tag": "reasoning"' in ln for ln in second)
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_nested_chat_model_start_after_tool_keeps_prompt_opened_thought(mock_conn: MagicMock) -> None:
     """Wrapper + ChatOpenAI both emit ``on_chat_model_start``; the second must not drop thought."""
     mock_conn.return_value = _gemma_connection()
@@ -504,7 +504,7 @@ def test_nested_chat_model_start_after_tool_keeps_prompt_opened_thought(mock_con
     assert '"stream_tag": "reasoning"' in first[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_start_with_tool_message_opens_thought_without_tool_end_flag(
     mock_conn: MagicMock,
 ) -> None:
@@ -537,7 +537,7 @@ def test_chat_model_start_with_tool_message_opens_thought_without_tool_end_flag(
     assert '"stream_tag": "reasoning"' in first[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_after_tool_uses_default_thinking_as_on(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection(thinking_mode='default')
     state = GraphStreamState()
@@ -562,7 +562,7 @@ def test_chat_model_stream_after_tool_uses_default_thinking_as_on(mock_conn: Mag
     assert '"stream_tag": "reasoning"' in first[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_after_tool_stays_visible_when_thinking_off(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection(thinking_mode='off')
     state = GraphStreamState()
@@ -589,7 +589,7 @@ def test_chat_model_stream_after_tool_stays_visible_when_thinking_off(mock_conn:
     assert '"stream_tag": "agent"' in first[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_after_tool_still_honors_explicit_channel(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -619,7 +619,7 @@ def test_chat_model_stream_after_tool_still_honors_explicit_channel(mock_conn: M
     assert any('plan' in ln and '"stream_tag": "reasoning"' in ln for ln in lines)
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_empty_channel_then_thought_before_tool_call(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -657,7 +657,7 @@ def test_chat_model_stream_empty_channel_then_thought_before_tool_call(mock_conn
     assert not any('<|tool_call>' in ln for ln in later)
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_strips_nested_channel_tags_from_reasoning(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -684,7 +684,7 @@ def test_chat_model_stream_strips_nested_channel_tags_from_reasoning(mock_conn: 
     assert 'inner' in reason_lines[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_strips_tags_from_reasoning_sidecar(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -808,7 +808,7 @@ def test_chat_model_end_emits_token_usage_when_usage_metadata_present() -> None:
 
 
 def test_chat_model_end_reports_generation_ms_from_first_streamed_token(monkeypatch) -> None:
-    import clara_coder_backend.lang_agent.langgraph_sse as sse_mod
+    import valkade_backend.lang_agent.langgraph_sse as sse_mod
 
     clock = iter([10.0, 12.5])
     monkeypatch.setattr(sse_mod.time, 'monotonic', lambda: next(clock))
@@ -839,8 +839,8 @@ def test_chat_model_end_reports_generation_ms_from_first_streamed_token(monkeypa
 
 @pytest.mark.asyncio(loop_scope='function')
 async def test_hitl_sse_lines_no_longer_emit_edit_cards() -> None:
-    from clara_coder_backend.lang_agent.graph import _hitl_sse_lines
-    from clara_coder_backend.domain import SessionState
+    from valkade_backend.lang_agent.graph import _hitl_sse_lines
+    from valkade_backend.domain import SessionState
 
     s = SessionState()
     assert await _hitl_sse_lines(s, ('diff', {'version': 1, 'rows': []})) == []
@@ -850,8 +850,8 @@ async def test_hitl_sse_lines_no_longer_emit_edit_cards() -> None:
 
 @pytest.mark.asyncio(loop_scope='function')
 async def test_hitl_sse_lines_agent_nudge() -> None:
-    from clara_coder_backend.lang_agent.graph import _hitl_sse_lines
-    from clara_coder_backend.domain import SessionState
+    from valkade_backend.lang_agent.graph import _hitl_sse_lines
+    from valkade_backend.domain import SessionState
 
     s = SessionState()
     lines = await _hitl_sse_lines(s, ('agent_nudge', {'reason': 'empty'}))
@@ -863,10 +863,10 @@ async def test_hitl_sse_lines_agent_nudge() -> None:
 async def test_hitl_sse_lines_accept_command_skips_risk_enrichment_when_setting_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from clara_coder_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
-    from clara_coder_backend.lang_agent.graph import _hitl_sse_lines
-    from clara_coder_backend.domain import SessionState
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
+    from valkade_backend.lang_agent.graph import _hitl_sse_lines
+    from valkade_backend.domain import SessionState
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(runtime_config.tools, 'command_line_explain_step', False, raising=False)
 
@@ -886,7 +886,7 @@ async def test_hitl_sse_lines_accept_command_skips_risk_enrichment_when_setting_
         },
     }
 
-    with patch('clara_coder_backend.lang_agent.graph.maybe_enrich_pending_command_risk') as mock_enrich:
+    with patch('valkade_backend.lang_agent.graph.maybe_enrich_pending_command_risk') as mock_enrich:
         lines = await _hitl_sse_lines(s, ('accept_command',))
 
     assert len(lines) == 1
@@ -900,10 +900,10 @@ async def test_hitl_sse_lines_accept_command_skips_risk_enrichment_when_setting_
 async def test_hitl_sse_lines_accept_command_includes_risk_fields_when_enriched(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from clara_coder_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
-    from clara_coder_backend.lang_agent.graph import _hitl_sse_lines
-    from clara_coder_backend.domain import SessionState
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
+    from valkade_backend.lang_agent.graph import _hitl_sse_lines
+    from valkade_backend.domain import SessionState
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(runtime_config.tools, 'command_line_explain_step', True, raising=False)
 
@@ -929,7 +929,7 @@ async def test_hitl_sse_lines_accept_command_includes_risk_fields_when_enriched(
         pending['risk_description'] = 'Deletes the build directory.'
 
     with patch(
-        'clara_coder_backend.lang_agent.graph.maybe_enrich_pending_command_risk',
+        'valkade_backend.lang_agent.graph.maybe_enrich_pending_command_risk',
         new=AsyncMock(side_effect=_fake_enrich),
     ) as mock_enrich:
         lines = await _hitl_sse_lines(s, ('accept_command',))
@@ -945,7 +945,7 @@ def _sse_json(line: str) -> dict:
     return json.loads(line.removeprefix('data: ').strip())
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_previews_write_tool_before_native_block_closes(
     mock_conn: MagicMock,
 ) -> None:
@@ -1027,7 +1027,7 @@ def test_chat_model_stream_previews_write_tool_before_native_block_closes(
     assert end_status[0]['state'] == 'complete'
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_end_marks_unclosed_write_preview_not_run(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -1063,7 +1063,7 @@ def test_chat_model_end_marks_unclosed_write_preview_not_run(mock_conn: MagicMoc
     assert preview_id not in state.pending_tool_runs
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_end_marks_closed_unparseable_write_preview_not_run(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -1112,7 +1112,7 @@ _CUT_OFF_ROW = ('error', 'Not run: reply hit the output limit')
 _WRITE_ARGS = {'relative_path': 'a.py', 'content': 'x'}
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_cut_off_reply_marks_unclosed_write_preview_not_run(mock_conn: MagicMock) -> None:
     """The splitter's flush closes this row too, but only this path knows why."""
     mock_conn.return_value = _gemma_connection()
@@ -1208,7 +1208,7 @@ def test_a_preview_bound_to_a_tool_run_ends_with_that_run() -> None:
     assert [row[0] for row in _preview_rows(lines, preview_id)] == ['running', 'complete']
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_stream_previews_two_native_tool_calls_share_ids(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -1268,7 +1268,7 @@ def test_chat_model_stream_previews_two_native_tool_calls_share_ids(mock_conn: M
     assert set(state.gemma_run_id_alias.values()) == set(ids)
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_chat_model_start_after_injected_human_does_not_inherit_thought(
     mock_conn: MagicMock,
 ) -> None:
@@ -1301,7 +1301,7 @@ def test_chat_model_start_after_injected_human_does_not_inherit_thought(
     assert '"stream_tag": "reasoning"' not in first[0]
 
 
-@patch('clara_coder_backend.lang_agent.langgraph_sse.get_active_connection')
+@patch('valkade_backend.lang_agent.langgraph_sse.get_active_connection')
 def test_parallel_same_name_previews_bind_by_path(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_connection()
     state = GraphStreamState()
@@ -1587,7 +1587,7 @@ def test_native_preview_reset_per_llm_step_and_not_run_when_no_tool_calls() -> N
 
 
 def test_tool_progress_folds_into_running_tool_pill() -> None:
-    from clara_coder_backend.lang_agent.langgraph_sse import tool_progress_sse_lines
+    from valkade_backend.lang_agent.langgraph_sse import tool_progress_sse_lines
 
     state = GraphStreamState()
     kwargs = _sse_kwargs()
@@ -1676,9 +1676,9 @@ def _sse_payloads(lines: list[str]) -> list[dict[str, object]]:
 def test_subagent_started_custom_event_targets_the_aliased_spawn_pill() -> None:
     """The spawn call's start event goes on the sub-agent bus with the pill id; the parent stream only
     gets the pill's running update (linked to the child)."""
-    from clara_coder_backend.domain import SessionState
-    from clara_coder_backend.lang_agent import subagents
-    from clara_coder_backend.lang_agent.subagent_bus import SUBAGENT_BUS
+    from valkade_backend.domain import SessionState
+    from valkade_backend.lang_agent import subagents
+    from valkade_backend.lang_agent.subagent_bus import SUBAGENT_BUS
 
     state = GraphStreamState()
     # The pill was opened by a streaming preview; the tool run is an alias of it.

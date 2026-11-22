@@ -28,7 +28,7 @@ import {
   uniqueThemeId,
   writeUserTheme,
 } from './theme-store';
-import { CLARA_DARK_THEME } from '../../shared/theme/builtin';
+import { VALKADE_DARK_THEME } from '../../shared/theme/builtin';
 
 // 1x1 transparent PNG.
 const PNG_BYTES = Buffer.from(
@@ -48,16 +48,16 @@ describe('theme-store', () => {
   it('lists built-ins when no user themes exist', async () => {
     expect(await listUserThemes()).toEqual([]);
     const all = await listAllThemes();
-    expect(all.map((t) => t.id)).toEqual(['clara-dark', 'clara-dark-cadmium-lantern', 'clara-dark-cadmium-orange', 'clara-light', 'clara-light-iris', 'clara-light-ochre']);
+    expect(all.map((t) => t.id)).toEqual(['valkade-dark', 'valkade-dark-cadmium-lantern', 'valkade-dark-cadmium-orange', 'valkade-light', 'valkade-light-iris', 'valkade-light-ochre']);
     expect(all[0]!.builtIn).toBe(true);
   });
 
   it('creates a user theme from a built-in with a unique id and round-trips it', async () => {
-    const created = await createUserTheme({ name: 'Neon Nights', mode: 'dark', fromThemeId: 'clara-dark' });
+    const created = await createUserTheme({ name: 'Neon Nights', mode: 'dark', fromThemeId: 'valkade-dark' });
     expect(created.ok, created.error).toBe(true);
     expect(created.theme!.id).toBe('neon-nights');
     expect(created.theme!.builtIn).toBeUndefined();
-    expect(created.theme!.tokens['--t-bg']).toBe(CLARA_DARK_THEME.tokens['--t-bg']);
+    expect(created.theme!.tokens['--t-bg']).toBe(VALKADE_DARK_THEME.tokens['--t-bg']);
 
     const again = await createUserTheme({ name: 'Neon Nights', mode: 'dark' });
     expect(again.theme!.id).toBe('neon-nights-2');
@@ -65,11 +65,11 @@ describe('theme-store', () => {
     const onDisk = await readUserTheme('neon-nights');
     expect(onDisk?.name).toBe('Neon Nights');
     expect((await listUserThemes()).map((t) => t.id)).toEqual(['neon-nights', 'neon-nights-2']);
-    expect(await uniqueThemeId('clara-dark')).toBe('clara-dark-2');
+    expect(await uniqueThemeId('valkade-dark')).toBe('valkade-dark-2');
   });
 
   it('refuses to overwrite built-ins', async () => {
-    const result = await writeUserTheme({ ...CLARA_DARK_THEME });
+    const result = await writeUserTheme({ ...VALKADE_DARK_THEME });
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/built-in/);
   });
@@ -105,7 +105,7 @@ describe('theme-store', () => {
   it('exports a bundle with embedded assets and imports it as a new theme', async () => {
     const bundle = await exportThemeBundle('neon-nights');
     expect(bundle).not.toBeNull();
-    expect(bundle!.fileName).toBe('neon-nights.clara-theme.json');
+    expect(bundle!.fileName).toBe('neon-nights.valkade-theme.json');
     const parsed = JSON.parse(bundle!.json) as { assets: Record<string, string>; id: string };
     expect(parsed.assets['wall']).toMatch(/^data:image\/png;base64,/);
 
@@ -126,7 +126,7 @@ describe('theme-store', () => {
     expect(dup.theme!.id).toBe('neon-copy');
     expect(dup.theme!.assets).toEqual({ wall: 'wall.png' });
 
-    expect((await deleteUserTheme('clara-dark')).ok).toBe(false);
+    expect((await deleteUserTheme('valkade-dark')).ok).toBe(false);
     expect((await deleteUserTheme('neon-copy')).ok).toBe(true);
     expect(await readUserTheme('neon-copy')).toBeNull();
   });

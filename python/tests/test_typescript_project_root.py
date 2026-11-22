@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lsp.typescript_project_root import (
+from valkade_backend.lsp.typescript_project_root import (
     package_node_modules_link_rels,
     resolve_typescript_project_root,
 )

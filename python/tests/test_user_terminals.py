@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from clara_coder_backend.hitl.tool_registry import TOOL_FAMILIES, worker_tools_and_map
-from clara_coder_backend.main import app
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.tools.user_terminals import (
+from valkade_backend.hitl.tool_registry import TOOL_FAMILIES, worker_tools_and_map
+from valkade_backend.main import app
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.user_terminals import (
     CHECK_USER_TERMINALS_NAME,
     append_user_pty_output,
     check_user_terminals_tool,

@@ -1,0 +1,334 @@
+"""Emit ``file_journal`` SSE events when a workspace mutation lands on disk.
+
+Edits write straight to disk; Electron persists one journal row per path per turn (the pre-turn bytes) so the
+user can review and reset each turn's files afterwards. Only the **first** mutation of a path in a turn is
+journaled—later writes in the same turn would otherwise overwrite the restore baseline.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import threading
+from pathlib import Path
+from typing import Any, Literal
+
+from valkade_backend.domain import SessionEditJournalState, SessionState, TurnVerifyState
+from valkade_backend.workspace.workspace_text_io import decode_for_tools, detect_newline_preference
+
+logger = logging.getLogger('clara.session.file_journal')
+
+FILE_JOURNAL_MAX_CHARS = 2_000_000
+#: Directory deletes above these caps cannot be restored, so they still ask the user first.
+TREE_SNAPSHOT_MAX_FILES = 2_000
+TREE_SNAPSHOT_MAX_BYTES = 20_000_000
+_TREE_SNAPSHOT_SKIP_DIRS = frozenset({'.git', 'node_modules', '.venv', 'venv', '__pycache__'})
+#: Earlier turns whose journaled paths are remembered (a sub-agent may outlive a few main-agent turns).
+_EARLIER_TURNS_KEPT = 16
+#: Turns whose verification bookkeeping is remembered (same reason).
+_VERIFY_TURNS_KEPT = 8
+#: Pre-edit texts kept per turn for a verification baseline (verification checks at most 25 paths).
+_BASELINE_TEXTS_KEPT = 25
+_BASELINE_TEXT_MAX_CHARS = 2_000_000
+# Parallel tool calls (and sub-agents sharing their parent's ``edits``) journal from worker threads.
+_journal_lock = threading.Lock()
+
+FileJournalOp = Literal['create', 'modify', 'delete', 'delete-tree', 'copy']
+
+
+def snapshot_text_file(path: Path) -> dict[str, str] | None:
+    """Read a text file for journal before-content. None if missing, binary, or too large."""
+    try:
+        if not path.is_file() or path.stat().st_size > FILE_JOURNAL_MAX_CHARS * 4:
+            return None
+        raw = path.read_bytes()
+    except OSError as exc:
+        logger.warning('file journal snapshot read failed path=%s err=%s', path, exc)
+        return None
+    if len(raw) > FILE_JOURNAL_MAX_CHARS * 4 or b'\x00' in raw:
+        return None
+    try:
+        text = decode_for_tools(raw, 'utf-8')
+    except Exception:
+        return None
+    if len(text) > FILE_JOURNAL_MAX_CHARS:
+        return None
+    return {
+        'content': text,
+        'encoding': 'utf-8',
+        'newline': detect_newline_preference(raw),
+    }
+
+
+class TreeTooLargeError(Exception):
+    """Raised when a directory is too large to journal for undo."""
+
+
+def snapshot_tree(root: Path, directory: Path) -> list[dict[str, str]]:
+    """Snapshot text files under *directory* as workspace-relative entries.
+
+    Raises :class:`TreeTooLargeError` past :data:`TREE_SNAPSHOT_MAX_FILES` / :data:`TREE_SNAPSHOT_MAX_BYTES`
+    (sizes come from ``stat`` before any read) or when the tree holds a dependency/VCS directory.
+    """
+    entries: list[dict[str, str]] = []
+    if not directory.is_dir():
+        return entries
+    root_resolved = root.resolve()
+    files: list[Path] = []
+    total_bytes = 0
+    for child in directory.rglob('*'):
+        if child.is_dir():
+            if child.name in _TREE_SNAPSHOT_SKIP_DIRS:
+                raise TreeTooLargeError(f'contains `{child.name}/`')
+            continue
+        try:
+            total_bytes += child.stat().st_size
+        except OSError:
+            continue
+        files.append(child)
+        if len(files) > TREE_SNAPSHOT_MAX_FILES or total_bytes > TREE_SNAPSHOT_MAX_BYTES:
+            raise TreeTooLargeError(f'more than {TREE_SNAPSHOT_MAX_FILES} files or {TREE_SNAPSHOT_MAX_BYTES} bytes')
+    for child in files:
+        snap = snapshot_text_file(child)
+        if snap is None:
+            continue
+        try:
+            rel = child.resolve().relative_to(root_resolved).as_posix()
+        except ValueError:
+            continue
+        entries.append(
+            {
+                'relativePath': rel,
+                'content': snap['content'],
+                'encoding': snap['encoding'],
+                'newline': snap['newline'],
+            }
+        )
+    return entries
+
+
+def file_journal_payload(
+    *,
+    user_message_id: str,
+    op: FileJournalOp,
+    relative_path: str,
+    before_content: str | None = None,
+    before_encoding: str | None = None,
+    before_newline: str | None = None,
+    dest_relative_path: str | None = None,
+    tree_entries: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        'userMessageId': user_message_id,
+        'op': op,
+        'relativePath': relative_path,
+    }
+    if before_content is not None:
+        payload['beforeContent'] = before_content
+    if before_encoding:
+        payload['beforeEncoding'] = before_encoding
+    if before_newline in ('lf', 'crlf'):
+        payload['beforeNewline'] = before_newline
+    if dest_relative_path:
+        payload['destRelativePath'] = dest_relative_path
+    if tree_entries:
+        payload['treeEntries'] = tree_entries
+    return payload
+
+
+def first_mutation_this_turn(session: SessionState, relative_path: str) -> bool:
+    """Record *relative_path* for the current turn; True only on its first mutation in this turn."""
+    turn_id = (getattr(session, 'current_user_message_id', '') or '').strip()
+    edits = session.edits
+    key = (relative_path or '').strip().replace('\\', '/')
+    with _journal_lock:
+        if edits.journal_turn_id != turn_id:
+            # Park the previous turn's set: a background sub-agent may still journal under that turn.
+            if edits.journal_turn_id:
+                edits.journal_earlier_turns[edits.journal_turn_id] = edits.journaled_paths
+                while len(edits.journal_earlier_turns) > _EARLIER_TURNS_KEPT:
+                    edits.journal_earlier_turns.pop(next(iter(edits.journal_earlier_turns)))
+            edits.journal_turn_id = turn_id
+            edits.journaled_paths = edits.journal_earlier_turns.pop(turn_id, set())
+        if key in edits.journaled_paths:
+            return False
+        edits.journaled_paths.add(key)
+        return True
+
+
+def turn_verify_state(edits: SessionEditJournalState, turn_id: str) -> TurnVerifyState:
+    """Verification bookkeeping of ``turn_id``, created on first use (older turns are dropped past a cap)."""
+    with _journal_lock:
+        state = edits.verify_by_turn.get(turn_id)
+        if state is None:
+            state = TurnVerifyState()
+            edits.verify_by_turn[turn_id] = state
+            while len(edits.verify_by_turn) > _VERIFY_TURNS_KEPT:
+                edits.verify_by_turn.pop(next(iter(edits.verify_by_turn)))
+        return state
+
+
+def turn_touched_paths(session: SessionState) -> list[str]:
+    """Workspace-relative paths journaled under the session's current turn, sorted (deleted ones included)."""
+    turn_id = (getattr(session, 'current_user_message_id', '') or '').strip()
+    if not turn_id:
+        return []
+    edits = session.edits
+    with _journal_lock:
+        if edits.journal_turn_id == turn_id:
+            return sorted(edits.journaled_paths)
+        # A sub-agent of an earlier turn journaled last, which parked this turn's set.
+        return sorted(edits.journal_earlier_turns.get(turn_id, ()))
+
+
+def _note_mutation(
+    session: SessionState, turn_id: str, relative_path: str, payload: dict[str, Any], *, first: bool
+) -> None:
+    """Count the mutation for turn verification; on a path's first one, keep the errors it already had.
+
+    When no diagnostics are cached for the path yet (the language server never opened it), its
+    pre-edit text is kept instead, so verification can ask the server what errors it already had.
+    """
+    state = turn_verify_state(session.edits, turn_id)
+    key = (relative_path or '').strip().replace('\\', '/')
+    baseline: list[str] | None = None
+    before_text: str | None = None
+    if first and key:
+        from valkade_backend.lsp.diagnostics import diagnostic_error_keys
+        from valkade_backend.lsp.file_policy import lsp_server_for_path
+
+        # The edit tools journal before their LSP sync, so the cache still describes the pre-edit text.
+        cached = (session.lsp.lsp_diagnostics_by_scope.get('workspace') or {}).get(key)
+        if cached is not None:
+            baseline = diagnostic_error_keys(cached)
+        else:
+            before = payload.get('beforeContent')
+            if isinstance(before, str) and len(before) <= _BASELINE_TEXT_MAX_CHARS and lsp_server_for_path(key):
+                before_text = before
+    with _journal_lock:
+        state.mutations += 1
+        if baseline is not None:
+            state.baseline_errors.setdefault(key, baseline)
+        elif (
+            before_text is not None
+            and key not in state.baseline_errors
+            and len(state.baseline_texts) < _BASELINE_TEXTS_KEPT
+        ):
+            state.baseline_texts.setdefault(key, before_text)
+
+
+def _running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
+def emit_file_journal(session: SessionState, payload: dict[str, Any]) -> None:
+    """Queue a ``file_journal`` HITL SSE item for the first mutation of a path in the current turn.
+
+    A sub-agent shares its parent's ``edits`` and journals under the turn that started it, so the family
+    journals each path once per user turn; the sub-agent still records every path it touched for its report.
+    """
+    rel = str(payload.get('relativePath') or '')
+    if getattr(session, 'subagent_parent_session_id', '') and rel.strip():
+        session.subagent_touched_paths.add(rel.strip().replace('\\', '/'))
+    turn_id = (getattr(session, 'current_user_message_id', '') or '').strip()
+    if not turn_id:
+        return
+    first = first_mutation_this_turn(session, rel)
+    _note_mutation(session, turn_id, rel, payload, first=first)
+    if not first:
+        return
+    body = dict(payload)
+    body['userMessageId'] = turn_id
+    queue, loop = session.hitl_sse_queue, session.hitl_sse_loop
+    if queue is None:
+        logger.debug('file journal dropped (no HITL SSE queue) path=%s', body.get('relativePath'))
+        return
+    try:
+        if loop is None or _running_loop() is loop:
+            queue.put_nowait(('file_journal', body))
+        else:
+            # Tool worker thread: ``asyncio.Queue`` is not thread-safe, and a ``put_nowait`` here would not wake
+            # the stream loop awaiting ``queue.get()``.
+            loop.call_soon_threadsafe(queue.put_nowait, ('file_journal', body))
+    except Exception as exc:
+        logger.warning('file journal enqueue failed path=%s err=%s', body.get('relativePath'), exc)
+
+
+def emit_edit_journal(
+    session: SessionState,
+    relative_path: str,
+    old_text: str,
+    *,
+    before_existed: bool,
+    encoding: str,
+    newline: str,
+) -> None:
+    existed = before_existed
+    emit_file_journal(
+        session,
+        file_journal_payload(
+            user_message_id='',
+            op='modify' if existed else 'create',
+            relative_path=relative_path,
+            before_content=old_text if existed else None,
+            before_encoding=encoding,
+            before_newline=newline if newline in ('lf', 'crlf') else 'lf',
+        ),
+    )
+
+
+def snapshot_delete_payload(root: Path, relative_path: str) -> dict[str, Any] | None:
+    try:
+        target = (root / relative_path).resolve()
+        target.relative_to(root.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    if target.is_dir():
+        return file_journal_payload(
+            user_message_id='',
+            op='delete-tree',
+            relative_path=relative_path,
+            tree_entries=snapshot_tree(root, target),
+        )
+    snap = snapshot_text_file(target)
+    return file_journal_payload(
+        user_message_id='',
+        op='delete',
+        relative_path=relative_path,
+        before_content=snap['content'] if snap else None,
+        before_encoding=snap['encoding'] if snap else None,
+        before_newline=snap['newline'] if snap else None,
+    )
+
+
+def emit_delete_journal(session: SessionState, root: Path, relative_path: str) -> None:
+    payload = snapshot_delete_payload(root, relative_path)
+    if payload:
+        emit_file_journal(session, payload)
+
+
+def emit_copy_journal(
+    session: SessionState,
+    dest_relative_path: str,
+    *,
+    before_content: str | None = None,
+    before_encoding: str | None = None,
+    before_newline: str | None = None,
+) -> None:
+    emit_file_journal(
+        session,
+        file_journal_payload(
+            user_message_id='',
+            op='copy',
+            relative_path=dest_relative_path,
+            dest_relative_path=dest_relative_path,
+            before_content=before_content,
+            before_encoding=before_encoding,
+            before_newline=before_newline,
+        ),
+    )

@@ -28,8 +28,8 @@ from test_context_compaction_middleware import (  # noqa: F401 (``session`` and 
     workspace,
 )
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lang_agent import graph as graph_module
+from valkade_backend.domain import SessionState
+from valkade_backend.lang_agent import graph as graph_module
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 

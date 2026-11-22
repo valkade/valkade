@@ -6,25 +6,25 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lsp.python_server import build_python_lsp_command
-from clara_coder_backend.runtime.python_env import (
+from valkade_backend.domain import SessionState
+from valkade_backend.lsp.python_server import build_python_lsp_command
+from valkade_backend.runtime.python_env import (
     PythonWorkspaceEnvResult,
     _run_subprocess_with_output,
     ensure_session_python_workspace_env,
     resolve_python_workspace_root,
     workspace_python_executable,
 )
-from clara_coder_backend.routes.session import set_workspace_context
-from clara_coder_backend.session.schemas import WorkspaceContextRequest
-from clara_coder_backend.session.state import get_session
+from valkade_backend.routes.session import set_workspace_context
+from valkade_backend.session.schemas import WorkspaceContextRequest
+from valkade_backend.session.state import get_session
 
 import pytest
 
 
 @pytest.mark.asyncio
 async def test_run_subprocess_with_output_times_out_and_kills(tmp_path: Path, monkeypatch) -> None:
-    import clara_coder_backend.runtime.python_env as pe
+    import valkade_backend.runtime.python_env as pe
 
     monkeypatch.setattr(pe, 'CLARA_SUBPROCESS_TIMEOUT_SEC', 1)
 
@@ -157,7 +157,7 @@ def test_build_python_lsp_command_ignores_workspace_adjacent_basedpyright(tmp_pa
 def test_build_python_lsp_command_raises_when_basedpyright_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import clara_coder_backend.lsp.python_server as ps
+    import valkade_backend.lsp.python_server as ps
 
     monkeypatch.setattr(ps, '_resolve_basedpyright_command_for_interpreter', lambda _exe: None)
     monkeypatch.setattr(ps, 'env_clara', lambda *_a, **_k: '')
@@ -196,9 +196,9 @@ def test_ensure_session_python_workspace_env_applies_session_paths(monkeypatch, 
             summary='Python workspace environment summary:\n- Workspace root: `.`\n',
         )
 
-    monkeypatch.setattr('clara_coder_backend.runtime.python_env.ensure_python_workspace_env', _fake_ensure)
+    monkeypatch.setattr('valkade_backend.runtime.python_env.ensure_python_workspace_env', _fake_ensure)
     monkeypatch.setattr(
-        'clara_coder_backend.runtime.python_env.activate_process_workspace_python_env',
+        'valkade_backend.runtime.python_env.activate_process_workspace_python_env',
         lambda venv_path: activated.append(venv_path),
     )
 
@@ -232,7 +232,7 @@ def test_ensure_session_python_workspace_env_bootstraps_dependencies_when_reques
         )
 
     async def _fake_bootstrap(session_arg, *, emit_chunk=None):
-        from clara_coder_backend.runtime.python_bootstrap import PythonBootstrapResult
+        from valkade_backend.runtime.python_bootstrap import PythonBootstrapResult
 
         assert session_arg is session
         return PythonBootstrapResult(
@@ -242,9 +242,9 @@ def test_ensure_session_python_workspace_env_bootstraps_dependencies_when_reques
             installed_packages=[],
         )
 
-    monkeypatch.setattr('clara_coder_backend.runtime.python_env.ensure_python_workspace_env', _fake_ensure)
-    monkeypatch.setattr('clara_coder_backend.runtime.python_env.activate_process_workspace_python_env', lambda _venv_path: None)
-    monkeypatch.setattr('clara_coder_backend.runtime.python_bootstrap.bootstrap_session_python_dependencies', _fake_bootstrap)
+    monkeypatch.setattr('valkade_backend.runtime.python_env.ensure_python_workspace_env', _fake_ensure)
+    monkeypatch.setattr('valkade_backend.runtime.python_env.activate_process_workspace_python_env', lambda _venv_path: None)
+    monkeypatch.setattr('valkade_backend.runtime.python_bootstrap.bootstrap_session_python_dependencies', _fake_bootstrap)
 
     result = asyncio.run(
         ensure_session_python_workspace_env(
@@ -290,7 +290,7 @@ def test_set_workspace_context_applies_default_then_honors_bootstrap_flag(
             summary='ready',
         )
 
-    monkeypatch.setattr('clara_coder_backend.routes.session.ensure_session_python_workspace_env', _fake_ensure_session)
+    monkeypatch.setattr('valkade_backend.routes.session.ensure_session_python_workspace_env', _fake_ensure_session)
 
     asyncio.run(
         set_workspace_context(
@@ -334,18 +334,19 @@ def test_set_workspace_context_applies_default_then_honors_bootstrap_flag(
 
 
 def test_parse_extra_user_path_splits_and_skips_assignments() -> None:
-    from clara_coder_backend.runtime.python_env import parse_extra_user_path
+    from valkade_backend.runtime.python_env import parse_extra_user_path
 
-    dirs = parse_extra_user_path('~/tools\nOPENAI_API_KEY=sk\n/opt/extra')
+    extra = os.path.abspath('/opt/extra')  # Python 3.13+ on Windows: a root-relative path is not absolute
+    dirs = parse_extra_user_path(f'~/tools\nOPENAI_API_KEY=sk\n{extra}')
     assert any(d.endswith('tools') for d in dirs)
-    assert '/opt/extra' in dirs
+    assert extra in dirs
     assert all('=' not in d for d in dirs)
 
 
 def test_apply_extra_user_path_prefixes_and_keeps_venv_first(monkeypatch, tmp_path: Path) -> None:
     import os
 
-    import clara_coder_backend.runtime.python_env as pe
+    import valkade_backend.runtime.python_env as pe
 
     # Real absolute paths joined with os.pathsep, so the test holds on Windows (';', drive letters) too.
     venv_bin = str(tmp_path / 'ws' / '.venv' / 'bin')
@@ -366,7 +367,7 @@ def test_apply_extra_user_path_prefixes_and_keeps_venv_first(monkeypatch, tmp_pa
 
 def test_agent_subprocess_env_drops_sidecar_wiring(monkeypatch, tmp_path: Path) -> None:
     """A command the agent runs (e.g. this suite) must not open the live app's checkpoint DB or logs."""
-    from clara_coder_backend.runtime.python_env import build_workspace_python_env, with_subprocess_color_env
+    from valkade_backend.runtime.python_env import build_workspace_python_env, with_subprocess_color_env
 
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'live.sqlite'))
     monkeypatch.setenv('NEMO_CHECKPOINT_DB', str(tmp_path / 'legacy.sqlite'))
@@ -374,7 +375,12 @@ def test_agent_subprocess_env_drops_sidecar_wiring(monkeypatch, tmp_path: Path) 
     monkeypatch.setenv('CLARA_WORKSPACE_INDEX_DIR', str(tmp_path / 'idx'))
     monkeypatch.setenv('CLARA_SIDECAR_TOKEN', 'secret')
     monkeypatch.setenv('CLARA_SCREENSHOT_TOKEN', 'secret')
+    monkeypatch.setenv('VALKADE_SIDECAR_TOKEN', 'secret')
+    monkeypatch.setenv('VALKADE_SCREENSHOT_URL', 'http://127.0.0.1:1/capture')
+    monkeypatch.setenv('VALKADE_SCREENSHOT_TOKEN', 'secret')
+    monkeypatch.setenv('VALKADE_CHECKPOINT_DB', str(tmp_path / 'live.sqlite'))
     monkeypatch.setenv('CLARA_RUNTIME_DIR', str(tmp_path / 'runtime'))
+    monkeypatch.setenv('VALKADE_RUNTIME_BIN_DIR', str(tmp_path / 'bin'))
 
     venv = tmp_path / 'ws' / '.venv'
     for env in (with_subprocess_color_env(), build_workspace_python_env(venv)):
@@ -385,18 +391,24 @@ def test_agent_subprocess_env_drops_sidecar_wiring(monkeypatch, tmp_path: Path) 
             'CLARA_WORKSPACE_INDEX_DIR',
             'CLARA_SIDECAR_TOKEN',
             'CLARA_SCREENSHOT_TOKEN',
+            'VALKADE_SIDECAR_TOKEN',
+            'VALKADE_SCREENSHOT_URL',
+            'VALKADE_SCREENSHOT_TOKEN',
+            'VALKADE_CHECKPOINT_DB',
         ):
             assert key not in env
         # Shared caches and tool paths still reach the command.
         assert env['CLARA_RUNTIME_DIR'] == str(tmp_path / 'runtime')
+        assert env['VALKADE_RUNTIME_BIN_DIR'] == str(tmp_path / 'bin')
         assert env['FORCE_COLOR'] == '1'
 
 
 def test_suite_env_holds_no_sidecar_wiring() -> None:
     """``conftest`` drops or redirects every key an agent command loses, so this run can't reach the live app."""
-    from clara_coder_backend.runtime.python_env import SIDECAR_PRIVATE_ENV_SUFFIXES
+    from valkade_backend.runtime.python_env import SIDECAR_PRIVATE_ENV_SUFFIXES
 
     for suffix in SIDECAR_PRIVATE_ENV_SUFFIXES:
+        assert f'VALKADE_{suffix}' not in os.environ
         assert f'NEMO_{suffix}' not in os.environ
         value = os.environ.get(f'CLARA_{suffix}')
         assert value is None or Path(value).parent.name.startswith('clara-tests-'), f'CLARA_{suffix}={value}'

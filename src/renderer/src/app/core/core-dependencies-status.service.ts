@@ -42,7 +42,7 @@ export function outdatedCoreDependencies(deps: readonly DependencyInfo[]): Depen
 
 /**
  * Tracks whether a core dependency (llama-server) still needs downloading or is behind the
- * build Clara installs, so the shell can flag its Dependencies entry points. Re-checks when
+ * build ValkAde installs, so the shell can flag its Dependencies entry points. Re-checks when
  * an install finishes and when the window regains focus (the user is back from the
  * Dependencies window, possibly after a delete).
  */

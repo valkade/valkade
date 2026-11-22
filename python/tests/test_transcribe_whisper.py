@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clara_coder_backend.audio import transcribe as t
-from clara_coder_backend.domain import RuntimeAudioConfig
-from clara_coder_backend.session import state
+from valkade_backend.audio import transcribe as t
+from valkade_backend.domain import RuntimeAudioConfig
+from valkade_backend.session import state
 
 
 class _Seg:

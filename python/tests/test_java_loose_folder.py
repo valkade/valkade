@@ -1,11 +1,11 @@
-"""Loose Java folder source-root inference and ``.clara/java.json`` parsing."""
+"""Loose Java folder source-root inference and ``.valkade/java.json`` parsing."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from clara_coder_backend.lsp.java_loose_folder import (
+from valkade_backend.lsp.java_loose_folder import (
     LooseJavaConfig,
     infer_source_root,
     java_loose_settings,
@@ -14,7 +14,7 @@ from clara_coder_backend.lsp.java_loose_folder import (
     resolve_nested_roots,
     scan_loose_source_roots,
 )
-from clara_coder_backend.lsp.java_project_root import (
+from valkade_backend.lsp.java_project_root import (
     JAVA_LAYOUT_LOOSE,
     JAVA_LAYOUT_MAVEN,
     JavaProjectLayout,
@@ -48,7 +48,7 @@ def test_scan_finds_src_for_package_folder(tmp_path: Path) -> None:
         _java(tmp_path / 'src' / 'journal' / f'{name}.java', 'journal')
     # Compiled output and hidden folders are never scanned.
     _java(tmp_path / 'out' / 'journal' / 'Stale.java', 'other')
-    _java(tmp_path / '.clara' / 'Hidden.java', 'zzz')
+    _java(tmp_path / '.valkade' / 'Hidden.java', 'zzz')
     assert scan_loose_source_roots(tmp_path) == ['src']
 
 

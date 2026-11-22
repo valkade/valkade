@@ -1,6 +1,6 @@
 /**
  * What a managed ``llama-server`` run command actually does: which flags the server uses, which it
- * ignores, and what Clara changes at start. Shared by the Settings editor and the launch path, so
+ * ignores, and what ValkAde changes at start. Shared by the Settings editor and the launch path, so
  * the preview and the spawned command cannot drift.
  */
 import {
@@ -158,7 +158,7 @@ function catalogIndex(catalog: LlamaFlagCatalog | null): Map<string, LlamaFlagSp
   return index;
 }
 
-/** Alias groups Clara must recognize even before the installed server has been asked. */
+/** Alias groups ValkAde must recognize even before the installed server has been asked. */
 const CORE_FLAG_GROUPS: readonly (readonly string[])[] = [
   MODEL_FLAG_NAMES,
   HF_FLAG_NAMES,
@@ -195,15 +195,15 @@ function flagKey(name: string, spec: LlamaFlagSpec | null): string {
 export type LlamaFlagStatus =
   /** The server uses this value. */
   | 'used'
-  /** A later occurrence, or a flag Clara appends at start, replaces it. */
+  /** A later occurrence, or a flag ValkAde appends at start, replaces it. */
   | 'overridden'
-  /** Clara sends this setting per request, so the command value is only a fallback. */
+  /** ValkAde sends this setting per request, so the command value is only a fallback. */
   | 'request'
   /** Accepted by the server, but nothing else in the command makes it matter. */
   | 'no-effect'
-  /** Clara changes this value at start. */
+  /** ValkAde changes this value at start. */
   | 'rewritten'
-  /** Clara owns the value (the port). */
+  /** ValkAde owns the value (the port). */
   | 'managed'
   /** The server refuses to start with this as written. */
   | 'invalid'
@@ -243,7 +243,7 @@ export interface LlamaCommandAnalysis {
   warnings: string[];
   entries: LlamaCommandEntry[];
   addedAtStart: LlamaAddedFlag[];
-  /** The command Clara spawns, with ``{{PORT}}`` still in place. */
+  /** The command ValkAde spawns, with ``{{PORT}}`` still in place. */
   startCommand: string;
   /** True when flags were checked against the installed server. */
   verified: boolean;
@@ -251,7 +251,7 @@ export interface LlamaCommandAnalysis {
 
 export interface LlamaAnalyzeOptions {
   catalog?: LlamaFlagCatalog | null;
-  /** Flags that Clara's per-request settings replace, with the setting's label. */
+  /** Flags that ValkAde's per-request settings replace, with the setting's label. */
   requestOverrides?: readonly { names: readonly string[]; label: string }[];
   optimizationPreset?: string;
   platform: ShellQuotingPlatform;
@@ -262,7 +262,7 @@ export interface LlamaAnalyzeOptions {
 }
 
 /**
- * Flags Clara appends to a chat command at start, when missing: ``--jinja``, the server defaults,
+ * Flags ValkAde appends to a chat command at start, when missing: ``--jinja``, the server defaults,
  * a context floor for ``--fit``, the Gemma reasoning format, and on a small machine a prompt cache
  * limit. Expects the binary already resolved.
  */
@@ -280,7 +280,7 @@ function appendManagedStartFlags(
   return totalRamBytes == null ? out : limitManagedLlamaCacheRam(out, totalRamBytes);
 }
 
-/** The command Clara spawns for a saved chat command, before ``{{PORT}}`` is filled in. */
+/** The command ValkAde spawns for a saved chat command, before ``{{PORT}}`` is filled in. */
 export function buildManagedChatStartCommand(
   command: string,
   optimizationPreset: string | undefined,
@@ -291,12 +291,12 @@ export function buildManagedChatStartCommand(
 }
 
 const ADDED_FLAG_NOTES: Readonly<Record<string, string>> = {
-  '--jinja': 'Clara needs the model chat template.',
-  '--no-webui': 'Clara is the UI, so the server skips its own.',
-  '-np': 'One slot for Clara’s one conversation at a time.',
-  '--fit-ctx': 'If --fit has to shrink the context, it stops here, with room for Clara’s prompt.',
+  '--jinja': 'ValkAde needs the model chat template.',
+  '--no-webui': 'ValkAde is the UI, so the server skips its own.',
+  '-np': 'One slot for ValkAde’s one conversation at a time.',
+  '--fit-ctx': 'If --fit has to shrink the context, it stops here, with room for ValkAde’s prompt.',
   '--cache-ram': 'This machine has under 24 GB of RAM, so the prompt cache stays small.',
-  '--reasoning-format': 'Lets Clara split Gemma thinking while it streams.',
+  '--reasoning-format': 'Lets ValkAde split Gemma thinking while it streams.',
 };
 
 /** Arity from the catalog when it has the flag; otherwise decided from the next token. */
@@ -414,7 +414,7 @@ export function analyzeLlamaRunCommand(command: string, options: LlamaAnalyzeOpt
       entry.note = 'Set again later in the command. Only the last one is used.';
     } else if (addedKeys.has(key)) {
       entry.status = 'overridden';
-      entry.note = 'Clara appends the opposite flag at start, and the last one wins.';
+      entry.note = 'ValkAde appends the opposite flag at start, and the last one wins.';
     }
     return entry;
   });
@@ -440,7 +440,7 @@ export function analyzeLlamaRunCommand(command: string, options: LlamaAnalyzeOpt
     const names = flagGroupNames(entry.name, entry.spec);
     if (names.includes('--port') && entry.value === PORT_TOKEN) {
       entry.status = 'managed';
-      entry.note = 'Clara picks a free port at start.';
+      entry.note = 'ValkAde picks a free port at start.';
       continue;
     }
     const problem = profile ? modelProblem(entry, profile, ctx) : '';
@@ -452,13 +452,13 @@ export function analyzeLlamaRunCommand(command: string, options: LlamaAnalyzeOpt
     const override = requestOverrides.find((o) => o.names.some((n) => names.includes(n)));
     if (override) {
       entry.status = 'request';
-      entry.note = `Clara sends ${override.label} with every request, so this is only a fallback.`;
+      entry.note = `ValkAde sends ${override.label} with every request, so this is only a fallback.`;
       continue;
     }
     if (NGL_FLAG_NAMES.some((name) => names.includes(name))) {
       if (entry.value === '99') {
         entry.status = 'rewritten';
-        entry.note = 'Clara starts this as auto, so --fit can keep the model in VRAM.';
+        entry.note = 'ValkAde starts this as auto, so --fit can keep the model in VRAM.';
         continue;
       }
     }
@@ -478,7 +478,7 @@ export function analyzeLlamaRunCommand(command: string, options: LlamaAnalyzeOpt
     if (ports !== 1) {
       errors.push(
         ports === 0
-          ? `Needs one ${PORT_TOKEN} so Clara can assign the port.`
+          ? `Needs one ${PORT_TOKEN} so ValkAde can assign the port.`
           : `Needs exactly one ${PORT_TOKEN} (found ${ports}).`,
       );
     }
@@ -490,7 +490,7 @@ export function analyzeLlamaRunCommand(command: string, options: LlamaAnalyzeOpt
     if (isLlamaFlagToken(binary)) {
       errors.push('Must start with llama-server.');
     } else if (!/(?:^|[/\\])llama-server(?:\.exe)?$/i.test(binary)) {
-      errors.push(`Clara only runs llama-server, not ${binary}.`);
+      errors.push(`ValkAde only runs llama-server, not ${binary}.`);
     }
     if (!ctx.has([...MODEL_FLAG_NAMES, ...HF_FLAG_NAMES])) {
       warnings.push('No model is set (-m or -hf).');
@@ -575,7 +575,7 @@ function effectiveValues(command: string, index: Map<string, LlamaFlagSpec>): Ma
 
 /**
  * Flags that differ between the running server's command and the one saved now. The port and the
- * binary path are ignored: Clara assigns both at start.
+ * binary path are ignored: ValkAde assigns both at start.
  */
 export function diffLlamaCommands(
   launched: string,

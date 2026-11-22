@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lsp.java_project_root import (
+from valkade_backend.lsp.java_project_root import (
     JAVA_LAYOUT_ECLIPSE,
     JAVA_LAYOUT_GRADLE,
     JAVA_LAYOUT_LOOSE,
@@ -119,13 +119,13 @@ def test_build_file_wins_over_eclipse_metadata(tmp_path: Path) -> None:
     assert classify_java_project_dir(tmp_path) == JAVA_LAYOUT_GRADLE
 
 
-def test_clara_java_json_marks_configured_loose_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_valkade_java_json_marks_configured_loose_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('CLARA_JAVA_LSP_PROJECT_ROOT', raising=False)
     sub = tmp_path / 'demo'
-    (sub / '.clara').mkdir(parents=True)
-    (sub / '.clara' / 'java.json').write_text('{}\n', encoding='utf-8')
+    (sub / '.valkade').mkdir(parents=True)
+    (sub / '.valkade' / 'java.json').write_text('{}\n', encoding='utf-8')
 
     layout = detect_java_project_layout(tmp_path, seed_relative_path='demo/src/A.java')
     assert layout.kind == JAVA_LAYOUT_LOOSE
     assert layout.root == sub.resolve()
-    assert layout.config_path == sub.resolve() / '.clara' / 'java.json'
+    assert layout.config_path == sub.resolve() / '.valkade' / 'java.json'

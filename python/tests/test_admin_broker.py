@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.hitl.accept_command import accept_command_sse_payload
-from clara_coder_backend.runtime.admin_broker import tokens_match
+from valkade_backend.hitl.accept_command import accept_command_sse_payload
+from valkade_backend.runtime.admin_broker import tokens_match
 from unittest.mock import AsyncMock, patch
 
-from clara_coder_backend.runtime import admin_exec
-from clara_coder_backend.runtime.admin_exec import (
+from valkade_backend.runtime import admin_exec
+from valkade_backend.runtime.admin_exec import (
     ensure_session_broker,
     python_package_root,
     warmup_persistent_broker,
@@ -28,7 +28,7 @@ async def _spawn_broker(tmp_path: Path, token: str) -> tuple[asyncio.subprocess.
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         '-m',
-        'clara_coder_backend.runtime.admin_broker',
+        'valkade_backend.runtime.admin_broker',
         '--config',
         str(config),
         '--port-file',
@@ -97,7 +97,7 @@ async def test_broker_rejects_bad_token(tmp_path: Path) -> None:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         '-m',
-        'clara_coder_backend.runtime.admin_broker',
+        'valkade_backend.runtime.admin_broker',
         '--config',
         str(config),
         '--port-file',
@@ -129,7 +129,7 @@ async def test_broker_accepts_matching_token(tmp_path: Path) -> None:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         '-m',
-        'clara_coder_backend.runtime.admin_broker',
+        'valkade_backend.runtime.admin_broker',
         '--config',
         str(config),
         '--port-file',
@@ -257,9 +257,9 @@ async def test_ensure_session_broker_launches_once_for_concurrent_callers(tmp_pa
 @pytest.mark.asyncio(loop_scope='function')
 async def test_warmup_persistent_broker_skips_when_already_privileged() -> None:
     with (
-        patch('clara_coder_backend.runtime.admin_exec.is_currently_privileged', return_value=True),
+        patch('valkade_backend.runtime.admin_exec.is_currently_privileged', return_value=True),
         patch(
-            'clara_coder_backend.runtime.admin_exec.ensure_session_broker',
+            'valkade_backend.runtime.admin_exec.ensure_session_broker',
             new_callable=AsyncMock,
         ) as ensure,
     ):
@@ -272,10 +272,10 @@ async def test_warmup_persistent_broker_skips_when_already_privileged() -> None:
 async def test_warmup_persistent_broker_persists_helper() -> None:
     client = object()
     with (
-        patch('clara_coder_backend.runtime.admin_exec.is_currently_privileged', return_value=False),
-        patch('clara_coder_backend.runtime.admin_exec.admin_elevation_supported', return_value=True),
+        patch('valkade_backend.runtime.admin_exec.is_currently_privileged', return_value=False),
+        patch('valkade_backend.runtime.admin_exec.admin_elevation_supported', return_value=True),
         patch(
-            'clara_coder_backend.runtime.admin_exec.ensure_session_broker',
+            'valkade_backend.runtime.admin_exec.ensure_session_broker',
             new_callable=AsyncMock,
             return_value=(client, None),
         ) as ensure,
@@ -288,10 +288,10 @@ async def test_warmup_persistent_broker_persists_helper() -> None:
 @pytest.mark.asyncio(loop_scope='function')
 async def test_warmup_persistent_broker_returns_launch_error() -> None:
     with (
-        patch('clara_coder_backend.runtime.admin_exec.is_currently_privileged', return_value=False),
-        patch('clara_coder_backend.runtime.admin_exec.admin_elevation_supported', return_value=True),
+        patch('valkade_backend.runtime.admin_exec.is_currently_privileged', return_value=False),
+        patch('valkade_backend.runtime.admin_exec.admin_elevation_supported', return_value=True),
         patch(
-            'clara_coder_backend.runtime.admin_exec.ensure_session_broker',
+            'valkade_backend.runtime.admin_exec.ensure_session_broker',
             new_callable=AsyncMock,
             return_value=(None, 'User cancelled the administrator prompt.'),
         ),

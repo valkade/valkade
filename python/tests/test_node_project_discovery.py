@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clara_coder_backend.workspace.npm_projects import discover_workspace_npm_projects
+from valkade_backend.workspace.npm_projects import discover_workspace_npm_projects
 
 
 def test_discover_finds_root_and_nested_packages(tmp_path: Path) -> None:

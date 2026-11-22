@@ -36,10 +36,23 @@ export interface UpdatePlatform {
   arch: string;
 }
 
-/** electron-builder names: `Clara-Coder-<version>-Windows-<arch>.exe` next to `latest.yml`. */
-function platformAssetNames(p: UpdatePlatform, version: string): { installer: string; updateInfo: string } | null {
+/**
+ * electron-builder names: `ValkAde-<version>-Windows-<arch>.exe` next to `latest.yml`.
+ * Legacy releases (≤ v0.5.4) used `Clara-Coder-<version>-Windows-<arch>.exe`; both match so
+ * the Updates window stays usable across the rename boundary.
+ */
+function platformAssetNames(
+  p: UpdatePlatform,
+  version: string,
+): { installers: readonly string[]; updateInfo: string } | null {
   if (p.platform === 'win32' && (p.arch === 'x64' || p.arch === 'arm64')) {
-    return { installer: `Clara-Coder-${version}-Windows-${p.arch}.exe`, updateInfo: 'latest.yml' };
+    return {
+      installers: [
+        `ValkAde-${version}-Windows-${p.arch}.exe`,
+        `Clara-Coder-${version}-Windows-${p.arch}.exe`,
+      ],
+      updateInfo: 'latest.yml',
+    };
   }
   return null;
 }
@@ -77,7 +90,9 @@ export function parseGithubReleases(json: unknown, p: UpdatePlatform): FeedRelea
     if (!version) continue;
     const assets = Array.isArray(r['assets']) ? r['assets'].map(assetRef).filter((a) => a !== null) : [];
     const names = platformAssetNames(p, version);
-    const installer = names ? (assets.find((a) => a.name === names.installer) ?? null) : null;
+    const installer = names
+      ? (names.installers.map((n) => assets.find((a) => a.name === n)).find((a) => a !== undefined) ?? null)
+      : null;
     const updateInfo = names ? (assets.find((a) => a.name === names.updateInfo) ?? null) : null;
     const usable = installer && updateInfo;
     out.push({

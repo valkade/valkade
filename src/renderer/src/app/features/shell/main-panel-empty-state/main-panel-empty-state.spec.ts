@@ -32,8 +32,8 @@ describe('MainPanelEmptyStateComponent', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('h1.home__title')?.textContent?.trim()).toBe('Clara Coder');
-    expect(host.textContent).not.toContain('> Clara Coder_');
+    expect(host.querySelector('h1.home__title')?.textContent?.trim()).toBe('ValkAde');
+    expect(host.textContent).not.toContain('> ValkAde_');
     const actions = Array.from(host.querySelectorAll('.home__action')).map((el) => el.textContent?.trim());
     expect(actions).toEqual(['Add workspace…', 'Sources', 'Model Manager', 'Dependencies']);
     expect(Array.from(host.querySelectorAll('.home__heading')).map((el) => el.textContent?.trim())).toEqual([

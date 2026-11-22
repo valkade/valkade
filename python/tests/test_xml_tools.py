@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.xml.parser import clear_xml_cache_for_tests
-from clara_coder_backend.tools.structured_tools import read_structured_section, search_structured, structured_overview
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.xml.parser import clear_xml_cache_for_tests
+from valkade_backend.tools.structured_tools import read_structured_section, search_structured, structured_overview
 
 SAMPLE_XML = """<?xml version="1.0"?>
 <Envelope xmlns="http://example.com/env">

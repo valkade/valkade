@@ -1,7 +1,7 @@
 /**
  * Built-in metasearch engines offered by the backend's `web_search` tool.
  *
- * Mirrors `ENGINE_NAMES` in `python/clara_coder_backend/tools/metasearch/engines.py`;
+ * Mirrors `ENGINE_NAMES` in `python/valkade_backend/tools/metasearch/engines.py`;
  * `python/tests/test_metasearch.py` asserts the two lists stay in sync.
  */
 

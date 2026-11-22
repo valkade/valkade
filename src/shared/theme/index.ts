@@ -5,6 +5,7 @@
  */
 export type {
   ClaraThemeDocument,
+  ValkAdeThemeDocument,
   ThemeBackgroundFit,
   ThemeGroupBackground,
   ThemeGroupOverride,
@@ -89,6 +90,12 @@ export {
 export {
   BUILTIN_THEMES,
   BUILTIN_THEME_IDS,
+  VALKADE_DARK_THEME,
+  VALKADE_LIGHT_THEME,
+  VALKADE_DARK_CADMIUM_LANTERN_THEME,
+  VALKADE_DARK_CADMIUM_ORANGE_THEME,
+  VALKADE_LIGHT_IRIS_THEME,
+  VALKADE_LIGHT_OCHRE_THEME,
   CLARA_DARK_THEME,
   CLARA_LIGHT_THEME,
   CLARA_DARK_CADMIUM_LANTERN_THEME,

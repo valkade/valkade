@@ -108,7 +108,7 @@ function setState(patch: Partial<AppUpdateState>): void {
 }
 
 function userAgent(): string {
-  return `Clara-Coder/${currentAppVersion()} (${process.platform}; ${process.arch})`;
+  return `ValkAde/${currentAppVersion()} (${process.platform}; ${process.arch})`;
 }
 
 function fetchImpl(): FetchLike {
@@ -209,7 +209,7 @@ export async function downloadAppRelease(version: string): Promise<AppUpdateActi
     });
 
     setState({ phase: 'verifying' });
-    // Dev runs electron.exe (signed by Electron), which no Clara installer will match.
+    // Dev runs electron.exe (signed by Electron), which no ValkAde installer will match.
     if (installSupport().supported) {
       await assertInstallerSignature(file, process.execPath);
     }

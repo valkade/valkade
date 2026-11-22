@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.plan.build_plan_store import (
+from valkade_backend.plan.build_plan_store import (
     ActionStep,
     BuildPlanModel,
     FileChangeEntry,
@@ -19,7 +19,7 @@ from clara_coder_backend.plan.build_plan_store import (
     parse_build_plan_md,
     render_build_plan_md,
 )
-from clara_coder_backend.domain import SessionState
+from valkade_backend.domain import SessionState
 
 
 def _sample_doc(**overrides: object) -> BuildPlanModel:
@@ -132,9 +132,9 @@ def test_create_build_plan_evicts_old_complete_entries(tmp_path: Path) -> None:
     for i in range(6):
         doc = _sample_doc(title=f'Plan {i}')
         create_build_plan(str(tmp_path), f'sess-{i}', doc)
-    index_path = tmp_path / '.clara' / 'build-plans' / 'index.json'
+    index_path = tmp_path / '.valkade' / 'build-plans' / 'index.json'
     assert index_path.is_file()
-    md_files = list((tmp_path / '.clara' / 'build-plans').glob('plan-*.md'))
+    md_files = list((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md'))
     assert len(md_files) <= 5
 
 
@@ -369,7 +369,7 @@ def test_mark_steps_complete_flips_checkboxes_without_step_id_markers(tmp_path: 
 
 
 def test_migrate_legacy_nemo_dir_rewrites_index_paths(tmp_path: Path) -> None:
-    from clara_coder_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
 
     legacy = tmp_path / '.nemo' / 'build-plans'
     legacy.mkdir(parents=True)
@@ -380,19 +380,19 @@ def test_migrate_legacy_nemo_dir_rewrites_index_paths(tmp_path: Path) -> None:
     )
     migrate_legacy_workspace_meta_dir(tmp_path)
     assert not (tmp_path / '.nemo').exists()
-    index = (tmp_path / '.clara' / 'build-plans' / 'index.json').read_text(encoding='utf-8')
-    assert '.clara/build-plans/plan-abc.md' in index
+    index = (tmp_path / '.valkade' / 'build-plans' / 'index.json').read_text(encoding='utf-8')
+    assert '.valkade/build-plans/plan-abc.md' in index
     assert '.nemo/build-plans/' not in index
-    assert (tmp_path / '.clara' / 'build-plans' / 'plan-abc.md').is_file()
+    assert (tmp_path / '.valkade' / 'build-plans' / 'plan-abc.md').is_file()
 
 
-def test_create_build_plan_uses_clara_dir_after_legacy_rename(tmp_path: Path) -> None:
-    from clara_coder_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+def test_create_build_plan_uses_valkade_dir_after_legacy_rename(tmp_path: Path) -> None:
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
 
     (tmp_path / '.nemo' / 'build-plans').mkdir(parents=True)
     migrate_legacy_workspace_meta_dir(tmp_path)
     record = create_build_plan(str(tmp_path), 'sess-1', _sample_doc())
-    assert record.relative_path.startswith('.clara/build-plans/')
+    assert record.relative_path.startswith('.valkade/build-plans/')
     assert (tmp_path / record.relative_path).is_file()
 
 
@@ -410,23 +410,23 @@ def test_create_build_plan_migrates_legacy_before_mkdir(tmp_path: Path) -> None:
 
     record = create_build_plan(str(tmp_path), 'sess-1', _sample_doc())
 
-    assert (tmp_path / '.clara' / 'build-plans' / 'plan-legacy.md').is_file()
+    assert (tmp_path / '.valkade' / 'build-plans' / 'plan-legacy.md').is_file()
     assert (tmp_path / record.relative_path).is_file()
-    assert record.relative_path.startswith('.clara/build-plans/')
+    assert record.relative_path.startswith('.valkade/build-plans/')
 
-    index_path = tmp_path / '.clara' / 'build-plans' / 'index.json'
+    index_path = tmp_path / '.valkade' / 'build-plans' / 'index.json'
     entries = json.loads(index_path.read_text(encoding='utf-8'))
     ids = {str(entry.get('id') or '') for entry in entries}
     assert 'plan-legacy' in ids
     assert record.id in ids
     for entry in entries:
         rel = str(entry.get('relativePath') or '')
-        assert rel.startswith('.clara/build-plans/')
+        assert rel.startswith('.valkade/build-plans/')
         assert '.nemo/' not in rel
 
 
 def test_migrate_copies_missing_files_when_both_dirs_exist(tmp_path: Path) -> None:
-    from clara_coder_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
 
     legacy = tmp_path / '.nemo' / 'build-plans'
     legacy.mkdir(parents=True)
@@ -435,25 +435,25 @@ def test_migrate_copies_missing_files_when_both_dirs_exist(tmp_path: Path) -> No
         '[{"id": "plan-old", "relativePath": ".nemo/build-plans/old.md", "status": "active"}]\n',
         encoding='utf-8',
     )
-    clara = tmp_path / '.clara'
-    clara.mkdir()
-    (clara / 'unrelated.txt').write_text('keep', encoding='utf-8')
+    current = tmp_path / '.valkade'
+    current.mkdir()
+    (current / 'unrelated.txt').write_text('keep', encoding='utf-8')
 
     migrate_legacy_workspace_meta_dir(tmp_path)
 
-    copied = tmp_path / '.clara' / 'build-plans' / 'old.md'
+    copied = tmp_path / '.valkade' / 'build-plans' / 'old.md'
     assert copied.is_file()
     assert copied.read_text(encoding='utf-8') == '# Old\n'
-    index = (tmp_path / '.clara' / 'build-plans' / 'index.json').read_text(encoding='utf-8')
-    assert '.clara/build-plans/old.md' in index
+    index = (tmp_path / '.valkade' / 'build-plans' / 'index.json').read_text(encoding='utf-8')
+    assert '.valkade/build-plans/old.md' in index
     assert '.nemo/build-plans/' not in index
     assert (tmp_path / '.nemo').exists()
-    assert (tmp_path / '.clara' / 'unrelated.txt').read_text(encoding='utf-8') == 'keep'
+    assert (tmp_path / '.valkade' / 'unrelated.txt').read_text(encoding='utf-8') == 'keep'
 
 
 def test_delete_entry_files_rewrites_stale_nemo_path(tmp_path: Path) -> None:
-    from clara_coder_backend.plan.build_plan_store import _delete_entry_files
-    from clara_coder_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+    from valkade_backend.plan.build_plan_store import _delete_entry_files
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
 
     legacy = tmp_path / '.nemo' / 'build-plans'
     legacy.mkdir(parents=True)
@@ -463,19 +463,87 @@ def test_delete_entry_files_rewrites_stale_nemo_path(tmp_path: Path) -> None:
         encoding='utf-8',
     )
     migrate_legacy_workspace_meta_dir(tmp_path)
-    clara_md = tmp_path / '.clara' / 'build-plans' / 'plan-stale.md'
-    assert clara_md.is_file()
+    current_md = tmp_path / '.valkade' / 'build-plans' / 'plan-stale.md'
+    assert current_md.is_file()
 
     _delete_entry_files(
         str(tmp_path),
         {'id': 'plan-stale', 'relativePath': '.nemo/build-plans/plan-stale.md'},
     )
-    assert not clara_md.exists()
+    assert not current_md.exists()
+
+
+def test_migrate_renames_clara_dir_and_rewrites_index_paths(tmp_path: Path) -> None:
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+
+    legacy = tmp_path / '.clara' / 'build-plans'
+    legacy.mkdir(parents=True)
+    (legacy / 'plan-abc.md').write_text('# Plan\n', encoding='utf-8')
+    (tmp_path / '.clara' / 'checks.json').write_text('{"checks": []}\n', encoding='utf-8')
+    (legacy / 'index.json').write_text(
+        '[{"id": "plan-abc", "relativePath": ".clara/build-plans/plan-abc.md", "status": "active"}]\n',
+        encoding='utf-8',
+    )
+
+    migrate_legacy_workspace_meta_dir(tmp_path)
+
+    assert not (tmp_path / '.clara').exists()
+    assert (tmp_path / '.valkade' / 'checks.json').is_file()
+    index = (tmp_path / '.valkade' / 'build-plans' / 'index.json').read_text(encoding='utf-8')
+    assert '.valkade/build-plans/plan-abc.md' in index
+    assert '.clara/build-plans/' not in index
+
+
+def test_migrate_brings_in_clara_then_nemo(tmp_path: Path) -> None:
+    """``.clara`` is renamed first; ``.nemo`` is then merged in, and ``.clara`` entries win on an id collision."""
+    import json
+
+    from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
+
+    clara = tmp_path / '.clara' / 'build-plans'
+    clara.mkdir(parents=True)
+    (clara / 'shared.md').write_text('# Clara\n', encoding='utf-8')
+    (clara / 'index.json').write_text(
+        '[{"id": "plan-shared", "relativePath": ".clara/build-plans/shared.md", "status": "clara"}]\n',
+        encoding='utf-8',
+    )
+    nemo = tmp_path / '.nemo' / 'build-plans'
+    nemo.mkdir(parents=True)
+    (nemo / 'shared.md').write_text('# Nemo\n', encoding='utf-8')
+    (nemo / 'old.md').write_text('# Old\n', encoding='utf-8')
+    (nemo / 'index.json').write_text(
+        '[{"id": "plan-shared", "relativePath": ".nemo/build-plans/shared.md", "status": "nemo"},'
+        ' {"id": "plan-old", "relativePath": ".nemo/build-plans/old.md", "status": "active"}]\n',
+        encoding='utf-8',
+    )
+
+    migrate_legacy_workspace_meta_dir(tmp_path)
+
+    current = tmp_path / '.valkade' / 'build-plans'
+    assert not (tmp_path / '.clara').exists()
+    assert (tmp_path / '.nemo').exists(), 'a merged legacy dir is left in place'
+    assert (current / 'shared.md').read_text(encoding='utf-8') == '# Clara\n'
+    assert (current / 'old.md').is_file()
+    entries = {e['id']: e for e in json.loads((current / 'index.json').read_text(encoding='utf-8'))}
+    assert entries['plan-shared']['status'] == 'clara'
+    assert entries['plan-shared']['relativePath'] == '.valkade/build-plans/shared.md'
+    assert entries['plan-old']['relativePath'] == '.valkade/build-plans/old.md'
+
+
+def test_legacy_meta_paths_map_to_valkade() -> None:
+    from valkade_backend.workspace.meta import is_user_owned_meta_path, rewrite_legacy_build_plan_relative_path
+
+    assert rewrite_legacy_build_plan_relative_path('.clara/build-plans/p.md') == '.valkade/build-plans/p.md'
+    assert rewrite_legacy_build_plan_relative_path('.nemo\\build-plans\\p.md') == '.valkade/build-plans/p.md'
+    assert rewrite_legacy_build_plan_relative_path('.clara/build-plans') == '.valkade/build-plans'
+    assert rewrite_legacy_build_plan_relative_path('.clara/other.md') == '.clara/other.md'
+    for path in ('.valkade/checks.json', '.clara/checks.json', '.NEMO/Checks.JSON'):
+        assert is_user_owned_meta_path(path), path
 
 
 
 def test_clean_plan_path_strips_prose_formatting() -> None:
-    from clara_coder_backend.plan.build_plan_store import clean_plan_path
+    from valkade_backend.plan.build_plan_store import clean_plan_path
 
     assert clean_plan_path('`src/a.ts:85`') == 'src/a.ts'
     assert clean_plan_path('[a](src/b.ts)') == 'src/b.ts'

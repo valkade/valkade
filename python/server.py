@@ -1,9 +1,9 @@
-"""Launch script for the Clara Coder Python backend.
+"""Launch script for the ValkAde Python backend.
 
 The Electron main process spawns this file so the import path includes the
-``python/`` directory and the ``clara_coder_backend`` package resolves correctly.
+``python/`` directory and the ``valkade_backend`` package resolves correctly.
 
-The listen port is passed via ``CLARA_PYTHON_PORT`` (Electron sets it per
+The listen port is passed via ``VALKADE_PYTHON_PORT`` (Electron sets it per
 environment: 5124 in dev, 5123 packaged) and defaults to 5123 so the script
 also works when run standalone.
 """
@@ -22,8 +22,9 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 
 import uvicorn  # noqa: E402
 
-from clara_coder_backend.main import app  # noqa: E402
+from valkade_backend.config import env_valkade  # noqa: E402
+from valkade_backend.main import app  # noqa: E402
 
 if __name__ == '__main__':
-    port = int(os.getenv('CLARA_PYTHON_PORT', '5123'))
+    port = int(env_valkade('PYTHON_PORT', '5123'))
     uvicorn.run(app, host='127.0.0.1', port=port)

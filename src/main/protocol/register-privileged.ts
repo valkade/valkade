@@ -8,6 +8,15 @@ import { protocol } from 'electron';
 export function registerPrivilegedSchemes(): void {
   protocol.registerSchemesAsPrivileged([
     {
+      scheme: 'valkade-theme',
+      privileges: {
+        secure: true,
+        standard: true,
+        stream: true,
+      },
+    },
+    // Legacy theme asset scheme, kept for one release after the ValkAde rename.
+    {
       scheme: 'clara-theme',
       privileges: {
         secure: true,

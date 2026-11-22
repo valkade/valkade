@@ -315,7 +315,7 @@ export function registerChatIpc(): void {
         send('message-status', conversationId, {
           id: 'fatal',
           label: 'Backend request failed',
-          detail: 'Clara could not reach the LangChain backend.',
+          detail: 'ValkAde could not reach the LangChain backend.',
           state: 'error',
           source: 'agent',
         } as LlmStatusPayload);

@@ -1,5 +1,5 @@
 /**
- * Payloads of ``POST /lsp/editor/feature`` (``clara_coder_backend.lsp.editor_features``):
+ * Payloads of ``POST /lsp/editor/feature`` (``valkade_backend.lsp.editor_features``):
  * the LSP features beyond the core editor set, all in Monaco's 1-based coordinates.
  */
 

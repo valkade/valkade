@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lsp.java_server import JavaLspSetupError
-from clara_coder_backend.lsp.manager import SessionWorkspaceLspManager
-from clara_coder_backend.lsp.plugins import java_plugin as java_plugin_mod
-from clara_coder_backend.lsp.plugins.java_plugin import JavaLspPlugin, JavaPluginState
-from clara_coder_backend.lsp.server_plugin import LspServerNotInstalledError
-from clara_coder_backend.session.state import runtime_config_received
+from valkade_backend.domain import SessionState
+from valkade_backend.lsp.java_server import JavaLspSetupError
+from valkade_backend.lsp.manager import SessionWorkspaceLspManager
+from valkade_backend.lsp.plugins import java_plugin as java_plugin_mod
+from valkade_backend.lsp.plugins.java_plugin import JavaLspPlugin, JavaPluginState
+from valkade_backend.lsp.server_plugin import LspServerNotInstalledError
+from valkade_backend.session.state import runtime_config_received
 
 
 @pytest.fixture(autouse=True)
@@ -193,8 +193,8 @@ def test_java_json_change_pushes_settings_without_restart(tmp_path: Path) -> Non
     _start(plugin, state, ws)
     assert plugin.take_pending_initialization_options(state) is None
 
-    (ws / '.clara').mkdir()
-    (ws / '.clara' / 'java.json').write_text('{"referencedLibraries": ["C:/jfx/*.jar"]}\n', encoding='utf-8')
+    (ws / '.valkade').mkdir()
+    (ws / '.valkade' / 'java.json').write_text('{"referencedLibraries": ["C:/jfx/*.jar"]}\n', encoding='utf-8')
     assert _sync(plugin, state, ws, 'src/journal/Entry.java', 'package journal;\n') is False
     pending = plugin.take_pending_initialization_options(state)
     assert pending is not None

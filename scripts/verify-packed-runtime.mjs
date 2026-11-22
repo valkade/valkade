@@ -89,7 +89,7 @@ function checkResourcesDir(resourcesDir, failures) {
     failures.push(`missing packed interpreter: ${pythonExe}`);
   }
 
-  const manifestFile = path.join(resourcesDir, 'runtime-python', '.clara-runtime-manifest.json');
+  const manifestFile = path.join(resourcesDir, 'runtime-python', '.valkade-runtime-manifest.json');
   let manifest = null;
   if (!existsSync(manifestFile)) {
     failures.push(`missing runtime manifest: ${manifestFile}`);

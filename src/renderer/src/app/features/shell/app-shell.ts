@@ -18,7 +18,7 @@ import { TutorialOverlayComponent } from '../tutorial/tutorial-overlay/tutorial-
       overflow: hidden;
       box-sizing: border-box;
       /* Frameless windows have no OS chrome; this theme-colored rim is the
-         silhouette against the desktop (and against overlapping Clara windows). */
+         silhouette against the desktop (and against overlapping ValkAde windows). */
       border: 2px solid color-mix(in srgb, var(--t-primary) 72%, transparent);
       box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--t-bg-deep) 70%, transparent),

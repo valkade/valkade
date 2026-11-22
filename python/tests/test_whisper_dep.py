@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from clara_coder_backend.runtime.deps.providers import whisper as w
+from valkade_backend.runtime.deps.providers import whisper as w
 
 
 def test_whisper_status_missing(monkeypatch, tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ def test_whisper_status_error_when_import_fails(monkeypatch, tmp_path: Path) -> 
 
 
 def test_whisper_models_dir_uses_custom_root(tmp_path: Path) -> None:
-    from clara_coder_backend.runtime.deps.paths import whisper_models_dir
+    from valkade_backend.runtime.deps.paths import whisper_models_dir
 
     got = whisper_models_dir(str(tmp_path))
     assert got == (tmp_path.resolve() / 'whisper')

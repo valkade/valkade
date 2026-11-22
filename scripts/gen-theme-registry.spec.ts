@@ -71,7 +71,7 @@ describe('gen-theme-registry', () => {
 
   it('python registry.json mirrors the token catalog and groups', () => {
     const json = JSON.parse(
-      readFileSync(path.join(projectRoot, 'python', 'clara_coder_backend', 'theme', 'registry.json'), 'utf8'),
+      readFileSync(path.join(projectRoot, 'python', 'valkade_backend', 'theme', 'registry.json'), 'utf8'),
     ) as { groups: { id: string }[]; tokens: { name: string; category: string; kind: string }[] };
     expect(json.groups.map((g) => g.id)).toEqual(THEME_GROUPS.map((g) => g.id));
     expect(json.tokens.map((t) => t.name)).toEqual(THEME_TOKENS.map((t) => t.name));

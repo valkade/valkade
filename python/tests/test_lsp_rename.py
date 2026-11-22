@@ -7,10 +7,10 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.hitl.tool_registry import subagent_tool_group, worker_tools_and_map
-from clara_coder_backend.tools import edit as edit_module
-from clara_coder_backend.tools import lsp_rename as rename_module
-from clara_coder_backend.tools.lsp_rename import (
+from valkade_backend.hitl.tool_registry import subagent_tool_group, worker_tools_and_map
+from valkade_backend.tools import edit as edit_module
+from valkade_backend.tools import lsp_rename as rename_module
+from valkade_backend.tools.lsp_rename import (
     StaleEditError,
     apply_lsp_text_edits,
     lsp_rename_symbol,
@@ -453,7 +453,7 @@ def test_a_failed_write_puts_back_the_files_already_renamed(env: Any, monkeypatc
 
 
 def test_a_file_another_call_of_the_response_wrote_is_refused(env: Any) -> None:
-    from clara_coder_backend.session.state import current_tool_batch_id
+    from valkade_backend.session.state import current_tool_batch_id
 
     _write_python_pair(env)
     uri_b = _uri(env.workspace, _B)

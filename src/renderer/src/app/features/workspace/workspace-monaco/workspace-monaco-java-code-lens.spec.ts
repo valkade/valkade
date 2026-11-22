@@ -1,7 +1,7 @@
 import { parseJavaShowLocationsCommandArgs } from './workspace-monaco-java-code-lens';
 
 describe('parseJavaShowLocationsCommandArgs', () => {
-  it('parses rewritten Clara [origin, locations] arguments', () => {
+  it('parses rewritten ValkAde [origin, locations] arguments', () => {
     const out = parseJavaShowLocationsCommandArgs([
       { relativePath: 'src/App.java', position: { lineNumber: 5, column: 2 } },
       [

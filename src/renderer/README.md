@@ -1,6 +1,6 @@
 # Renderer
 
-The Clara Coder UI: an Angular 21 app (standalone components, Vitest unit tests) that runs inside the Electron window. It talks to the Electron main process only through the `window.electronAPI` bridge exposed by [`src/preload/preload.ts`](../preload/preload.ts); main in turn talks to the Python sidecar.
+The ValkAde UI: an Angular 21 app (standalone components, Vitest unit tests) that runs inside the Electron window. It talks to the Electron main process only through the `window.electronAPI` bridge exposed by [`src/preload/preload.ts`](../preload/preload.ts); main in turn talks to the Python sidecar.
 
 There is no separate `node_modules` here. Dependencies live in the repo-root `package.json`, and the root scripts run the Angular CLI with this folder as its working directory (`scripts/run-ng.mjs`). Run everything from the **repository root**.
 

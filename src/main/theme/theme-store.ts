@@ -2,7 +2,7 @@
  * On-disk theme library: `{userData}/themes/<id>/theme.json` plus `assets/` for background
  * images. Built-in themes never touch disk. Every read is validated; every write is atomic.
  *
- * Portable bundles (`*.clara-theme.json`) are the same document with assets embedded as
+ * Portable bundles (`*.valkade-theme.json`) are the same document with assets embedded as
  * `data:image/…;base64,` URLs; import unpacks them into files, export re-embeds them.
  */
 import { promises as fs } from 'fs';
@@ -21,7 +21,7 @@ import {
   isThemeAssetDataUrl,
   slugifyThemeId,
   validateThemeDocument,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ThemeMode,
 } from '../../shared/theme/theme-document';
 import type {
@@ -33,7 +33,8 @@ import { sanitizeSvg } from '../protocol/nemo-asset';
 
 export const THEME_FILE_NAME = 'theme.json';
 export const THEME_ASSETS_DIR_NAME = 'assets';
-export const THEME_BUNDLE_EXTENSION = '.clara-theme.json';
+/** Export file suffix. Import takes any `.json`, so pre-rename `*.clara-theme.json` bundles still load. */
+export const THEME_BUNDLE_EXTENSION = '.valkade-theme.json';
 export const THEME_ASSET_MAX_BYTES = 24 * 1024 * 1024;
 
 /** Image types accepted as background assets → served MIME type. */
@@ -141,7 +142,7 @@ async function listUserThemeIds(): Promise<string[]> {
 }
 
 /** Read and validate one user theme; null when missing or invalid. */
-export async function readUserTheme(themeId: string): Promise<ClaraThemeDocument | null> {
+export async function readUserTheme(themeId: string): Promise<ValkAdeThemeDocument | null> {
   if (!THEME_ID_PATTERN.test(themeId) || isBuiltInThemeId(themeId)) {
     return null;
   }
@@ -168,9 +169,9 @@ export async function readUserTheme(themeId: string): Promise<ClaraThemeDocument
   return result.doc;
 }
 
-export async function listUserThemes(): Promise<ClaraThemeDocument[]> {
+export async function listUserThemes(): Promise<ValkAdeThemeDocument[]> {
   const ids = await listUserThemeIds();
-  const out: ClaraThemeDocument[] = [];
+  const out: ValkAdeThemeDocument[] = [];
   for (const id of ids) {
     const doc = await readUserTheme(id);
     if (doc) {
@@ -182,11 +183,11 @@ export async function listUserThemes(): Promise<ClaraThemeDocument[]> {
 }
 
 /** Built-ins first, then user themes sorted by name. */
-export async function listAllThemes(): Promise<ClaraThemeDocument[]> {
+export async function listAllThemes(): Promise<ValkAdeThemeDocument[]> {
   return [...BUILTIN_THEMES.map((t) => cloneThemeDocument(t)), ...(await listUserThemes())];
 }
 
-export async function findTheme(themeId: string): Promise<ClaraThemeDocument | null> {
+export async function findTheme(themeId: string): Promise<ValkAdeThemeDocument | null> {
   const builtIn = findBuiltInTheme(themeId);
   if (builtIn) {
     return cloneThemeDocument(builtIn);
@@ -320,7 +321,7 @@ export async function deleteUserTheme(themeId: string): Promise<ThemeMutationRes
 }
 
 /** Copy every asset file of `from` into the assets folder of `toId`. */
-async function copyThemeAssets(from: ClaraThemeDocument, toId: string): Promise<void> {
+async function copyThemeAssets(from: ValkAdeThemeDocument, toId: string): Promise<void> {
   if (!from.assets || isBuiltInThemeId(from.id)) {
     return;
   }
@@ -413,7 +414,7 @@ export async function importThemeBundle(json: string): Promise<ThemeSaveResult> 
   }
   const validated = validateThemeDocument(parsed);
   if (!validated.ok || !validated.doc) {
-    return { ok: false, error: 'File is not a valid Clara theme', errors: validated.errors, warnings: validated.warnings };
+    return { ok: false, error: 'File is not a valid ValkAde theme', errors: validated.errors, warnings: validated.warnings };
   }
   const doc = validated.doc;
   delete doc.builtIn;

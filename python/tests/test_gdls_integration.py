@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lsp.editor_features import file_rename_edits, run_editor_feature, workspace_symbols
-from clara_coder_backend.lsp.manager import SessionWorkspaceLspManager, shutdown_all_lsp_managers
-from clara_coder_backend.runtime.deps.providers import gdls
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.lsp.editor_features import file_rename_edits, run_editor_feature, workspace_symbols
+from valkade_backend.lsp.manager import SessionWorkspaceLspManager, shutdown_all_lsp_managers
+from valkade_backend.runtime.deps.providers import gdls
+from valkade_backend.session.state import current_session_id, get_session
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'godot_project'
 
@@ -178,7 +178,7 @@ def test_hover_definition_references(godot: SessionWorkspaceLspManager) -> None:
 def test_definition_of_an_engine_class_is_a_read_only_page(godot: SessionWorkspaceLspManager) -> None:
     godot.sync_workspace_document(ANIMAL)
     line, character = _position_of(godot, ANIMAL, 'Node2D')
-    from clara_coder_backend.lsp.editor_monaco import serialize_locations_payload
+    from valkade_backend.lsp.editor_monaco import serialize_locations_payload
 
     rows = serialize_locations_payload(godot, godot.definition(ANIMAL, line, character))
     assert rows, 'gdls should resolve Node2D to a generated page'
@@ -275,7 +275,7 @@ def test_semantic_tokens_full_delta_and_range(godot: SessionWorkspaceLspManager)
 
 def test_inlay_hint_resolve(godot: SessionWorkspaceLspManager) -> None:
     godot.sync_workspace_document(DOG)
-    from clara_coder_backend.lsp.editor_monaco import serialize_inlay_hints_payload
+    from valkade_backend.lsp.editor_monaco import serialize_inlay_hints_payload
 
     hints = serialize_inlay_hints_payload(godot.inlay_hints(DOG, 1, 1, 20, 1))
     assert hints, 'the := declarations carry inferred type hints'
@@ -296,7 +296,7 @@ def test_prepare_rename_and_multi_file_rename(godot: SessionWorkspaceLspManager)
     assert prepared['range'] is not None
     assert prepared['placeholder'] == 'move'
 
-    from clara_coder_backend.lsp.editor_monaco import serialize_rename_workspace_edit
+    from valkade_backend.lsp.editor_monaco import serialize_rename_workspace_edit
 
     edit = serialize_rename_workspace_edit(godot, godot.rename(ANIMAL, line, character, 'walk'))
     assert set(edit['changes']) >= {ANIMAL, DOG}, edit
@@ -315,7 +315,7 @@ def test_prepare_rename_refuses_an_engine_symbol(godot: SessionWorkspaceLspManag
 
 
 def test_code_action_edit_is_computed_eagerly(godot: SessionWorkspaceLspManager) -> None:
-    from clara_coder_backend.lsp.editor_monaco import serialize_code_actions_payload
+    from valkade_backend.lsp.editor_monaco import serialize_code_actions_payload
 
     diagnostics = godot.sync_workspace_document(DOG)
     target = next(d for d in diagnostics if d.get('code') == 'UNUSED_VARIABLE')
@@ -344,7 +344,7 @@ def test_will_rename_rewrites_preload_paths(godot: SessionWorkspaceLspManager) -
 
 def test_scene_node_completion_comes_from_the_scene_index(godot: SessionWorkspaceLspManager) -> None:
     godot.sync_workspace_document(DOG)
-    from clara_coder_backend.lsp.editor_monaco import serialize_completion_result
+    from valkade_backend.lsp.editor_monaco import serialize_completion_result
 
     line, character = _position_of(godot, DOG, '$Tag', offset=1)
     result = serialize_completion_result(godot, godot.completion(DOG, line, character, trigger_kind=2, trigger_character='$'))
@@ -352,7 +352,7 @@ def test_scene_node_completion_comes_from_the_scene_index(godot: SessionWorkspac
 
 
 def test_agent_tools(godot: SessionWorkspaceLspManager) -> None:
-    from clara_coder_backend.tools.lsp_tools import (
+    from valkade_backend.tools.lsp_tools import (
         lsp_call_hierarchy,
         lsp_find_implementations,
         lsp_type_hierarchy,
@@ -385,7 +385,7 @@ def test_completion_keeps_engine_classes_past_the_default_limit(godot: SessionWo
     """gdls doesn't filter by the typed prefix, so a truncated list could never offer these."""
 
     godot.sync_workspace_document(DOG)
-    from clara_coder_backend.lsp.editor_monaco import DEFAULT_COMPLETION_ITEM_LIMIT, serialize_completion_result
+    from valkade_backend.lsp.editor_monaco import DEFAULT_COMPLETION_ITEM_LIMIT, serialize_completion_result
 
     line, character = _position_of(godot, DOG, 'move(0.5)', offset=1)
     raw = godot.completion(DOG, line, character)
@@ -399,8 +399,8 @@ def test_engine_pages_land_where_the_read_guard_expects(godot: SessionWorkspaceL
     """``read-absolute-file`` allows ``<runtime>/gdls/stubs``, so pages must be under it."""
 
     godot.sync_workspace_document(ANIMAL)
-    from clara_coder_backend.lsp.editor_monaco import serialize_locations_payload
-    from clara_coder_backend.runtime.deps.paths import gdls_stub_cache_dir
+    from valkade_backend.lsp.editor_monaco import serialize_locations_payload
+    from valkade_backend.runtime.deps.paths import gdls_stub_cache_dir
 
     rows = serialize_locations_payload(godot, godot.definition(ANIMAL, *_position_of(godot, ANIMAL, 'Node2D')))
     assert Path(rows[0]['externalPath']).resolve().is_relative_to(gdls_stub_cache_dir().resolve())
@@ -408,7 +408,7 @@ def test_engine_pages_land_where_the_read_guard_expects(godot: SessionWorkspaceL
 
 def test_completion_resolve_fills_documentation(godot: SessionWorkspaceLspManager) -> None:
     godot.sync_workspace_document(ANIMAL)
-    from clara_coder_backend.lsp.editor_monaco import serialize_completion_result
+    from valkade_backend.lsp.editor_monaco import serialize_completion_result
 
     line, character = _position_of(godot, ANIMAL, 'spoke.emit', offset=1)
     result = serialize_completion_result(godot, godot.completion(ANIMAL, line, character))

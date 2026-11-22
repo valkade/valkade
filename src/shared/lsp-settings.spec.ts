@@ -299,7 +299,7 @@ describe('normalizeLspServersSettings (java)', () => {
     }
   });
 
-  it('defaults to what Clara ran before, with signature help on', () => {
+  it('defaults to what ValkAde ran before, with signature help on', () => {
     expect(defaultLspServersSettings().java).toEqual({
       jdkHome: '',
       maxHeap: '1G',

@@ -1,6 +1,6 @@
 /*
  * Design tokens (`--t-*`) are NOT declared here. The theme engine
- * (src/renderer/src/app/core/theme) writes them into <style id="clara-theme-tokens"> from the
+ * (src/renderer/src/app/core/theme) writes them into <style id="valkade-theme-tokens"> from the
  * active theme document (src/shared/theme); built-in palettes live in src/shared/theme/builtin.
  * `--t-font-ui-override` / `--t-font-code-override` are optional inline properties set on
  * `documentElement.style` by `applyAppFontOverrides()` from Settings → General; consumers

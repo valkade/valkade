@@ -7,14 +7,14 @@ from unittest.mock import patch
 
 import pytest
 
-from clara_coder_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES, maybe_await_hitl_for_deferred_tool
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.tools.fetch_url import fetch_url_tool, html_to_text
-from clara_coder_backend.tools.http_guards import assert_public_http_url, normalize_http_base_url
-from clara_coder_backend.tools.web_search import format_searxng_search_report, search_searxng, web_search_tool
-from clara_coder_backend.tools.metasearch import ENGINE_NAMES, MetasearchOutcome, clear_cache
-from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
+from valkade_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES, maybe_await_hitl_for_deferred_tool
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.tools.fetch_url import fetch_url_tool, html_to_text
+from valkade_backend.tools.http_guards import assert_public_http_url, normalize_http_base_url
+from valkade_backend.tools.web_search import format_searxng_search_report, search_searxng, web_search_tool
+from valkade_backend.tools.metasearch import ENGINE_NAMES, MetasearchOutcome, clear_cache
+from valkade_backend.hitl.tool_registry import worker_tools_and_map
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ def test_search_searxng_parses_results() -> None:
         def read(self):
             return json.dumps(payload).encode('utf-8')
 
-    with patch('clara_coder_backend.tools.web_search.urllib.request.urlopen', return_value=_Resp()):
+    with patch('valkade_backend.tools.web_search.urllib.request.urlopen', return_value=_Resp()):
         rows = search_searxng('q', base_url='http://127.0.0.1:8080', limit=1)
     assert len(rows) == 1
     assert rows[0]['title'] == 'A'
@@ -134,7 +134,7 @@ async def test_web_search_happy_path(enable_web) -> None:
     session.auto_apply_mode = True
     rows = [{'title': 'Docs', 'url': 'https://example.com/d', 'content': 'guide', 'engine': 'bing'}]
     try:
-        with patch('clara_coder_backend.tools.web_search.search_searxng', return_value=rows):
+        with patch('valkade_backend.tools.web_search.search_searxng', return_value=rows):
             out = await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -197,8 +197,8 @@ async def test_fetch_url_happy_path(enable_web) -> None:
 
     try:
         with (
-            patch('clara_coder_backend.tools.fetch_url.assert_public_http_url', return_value=None),
-            patch('clara_coder_backend.tools.fetch_url._OPENER.open', return_value=_Resp()),
+            patch('valkade_backend.tools.fetch_url.assert_public_http_url', return_value=None),
+            patch('valkade_backend.tools.fetch_url._OPENER.open', return_value=_Resp()),
         ):
             out = await fetch_url_tool.ainvoke({'url': 'https://example.com/page'})
     finally:
@@ -249,7 +249,7 @@ def test_fetch_url_redirect_to_private_host_is_blocked_before_request() -> None:
 
     import pytest as _pytest
 
-    from clara_coder_backend.tools.fetch_url import _PublicOnlyRedirectHandler
+    from valkade_backend.tools.fetch_url import _PublicOnlyRedirectHandler
 
     handler = _PublicOnlyRedirectHandler()
     with _pytest.raises(urllib.error.URLError):
@@ -268,7 +268,7 @@ async def test_web_search_uses_builtin_when_provider_internal(enable_web) -> Non
         engines_ok=['duckduckgo'],
     )
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome):
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome):
             out = await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -285,7 +285,7 @@ async def test_web_search_auto_prefers_searxng_when_base_url_set(enable_web) -> 
     session.auto_apply_mode = True
     rows = [{'title': 'Docs', 'url': 'https://example.com/d', 'content': 'guide', 'engine': 'bing'}]
     try:
-        with patch('clara_coder_backend.tools.web_search.search_searxng', return_value=rows) as searxng:
+        with patch('valkade_backend.tools.web_search.search_searxng', return_value=rows) as searxng:
             out = await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -303,7 +303,7 @@ async def test_web_search_reports_when_every_engine_fails(enable_web) -> None:
     session.auto_apply_mode = True
     outcome = MetasearchOutcome(rows=[], engines_ok=[], engines_failed={'bing': 'HTTP 503'})
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome):
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome):
             out = await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -321,7 +321,7 @@ async def test_web_search_passes_configured_engines(enable_web) -> None:
     session.auto_apply_mode = True
     outcome = MetasearchOutcome(rows=[], engines_ok=['wikipedia'])
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome) as ms:
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome) as ms:
             await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -339,7 +339,7 @@ async def test_web_search_empty_engine_list_means_all(enable_web) -> None:
     session.auto_apply_mode = True
     outcome = MetasearchOutcome(rows=[], engines_ok=list(ENGINE_NAMES))
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome) as ms:
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome) as ms:
             await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -347,7 +347,7 @@ async def test_web_search_empty_engine_list_means_all(enable_web) -> None:
 
 
 def test_redact_emails() -> None:
-    from clara_coder_backend.tools.redact import redact_emails
+    from valkade_backend.tools.redact import redact_emails
 
     text, count = redact_emails('contact daniel.perez@codebydp.com about asyncio')
     assert count == 1
@@ -366,7 +366,7 @@ async def test_web_search_redacts_email_before_request(enable_web) -> None:
     session.auto_apply_mode = True
     outcome = MetasearchOutcome(rows=[], engines_ok=['wikipedia'])
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome) as ms:
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome) as ms:
             out = await web_search_tool.ainvoke({'query': 'daniel.perez@codebydp.com asyncio'})
     finally:
         current_session_id.reset(token)
@@ -387,7 +387,7 @@ async def test_web_search_uses_configured_user_agent(enable_web) -> None:
     session.auto_apply_mode = True
     outcome = MetasearchOutcome(rows=[], engines_ok=['wikipedia'])
     try:
-        with patch('clara_coder_backend.tools.web_search.metasearch', return_value=outcome) as ms:
+        with patch('valkade_backend.tools.web_search.metasearch', return_value=outcome) as ms:
             await web_search_tool.ainvoke({'query': 'guide'})
     finally:
         current_session_id.reset(token)
@@ -395,8 +395,8 @@ async def test_web_search_uses_configured_user_agent(enable_web) -> None:
 
 
 def test_web_search_user_agent_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.tools.metasearch import DEFAULT_USER_AGENT
-    from clara_coder_backend.tools.web_search import outbound_user_agent
+    from valkade_backend.tools.metasearch import DEFAULT_USER_AGENT
+    from valkade_backend.tools.web_search import outbound_user_agent
 
     monkeypatch.setattr(runtime_config, 'tools', RuntimeToolsConfig(web_search_user_agent=''))
     assert outbound_user_agent() == DEFAULT_USER_AGENT
@@ -436,7 +436,7 @@ def test_web_search_hitl_card_redacts_email() -> None:
 
 
 def test_web_operational_bullet_mentions_user_agent(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.llm.messages import _web_access_operational_bullet
+    from valkade_backend.llm.messages import _web_access_operational_bullet
 
     monkeypatch.setattr(runtime_config, 'tools', RuntimeToolsConfig(allow_web_access=True))
     bullet = _web_access_operational_bullet()

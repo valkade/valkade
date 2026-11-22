@@ -55,7 +55,7 @@ export interface LmStudioLoadOptions {
   offloadKvCacheToGpu?: boolean;
 }
 
-/** Saved per model profile: how Clara loads the model, and what happens when one isn't loaded. */
+/** Saved per model profile: how ValkAde loads the model, and what happens when one isn't loaded. */
 export interface LmStudioSettings {
   contextLength: number;
   parallel: number;

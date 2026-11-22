@@ -7,8 +7,8 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt.tool_node import ToolCallRequest
 
-from clara_coder_backend.middleware.tool_batch_middleware import ToolBatchMiddleware, tool_batch_id
-from clara_coder_backend.session.state import current_tool_batch_id
+from valkade_backend.middleware.tool_batch_middleware import ToolBatchMiddleware, tool_batch_id
+from valkade_backend.session.state import current_tool_batch_id
 
 
 def _call(call_id: str) -> dict:

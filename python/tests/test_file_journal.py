@@ -6,10 +6,10 @@ import asyncio
 import threading
 import time
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lang_agent.graph import _hitl_sse_lines
-from clara_coder_backend.session.file_journal import emit_edit_journal, emit_file_journal, file_journal_payload
-from clara_coder_backend.tools.edit import write_workspace_file
+from valkade_backend.domain import SessionState
+from valkade_backend.lang_agent.graph import _hitl_sse_lines
+from valkade_backend.session.file_journal import emit_edit_journal, emit_file_journal, file_journal_payload
+from valkade_backend.tools.edit import write_workspace_file
 
 
 def test_emit_file_journal_requires_user_turn_id() -> None:

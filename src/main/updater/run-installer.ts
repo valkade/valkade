@@ -14,13 +14,13 @@ export interface AuthenticodeInfo {
 /** Reads a file's Authenticode signature via PowerShell (path passed in env, never interpolated). */
 export function readAuthenticode(file: string): Promise<AuthenticodeInfo> {
   const script =
-    '$s = Get-AuthenticodeSignature -LiteralPath $env:CLARA_SIG_PATH; ' +
+    '$s = Get-AuthenticodeSignature -LiteralPath $env:VALKADE_SIG_PATH; ' +
     '[pscustomobject]@{ status = [string]$s.Status; subject = $(if ($s.SignerCertificate) { $s.SignerCertificate.Subject } else { $null }) } | ConvertTo-Json -Compress';
   return new Promise((resolve, reject) => {
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
-      { env: { ...process.env, CLARA_SIG_PATH: file }, windowsHide: true, timeout: 30_000 },
+      { env: { ...process.env, VALKADE_SIG_PATH: file }, windowsHide: true, timeout: 30_000 },
       (err, stdout) => {
         if (err) return reject(err);
         try {
@@ -127,13 +127,13 @@ export function launchInstaller(installer: string, relaunch: boolean, elevate: b
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        "Start-Process -FilePath $env:CLARA_INSTALLER -ArgumentList $env:CLARA_INSTALLER_ARGS.Split(' ') -Verb RunAs",
+        "Start-Process -FilePath $env:VALKADE_INSTALLER -ArgumentList $env:VALKADE_INSTALLER_ARGS.Split(' ') -Verb RunAs",
       ],
       {
         detached: true,
         stdio: 'ignore',
         windowsHide: true,
-        env: { ...process.env, CLARA_INSTALLER: installer, CLARA_INSTALLER_ARGS: args.join(' ') },
+        env: { ...process.env, VALKADE_INSTALLER: installer, VALKADE_INSTALLER_ARGS: args.join(' ') },
       },
     ).unref();
     return;

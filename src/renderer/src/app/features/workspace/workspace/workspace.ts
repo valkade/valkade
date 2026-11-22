@@ -526,7 +526,7 @@ export class WorkspaceComponent implements OnDestroy {
     }
   }
 
-  /** Open `.clara/checks.json` (the commands run when an editing turn ends), creating it when missing. */
+  /** Open `.valkade/checks.json` (the commands run when an editing turn ends), creating it when missing. */
   protected async onOpenWorkspaceChecks(): Promise<void> {
     const wid = this.currentWorkspaceId();
     if (!wid || !this.electron.isElectron) {

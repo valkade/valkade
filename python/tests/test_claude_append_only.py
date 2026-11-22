@@ -23,16 +23,16 @@ import pytest_asyncio
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
-from clara_coder_backend.domain import (
+from valkade_backend.domain import (
     RuntimeConnection,
     RuntimeContextCompressionConfig,
     RuntimeToolsConfig,
     SessionState,
 )
-from clara_coder_backend.lang_agent import graph as graph_module
-from clara_coder_backend.lang_agent.graph import build_clara_single_outer_graph
-from clara_coder_backend.llm import anthropic_llm
-from clara_coder_backend.llm.anthropic_llm import (
+from valkade_backend.lang_agent import graph as graph_module
+from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+from valkade_backend.llm import anthropic_llm
+from valkade_backend.llm.anthropic_llm import (
     COMPACTION_BETA,
     INLINE_TOOLS_BETA,
     SYSTEM_BLOCKS_KEY,
@@ -40,16 +40,16 @@ from clara_coder_backend.llm.anthropic_llm import (
     place_system_messages,
     supports_mid_conversation_system,
 )
-from clara_coder_backend.llm.messages import USER_TURN_KEY
-from clara_coder_backend.middleware.append_only_context_middleware import system_change_text
-from clara_coder_backend.middleware.context_compaction_middleware import (
+from valkade_backend.llm.messages import USER_TURN_KEY
+from valkade_backend.middleware.append_only_context_middleware import system_change_text
+from valkade_backend.middleware.context_compaction_middleware import (
     SERVER_COMPACTION_MIN_TRIGGER,
     ContextCompactionMiddleware,
     runs_own_compaction,
 )
-from clara_coder_backend.session import checkpointing as ck
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.session.user_events import queue_user_event_note
+from valkade_backend.session import checkpointing as ck
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.session.user_events import queue_user_event_note
 
 
 _SID = 'claude-append-only'
@@ -509,7 +509,7 @@ async def test_other_claude_models_and_providers_are_left_alone(monkeypatch: pyt
 
 
 def test_notice_blocks_live_in_additional_kwargs() -> None:
-    from clara_coder_backend.middleware.append_only_context_middleware import change_notice
+    from valkade_backend.middleware.append_only_context_middleware import change_notice
 
     notice = change_notice('update', [{'type': 'tool_removal', 'tool': {'type': 'tool_reference', 'name': 'x'}}], [], ['x'])
     assert notice.additional_kwargs[SYSTEM_BLOCKS_KEY][0] == {'type': 'text', 'text': 'update'}
@@ -524,8 +524,8 @@ def test_notice_blocks_live_in_additional_kwargs() -> None:
 def test_a_compaction_summary_is_not_answer_text() -> None:
     from langchain_core.messages import AIMessage, AIMessageChunk
 
-    from clara_coder_backend.lang_agent.streaming import aimessage_chunk_sse_delta
-    from clara_coder_backend.llm.messages import final_assistant_text, stringify_content
+    from valkade_backend.lang_agent.streaming import aimessage_chunk_sse_delta
+    from valkade_backend.llm.messages import final_assistant_text, stringify_content
 
     block = {'type': 'compaction', 'content': '<summary>read x</summary>', 'index': 0}
     # Not streamed into the chat as the reply, and not the turn's answer when the call paused on it.
@@ -575,7 +575,7 @@ async def test_a_compaction_without_a_summary_keeps_the_conversation(
 def test_notices_are_plain_text_for_claude_models_without_system_messages() -> None:
     from langchain_core.messages import AIMessage
 
-    from clara_coder_backend.middleware.append_only_context_middleware import change_notice
+    from valkade_backend.middleware.append_only_context_middleware import change_notice
 
     removal = {'type': 'tool_removal', 'tool': {'type': 'tool_reference', 'name': 'late_thing'}}
     history = [
@@ -612,7 +612,7 @@ def test_other_providers_read_a_compaction_summary_as_text() -> None:
     from langchain_core.messages import AIMessage
     from langchain_openai.chat_models import base as lc_openai_base
 
-    from clara_coder_backend.llm.langchain_compat import install_langchain_reasoning_content_compat
+    from valkade_backend.llm.langchain_compat import install_langchain_reasoning_content_compat
 
     install_langchain_reasoning_content_compat()
     message = AIMessage(

@@ -642,7 +642,7 @@ export function syncNglFlagInManagedChatCommand(
 }
 
 /**
- * Rewrite Clara's old “all layers” sentinel ``-ngl 99`` to ``-ngl auto``.
+ * Rewrite the old “all layers” sentinel ``-ngl 99`` to ``-ngl auto``.
  * An explicit numeric 99 disables llama.cpp ``--fit``, which then allocates
  * model-native context (``-c 0``, often 128k–256k) and pages weights into RAM
  * while dedicated VRAM still looks free. Leaves ``999`` / ``all`` / other counts alone.
@@ -906,7 +906,7 @@ export function managedLlamaCommandHasCacheRam(cmd: string): boolean {
  * ``--reasoning-format deepseek`` often buffers that entire block (or parks it in
  * ``reasoning_content``, which the OpenAI Python SDK drops), so the UI shows no
  * reasoning while tokens are still being generated. ``none`` leaves tags in
- * ``content`` so Clara can split them live. Does not override a user-set flag.
+ * ``content`` so ValkAde can split them live. Does not override a user-set flag.
  */
 export function ensureManagedLlamaGemmaReasoningFormat(cmd: string): string {
   const trimmed = (cmd || '').trim();
@@ -954,7 +954,7 @@ export function limitManagedLlamaCacheRam(cmd: string, totalRamBytes: number): s
 const FIT_CTX_FLAG_NAMES = ['-fitc', '--fit-ctx'];
 
 /**
- * With no ``-c``, ``--fit`` shrinks a model that doesn't fit down to 4096, below Clara's own prompt. Hold it
+ * With no ``-c``, ``--fit`` shrinks a model that doesn't fit down to 4096, below ValkAde's own prompt. Hold it
  * at the plan's floor so it spills layers instead. Any ``-c`` already stops the shrink, and this flag after
  * ``-c 0`` would turn it back on.
  */
@@ -966,7 +966,7 @@ export function ensureManagedLlamaFitContextFloor(cmd: string): string {
   return `${trimmed} --fit-ctx ${PLAN_MIN_CTX}`;
 }
 
-/** Drafted tokens per step that Clara writes with an MTP head; measured on Gemma 12B. */
+/** Drafted tokens per step that ValkAde writes with an MTP head; measured on Gemma 12B. */
 const MTP_DRAFT_N_MAX = 4;
 
 /** The head ``--spec-type draft-mtp`` can run on: inside the model file, or a separate one. */

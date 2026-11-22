@@ -597,7 +597,7 @@ describe('TutorialOverlayComponent', () => {
     h.fixture.detectChanges();
     await paint(h.fixture);
     expect(h.host.querySelector('[aria-live="polite"]')).toBe(live);
-    expect(live?.textContent).toContain('optional Clara Coder tour');
+    expect(live?.textContent).toContain('optional ValkAde tour');
     expect(document.activeElement).toBe(outside);
   });
 
@@ -702,7 +702,7 @@ describe('TutorialOverlayComponent', () => {
       }
     };
     await settle();
-    expect(host.querySelector('h2')?.textContent).toBe('Welcome to Clara Coder');
+    expect(host.querySelector('h2')?.textContent).toBe('Welcome to ValkAde');
     button(host, 'Next').click();
     await settle();
     expect(progress.active).toEqual({ phaseId: 'intro', stepId: 'home-workspace' });

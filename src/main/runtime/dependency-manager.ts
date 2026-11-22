@@ -32,10 +32,11 @@ import { getDefaultCustomModelsDir } from '../config/defaults';
 import { loadConfigSync } from '../config/load-save';
 import { unwrapSecret } from '../../shared';
 import { envForChildProcess } from '../utils/filter-sensitive-env';
+import { envValkade } from '../env-valkade';
 
 const DEPS_LOGGER = 'clara.electron.deps';
 
-/** Exact env keys kept for the deps CLI child (plus CLARA_ and NEMO_ prefixes). */
+/** Exact env keys kept for the deps CLI child (plus VALKADE_, CLARA_ and NEMO_ prefixes). */
 const RUNTIME_ENV_PASSTHROUGH = new Set([
   'PATH',
   'PYTHONHOME',
@@ -47,7 +48,7 @@ const RUNTIME_ENV_PASSTHROUGH = new Set([
 
 export function isRuntimeEnvPassthrough(key: string, packaged = app.isPackaged): boolean {
   const upper = key.toUpperCase();
-  if (upper.startsWith('CLARA_') || upper.startsWith('NEMO_')) return true;
+  if (upper.startsWith('VALKADE_') || upper.startsWith('CLARA_') || upper.startsWith('NEMO_')) return true;
   if (packaged && upper === 'PYTHONHOME') return false;
   return RUNTIME_ENV_PASSTHROUGH.has(upper);
 }
@@ -77,7 +78,7 @@ function customModelsRoot(): string {
   } catch {
     /* fall through */
   }
-  return process.env.CLARA_CUSTOM_MODELS_DIR || getDefaultCustomModelsDir();
+  return envValkade('CUSTOM_MODELS_DIR') || getDefaultCustomModelsDir();
 }
 
 function runtimeEnv(): NodeJS.ProcessEnv {
@@ -93,13 +94,13 @@ function runtimeEnv(): NodeJS.ProcessEnv {
   return {
     ...env,
     PYTHONUNBUFFERED: '1',
-    CLARA_RUNTIME_DIR: getRuntimeDir(),
-    CLARA_RUNTIME_PYTHON_DIR: getRuntimePythonDir(),
-    CLARA_RUNTIME_BIN_DIR: getRuntimeBinDir(),
+    VALKADE_RUNTIME_DIR: getRuntimeDir(),
+    VALKADE_RUNTIME_PYTHON_DIR: getRuntimePythonDir(),
+    VALKADE_RUNTIME_BIN_DIR: getRuntimeBinDir(),
     // Same resolver as the sidecar (includes legacy → runtime migrate).
-    CLARA_JAVA_LSP_CACHE_DIR: getJavaLspCacheDir(),
-    CLARA_LOG_DIR: getLogsDir(),
-    CLARA_CUSTOM_MODELS_DIR: customModelsRoot(),
+    VALKADE_JAVA_LSP_CACHE_DIR: getJavaLspCacheDir(),
+    VALKADE_LOG_DIR: getLogsDir(),
+    VALKADE_CUSTOM_MODELS_DIR: customModelsRoot(),
     ...(hfToken ? { HF_TOKEN: hfToken, HUGGING_FACE_HUB_TOKEN: hfToken } : {}),
     ...pythonIsolationEnv(),
   };
@@ -190,11 +191,11 @@ async function runDepsCli(
   ensureRuntimeDirs();
   const py = bootstrapPythonCmd();
   if (!py) {
-    const err = 'Bundled Python runtime missing; reinstall Clara Coder.';
+    const err = 'Bundled Python runtime missing; reinstall ValkAde.';
     logDeps('ERROR', err);
     return { ok: false, error: err };
   }
-  const args = ['-m', 'clara_coder_backend.runtime.deps', action];
+  const args = ['-m', 'valkade_backend.runtime.deps', action];
   if (depId) {
     if (!isKnownDependencyId(depId)) {
       return { ok: false, error: `Unknown dependency: ${depId}` };

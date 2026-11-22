@@ -1,11 +1,11 @@
-"""Tests for :mod:`clara_coder_backend.workspace_index.fastembed_backend` (no Hub download)."""
+"""Tests for :mod:`valkade_backend.workspace_index.fastembed_backend` (no Hub download)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from clara_coder_backend.workspace_index import fastembed_backend as fb
+from valkade_backend.workspace_index import fastembed_backend as fb
 
 
 def test_fastembed_cache_dir_uses_override(monkeypatch, tmp_path: Path) -> None:

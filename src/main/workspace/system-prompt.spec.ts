@@ -10,7 +10,7 @@ vi.mock('../paths', () => ({
   getLegacyAppDataSystemPromptPath: (workspaceId: string) =>
     join(testRoot.dir, 'app-data', 'workspaces', workspaceId, 'system-prompt.md'),
   getWorkspaceSystemPromptPath: (workspaceRoot: string) =>
-    join(workspaceRoot, '.clara', 'system-prompt.md'),
+    join(workspaceRoot, '.valkade', 'system-prompt.md'),
 }));
 
 import {
@@ -20,21 +20,30 @@ import {
 } from './system-prompt';
 import { migrateLegacyWorkspaceMetaDir } from './meta-dir';
 
+function writeIndex(file: string, entries: unknown[]): void {
+  writeFileSync(file, `${JSON.stringify(entries, null, 2)}\n`, 'utf8');
+}
+
+function readIndex(file: string): Array<{ id: string; relativePath: string; status: string }> {
+  return JSON.parse(readFileSync(file, 'utf8')) as Array<{ id: string; relativePath: string; status: string }>;
+}
+
 describe('workspace system-prompt storage', () => {
   beforeEach(() => {
-    testRoot.dir = mkdtempSync(join(tmpdir(), 'clara-sys-prompt-'));
+    testRoot.dir = mkdtempSync(join(tmpdir(), 'valkade-sys-prompt-'));
   });
 
   afterEach(() => {
     rmSync(testRoot.dir, { recursive: true, force: true });
   });
 
-  it('seeds the default prompt under .clara when missing', async () => {
+  it('seeds the default prompt under .valkade when missing', async () => {
     const ws = join(testRoot.dir, 'project');
     mkdirSync(ws, { recursive: true });
     const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
     expect(result.created).toBe(true);
     expect(result.relativePath).toBe(WORKSPACE_SYSTEM_PROMPT_RELATIVE_PATH);
+    expect(result.relativePath).toBe('.valkade/system-prompt.md');
     expect(existsSync(result.absolutePath)).toBe(true);
     expect(readFileSync(result.absolutePath, 'utf8')).toBe(DEFAULT_WORKSPACE_SYSTEM_PROMPT);
     await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe(DEFAULT_WORKSPACE_SYSTEM_PROMPT);
@@ -42,15 +51,52 @@ describe('workspace system-prompt storage', () => {
 
   it('does not overwrite an existing workspace prompt file', async () => {
     const ws = join(testRoot.dir, 'project');
-    const dest = join(ws, '.clara', 'system-prompt.md');
-    mkdirSync(join(ws, '.clara'), { recursive: true });
+    const dest = join(ws, '.valkade', 'system-prompt.md');
+    mkdirSync(join(ws, '.valkade'), { recursive: true });
     writeFileSync(dest, 'Keep me.', 'utf8');
     const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
     expect(result.created).toBe(false);
     await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe('Keep me.');
   });
 
-  it('migrates leftover app-data prompt into .clara', async () => {
+  it('names ValkAde in the default prompt', () => {
+    expect(DEFAULT_WORKSPACE_SYSTEM_PROMPT).toMatch(/^You are ValkAde, /);
+    expect(DEFAULT_WORKSPACE_SYSTEM_PROMPT).not.toContain('Clara');
+  });
+
+  it('upgrades an unedited Clara Coder default prompt, whatever its line endings', async () => {
+    const ws = join(testRoot.dir, 'project');
+    const dest = join(ws, '.valkade', 'system-prompt.md');
+    mkdirSync(join(ws, '.valkade'), { recursive: true });
+    const legacy = DEFAULT_WORKSPACE_SYSTEM_PROMPT.replace(
+      'You are ValkAde, a senior software engineering agent operating inside the ValkAde IDE.',
+      'You are Clara, a senior software engineering agent operating inside the Clara Coder IDE.',
+    );
+    writeFileSync(dest, legacy.replace(/\n/g, '\r\n'), 'utf8');
+    const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
+    expect(result.created).toBe(false);
+    await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe(DEFAULT_WORKSPACE_SYSTEM_PROMPT);
+  });
+
+  it('keeps an edited prompt that still mentions Clara', async () => {
+    const ws = join(testRoot.dir, 'project');
+    mkdirSync(join(ws, '.valkade'), { recursive: true });
+    writeFileSync(join(ws, '.valkade', 'system-prompt.md'), 'You are Clara. Answer in French.', 'utf8');
+    await ensureWorkspaceSystemPrompt(ws, 'ws-1');
+    await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe('You are Clara. Answer in French.');
+  });
+
+  it('keeps a Clara Coder prompt by moving .clara to .valkade', async () => {
+    const ws = join(testRoot.dir, 'project');
+    mkdirSync(join(ws, '.clara'), { recursive: true });
+    writeFileSync(join(ws, '.clara', 'system-prompt.md'), 'Clara prompt.', 'utf8');
+    const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
+    expect(result.created).toBe(false);
+    expect(existsSync(join(ws, '.clara'))).toBe(false);
+    await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe('Clara prompt.');
+  });
+
+  it('migrates leftover app-data prompt into .valkade', async () => {
     const ws = join(testRoot.dir, 'project');
     mkdirSync(ws, { recursive: true });
     const legacy = join(testRoot.dir, 'app-data', 'workspaces', 'ws-legacy', 'system-prompt.md');
@@ -70,96 +116,127 @@ describe('workspace system-prompt storage', () => {
   });
 });
 
-describe('legacy .nemo metadata dir migration', () => {
+describe('legacy .clara / .nemo metadata dir migration', () => {
   beforeEach(() => {
-    testRoot.dir = mkdtempSync(join(tmpdir(), 'clara-meta-dir-'));
+    testRoot.dir = mkdtempSync(join(tmpdir(), 'valkade-meta-dir-'));
   });
 
   afterEach(() => {
     rmSync(testRoot.dir, { recursive: true, force: true });
   });
 
-  it('renames .nemo to .clara and rewrites build-plan index paths', async () => {
+  it('renames .clara to .valkade and rewrites build-plan index paths', async () => {
+    const ws = testRoot.dir;
+    const plans = join(ws, '.clara', 'build-plans');
+    mkdirSync(plans, { recursive: true });
+    writeFileSync(join(plans, 'plan-abc.md'), '# Plan\n', 'utf8');
+    writeFileSync(join(ws, '.clara', 'checks.json'), '{"checks":[]}', 'utf8');
+    writeIndex(join(plans, 'index.json'), [
+      { id: 'plan-abc', relativePath: '.clara/build-plans/plan-abc.md', status: 'active' },
+      { id: 'plan-win', relativePath: '.clara\\build-plans\\plan-win.md', status: 'active' },
+    ]);
+
+    await migrateLegacyWorkspaceMetaDir(ws);
+
+    expect(existsSync(join(ws, '.clara'))).toBe(false);
+    expect(existsSync(join(ws, '.valkade', 'build-plans', 'plan-abc.md'))).toBe(true);
+    expect(readFileSync(join(ws, '.valkade', 'checks.json'), 'utf8')).toBe('{"checks":[]}');
+    const index = readIndex(join(ws, '.valkade', 'build-plans', 'index.json'));
+    expect(index.map((e) => e.relativePath)).toEqual([
+      '.valkade/build-plans/plan-abc.md',
+      '.valkade/build-plans/plan-win.md',
+    ]);
+  });
+
+  it('renames .nemo to .valkade when it is the only legacy dir', async () => {
     const ws = testRoot.dir;
     const plans = join(ws, '.nemo', 'build-plans');
     mkdirSync(plans, { recursive: true });
     writeFileSync(join(plans, 'plan-abc.md'), '# Plan\n', 'utf8');
-    writeFileSync(
-      join(plans, 'index.json'),
-      `${JSON.stringify(
-        [{ id: 'plan-abc', relativePath: '.nemo/build-plans/plan-abc.md', status: 'active' }],
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
+    writeIndex(join(plans, 'index.json'), [
+      { id: 'plan-abc', relativePath: '.nemo/build-plans/plan-abc.md', status: 'active' },
+    ]);
 
     await migrateLegacyWorkspaceMetaDir(ws);
 
     expect(existsSync(join(ws, '.nemo'))).toBe(false);
-    expect(existsSync(join(ws, '.clara', 'build-plans', 'plan-abc.md'))).toBe(true);
-    const index = JSON.parse(readFileSync(join(ws, '.clara', 'build-plans', 'index.json'), 'utf8')) as Array<{
-      relativePath: string;
-    }>;
-    expect(index[0]?.relativePath).toBe('.clara/build-plans/plan-abc.md');
+    expect(existsSync(join(ws, '.valkade', 'build-plans', 'plan-abc.md'))).toBe(true);
+    const index = readIndex(join(ws, '.valkade', 'build-plans', 'index.json'));
+    expect(index[0]?.relativePath).toBe('.valkade/build-plans/plan-abc.md');
   });
 
-  it('leaves .nemo in place when .clara already exists', async () => {
+  it('merges .clara into an existing .valkade and leaves .clara in place', async () => {
     const ws = testRoot.dir;
-    mkdirSync(join(ws, '.nemo', 'build-plans'), { recursive: true });
     mkdirSync(join(ws, '.clara', 'build-plans'), { recursive: true });
-    writeFileSync(join(ws, '.nemo', 'build-plans', 'old.md'), 'legacy', 'utf8');
-    writeFileSync(join(ws, '.clara', 'build-plans', 'keep.md'), 'keep', 'utf8');
-    writeFileSync(
-      join(ws, '.nemo', 'build-plans', 'index.json'),
-      `${JSON.stringify(
-        [
-          { id: 'plan-old', relativePath: '.nemo/build-plans/old.md', status: 'active' },
-          { id: 'shared', relativePath: '.nemo/build-plans/old.md', status: 'legacy' },
-        ],
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(ws, '.clara', 'build-plans', 'index.json'),
-      `${JSON.stringify(
-        [
-          { id: 'plan-new', relativePath: '.clara/build-plans/keep.md', status: 'active' },
-          { id: 'shared', relativePath: '.clara/build-plans/keep.md', status: 'current' },
-        ],
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
+    mkdirSync(join(ws, '.valkade', 'build-plans'), { recursive: true });
+    writeFileSync(join(ws, '.clara', 'build-plans', 'old.md'), 'legacy', 'utf8');
+    writeFileSync(join(ws, '.clara', 'build-plans', 'keep.md'), 'stale copy', 'utf8');
+    writeFileSync(join(ws, '.valkade', 'build-plans', 'keep.md'), 'keep', 'utf8');
+    writeIndex(join(ws, '.clara', 'build-plans', 'index.json'), [
+      { id: 'plan-old', relativePath: '.clara/build-plans/old.md', status: 'active' },
+      { id: 'shared', relativePath: '.clara/build-plans/old.md', status: 'legacy' },
+    ]);
+    writeIndex(join(ws, '.valkade', 'build-plans', 'index.json'), [
+      { id: 'plan-new', relativePath: '.valkade/build-plans/keep.md', status: 'active' },
+      { id: 'shared', relativePath: '.valkade/build-plans/keep.md', status: 'current' },
+    ]);
 
     await migrateLegacyWorkspaceMetaDir(ws);
 
-    expect(existsSync(join(ws, '.nemo', 'build-plans', 'old.md'))).toBe(true);
     expect(existsSync(join(ws, '.clara', 'build-plans', 'old.md'))).toBe(true);
-    expect(readFileSync(join(ws, '.clara', 'build-plans', 'keep.md'), 'utf8')).toBe('keep');
-    const index = JSON.parse(readFileSync(join(ws, '.clara', 'build-plans', 'index.json'), 'utf8')) as Array<{
-      id: string;
-      relativePath: string;
-      status: string;
-    }>;
-    const byId = Object.fromEntries(index.map((e) => [e.id, e]));
-    expect(byId['plan-old']?.relativePath).toBe('.clara/build-plans/old.md');
-    expect(byId['plan-new']?.relativePath).toBe('.clara/build-plans/keep.md');
+    expect(existsSync(join(ws, '.valkade', 'build-plans', 'old.md'))).toBe(true);
+    expect(readFileSync(join(ws, '.valkade', 'build-plans', 'keep.md'), 'utf8')).toBe('keep');
+    const byId = Object.fromEntries(readIndex(join(ws, '.valkade', 'build-plans', 'index.json')).map((e) => [e.id, e]));
+    expect(byId['plan-old']?.relativePath).toBe('.valkade/build-plans/old.md');
+    expect(byId['plan-new']?.relativePath).toBe('.valkade/build-plans/keep.md');
     expect(byId['shared']?.status).toBe('current');
-    expect(byId['shared']?.relativePath).toBe('.clara/build-plans/keep.md');
+    expect(byId['shared']?.relativePath).toBe('.valkade/build-plans/keep.md');
   });
 
-  it('copies system-prompt.md from .nemo when .clara already exists without it', async () => {
+  it('renames .clara, then merges a leftover .nemo into it', async () => {
+    const ws = testRoot.dir;
+    mkdirSync(join(ws, '.clara', 'build-plans'), { recursive: true });
+    mkdirSync(join(ws, '.nemo', 'build-plans'), { recursive: true });
+    writeFileSync(join(ws, '.clara', 'build-plans', 'keep.md'), 'keep', 'utf8');
+    writeFileSync(join(ws, '.nemo', 'build-plans', 'keep.md'), 'older', 'utf8');
+    writeFileSync(join(ws, '.nemo', 'build-plans', 'ancient.md'), 'ancient', 'utf8');
+    writeIndex(join(ws, '.clara', 'build-plans', 'index.json'), [
+      { id: 'shared', relativePath: '.clara/build-plans/keep.md', status: 'clara' },
+    ]);
+    writeIndex(join(ws, '.nemo', 'build-plans', 'index.json'), [
+      { id: 'shared', relativePath: '.nemo/build-plans/keep.md', status: 'nemo' },
+      { id: 'plan-ancient', relativePath: '.nemo/build-plans/ancient.md', status: 'active' },
+    ]);
+
+    await migrateLegacyWorkspaceMetaDir(ws);
+
+    expect(existsSync(join(ws, '.clara'))).toBe(false);
+    expect(existsSync(join(ws, '.nemo'))).toBe(true);
+    expect(readFileSync(join(ws, '.valkade', 'build-plans', 'keep.md'), 'utf8')).toBe('keep');
+    expect(readFileSync(join(ws, '.valkade', 'build-plans', 'ancient.md'), 'utf8')).toBe('ancient');
+    const byId = Object.fromEntries(readIndex(join(ws, '.valkade', 'build-plans', 'index.json')).map((e) => [e.id, e]));
+    expect(byId['shared']).toMatchObject({ status: 'clara', relativePath: '.valkade/build-plans/keep.md' });
+    expect(byId['plan-ancient']?.relativePath).toBe('.valkade/build-plans/ancient.md');
+  });
+
+  it('copies system-prompt.md from .clara when .valkade already exists without it', async () => {
     const ws = join(testRoot.dir, 'project');
-    mkdirSync(join(ws, '.nemo'), { recursive: true });
     mkdirSync(join(ws, '.clara'), { recursive: true });
-    writeFileSync(join(ws, '.nemo', 'system-prompt.md'), 'Legacy workspace prompt.', 'utf8');
+    mkdirSync(join(ws, '.valkade'), { recursive: true });
+    writeFileSync(join(ws, '.clara', 'system-prompt.md'), 'Legacy workspace prompt.', 'utf8');
 
     const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
     expect(readFileSync(result.absolutePath, 'utf8')).toBe('Legacy workspace prompt.');
     await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe('Legacy workspace prompt.');
+  });
+
+  it('copies system-prompt.md from .nemo when .valkade already exists without it', async () => {
+    const ws = join(testRoot.dir, 'project');
+    mkdirSync(join(ws, '.nemo'), { recursive: true });
+    mkdirSync(join(ws, '.valkade'), { recursive: true });
+    writeFileSync(join(ws, '.nemo', 'system-prompt.md'), 'Nemo workspace prompt.', 'utf8');
+
+    const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
+    expect(readFileSync(result.absolutePath, 'utf8')).toBe('Nemo workspace prompt.');
   });
 });

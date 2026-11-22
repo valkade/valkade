@@ -100,7 +100,7 @@ async function fetchAvatarDataUrl(url: string, fetchImpl: Fetch): Promise<string
     return null;
   }
   try {
-    const res = await fetchImpl(parsed.toString(), { headers: { 'User-Agent': 'ClaraCoder-ModelManager' } });
+    const res = await fetchImpl(parsed.toString(), { headers: { 'User-Agent': 'ValkAde-ModelManager' } });
     const type = (res.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
     if (!res.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type)) {
       return null;
@@ -158,7 +158,7 @@ export async function fetchHfModelDetails(
   if (!repoPath) {
     throw new Error('Invalid Hugging Face repo id.');
   }
-  const headers: Record<string, string> = { Accept: 'application/json', 'User-Agent': 'ClaraCoder-ModelManager' };
+  const headers: Record<string, string> = { Accept: 'application/json', 'User-Agent': 'ValkAde-ModelManager' };
   const authed = token.trim() ? { ...headers, Authorization: `Bearer ${token.trim()}` } : headers;
   const res = await fetchImpl(`${HF_ORIGIN}/api/models/${repoPath}`, { headers: authed });
   if (!res.ok) {

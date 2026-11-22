@@ -1,7 +1,7 @@
 """read_workspace_file should return guidance instead of raising when the path is wrong."""
 
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.tools.workspace import read_workspace_file
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.workspace import read_workspace_file
 
 
 def test_read_workspace_file_missing_returns_string_not_raise(tmp_path) -> None:

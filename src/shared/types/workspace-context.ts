@@ -59,12 +59,12 @@ export interface PythonInterpreterListItem {
   venvPath: string;
 }
 
-/** Result of ensuring `{workspace}/.clara/system-prompt.md` exists. */
+/** Result of ensuring `{workspace}/.valkade/system-prompt.md` exists. */
 export type EnsureWorkspaceSystemPromptResult =
   | { ok: true; absolutePath: string; relativePath: string }
   | { ok: false; error: string };
 
-/** Result of ensuring `{workspace}/.clara/checks.json` exists (`created`: it was just seeded). */
+/** Result of ensuring `{workspace}/.valkade/checks.json` exists (`created`: it was just seeded). */
 export type EnsureWorkspaceChecksResult =
   | { ok: true; absolutePath: string; relativePath: string; created: boolean }
   | { ok: false; error: string };

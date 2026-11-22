@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from clara_coder_backend.session.schemas import RuntimeConfigRequest, RuntimeConnectionRequest
+from valkade_backend.session.schemas import RuntimeConfigRequest, RuntimeConnectionRequest
 
 _CONN = {
     'id': 'x',
@@ -240,7 +240,7 @@ def test_whisper_audio_provider_and_custom_models_dir() -> None:
 
 
 def test_openai_audio_omitted_model_uses_transcribe_default() -> None:
-    from clara_coder_backend.config import DEFAULT_TRANSCRIBE_MODEL
+    from valkade_backend.config import DEFAULT_TRANSCRIBE_MODEL
 
     r = RuntimeConfigRequest.model_validate(
         {
@@ -253,7 +253,7 @@ def test_openai_audio_omitted_model_uses_transcribe_default() -> None:
 
 
 def test_whisper_audio_omitted_model_uses_whisper_default() -> None:
-    from clara_coder_backend.config import DEFAULT_WHISPER_MODEL
+    from valkade_backend.config import DEFAULT_WHISPER_MODEL
 
     r = RuntimeConfigRequest.model_validate(
         {

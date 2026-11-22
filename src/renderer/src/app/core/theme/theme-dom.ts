@@ -12,20 +12,22 @@ import {
   isThemeAssetDataUrl,
   resolveThemeDocument,
   themeStylesheetText,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ResolvedTheme,
   type ThemeAssetUrlResolver,
   type ThemeColorResolver,
   type ThemeMode,
 } from '@shared/theme';
 
-export const THEME_TOKENS_STYLE_ID = 'clara-theme-tokens';
-export const THEME_GROUPS_STYLE_ID = 'clara-theme-groups';
+export const THEME_TOKENS_STYLE_ID = 'valkade-theme-tokens';
+export const THEME_GROUPS_STYLE_ID = 'valkade-theme-groups';
 export const THEME_ID_ATTR = 'data-theme-id';
 export const THEME_MODE_ATTR = 'data-theme-mode';
 export const THEME_REVISION_ATTR = 'data-theme-revision';
 /** `localStorage` key holding the last painted mode so the pre-bootstrap paint matches it. */
-export const THEME_MODE_STORAGE_KEY = 'clara-theme-mode';
+export const THEME_MODE_STORAGE_KEY = 'valkade-theme-mode';
+/** Pre-rename key, read only when the current one is unset (kept for one release). */
+export const LEGACY_THEME_MODE_STORAGE_KEY = 'clara-theme-mode';
 
 type ModeStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -41,7 +43,8 @@ export function browserModeStorage(): ModeStorage | null {
 /** Mode painted last session (per window origin); `dark` when unknown or storage is unavailable. */
 export function readCachedThemeMode(storage: ModeStorage | undefined | null): ThemeMode {
   try {
-    return storage?.getItem(THEME_MODE_STORAGE_KEY) === 'light' ? 'light' : 'dark';
+    const cached = storage?.getItem(THEME_MODE_STORAGE_KEY) ?? storage?.getItem(LEGACY_THEME_MODE_STORAGE_KEY);
+    return cached === 'light' ? 'light' : 'dark';
   } catch {
     return 'dark';
   }
@@ -58,7 +61,7 @@ export function writeCachedThemeMode(storage: ModeStorage | undefined | null, mo
 const LEGACY_THEME_CLASSES = ['theme-woodland', 'theme-classical', 'theme-dark-classical'];
 
 /**
- * `clara-theme://asset/<themeId>/<file>` for on-disk assets; well-formed `data:image/…;base64`
+ * `valkade-theme://asset/<themeId>/<file>` for on-disk assets; well-formed `data:image/…;base64`
  * URLs pass through; anything else is refused (null → no overlay).
  */
 export const rendererThemeAssetUrl: ThemeAssetUrlResolver = (themeId, _asset, assetValue) => {
@@ -68,7 +71,7 @@ export const rendererThemeAssetUrl: ThemeAssetUrlResolver = (themeId, _asset, as
   if (!THEME_ASSET_NAME_PATTERN.test(assetValue)) {
     return null;
   }
-  return `clara-theme://asset/${encodeURIComponent(themeId)}/${encodeURIComponent(assetValue)}`;
+  return `valkade-theme://asset/${encodeURIComponent(themeId)}/${encodeURIComponent(assetValue)}`;
 };
 
 function upsertStyle(doc: Document, id: string, css: string): void {
@@ -111,7 +114,7 @@ export function applyResolvedThemeToDocument(
  * Synchronous first paint with a built-in theme (used before Angular bootstraps). Pass the
  * cached mode's built-in so a light-theme user does not see a dark first frame.
  */
-export function applyBuiltInThemeSync(doc: Document, themeId: string = DEFAULT_THEME_ID): ClaraThemeDocument {
+export function applyBuiltInThemeSync(doc: Document, themeId: string = DEFAULT_THEME_ID): ValkAdeThemeDocument {
   const theme = findBuiltInTheme(themeId) ?? DEFAULT_THEME;
   applyResolvedThemeToDocument(doc, resolveThemeDocument(theme));
   return theme;

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
-from clara_coder_backend.lang_agent.graph import _race_stream_inputs
+from valkade_backend.lang_agent.graph import _race_stream_inputs
 
 
 def test_race_does_not_drop_item_when_multiple_queues_ready() -> None:

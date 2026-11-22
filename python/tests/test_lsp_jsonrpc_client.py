@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lsp.client import (
+from valkade_backend.lsp.client import (
     JsonRpcLspClient,
     configuration_values_for_items,
     did_change_configuration_settings,
@@ -57,8 +57,8 @@ def test_start_merges_env_overrides_over_inherited_environment(
             captured['kwargs'] = kwargs
 
     monkeypatch.setenv('CLARA_TEST_INHERITED', 'inherited-value')
-    monkeypatch.setattr('clara_coder_backend.lsp.client.subprocess.Popen', _FakeProc)
-    monkeypatch.setattr('clara_coder_backend.lsp.client.threading.Thread', lambda **kwargs: type('T', (), {'start': lambda self: None})())
+    monkeypatch.setattr('valkade_backend.lsp.client.subprocess.Popen', _FakeProc)
+    monkeypatch.setattr('valkade_backend.lsp.client.threading.Thread', lambda **kwargs: type('T', (), {'start': lambda self: None})())
 
     client = JsonRpcLspClient(
         ['vtsls', '--stdio'],
@@ -79,8 +79,8 @@ def test_start_without_env_inherits_parent_environment(monkeypatch: pytest.Monke
         def __init__(self, command, **kwargs) -> None:
             captured['kwargs'] = kwargs
 
-    monkeypatch.setattr('clara_coder_backend.lsp.client.subprocess.Popen', _FakeProc)
-    monkeypatch.setattr('clara_coder_backend.lsp.client.threading.Thread', lambda **kwargs: type('T', (), {'start': lambda self: None})())
+    monkeypatch.setattr('valkade_backend.lsp.client.subprocess.Popen', _FakeProc)
+    monkeypatch.setattr('valkade_backend.lsp.client.threading.Thread', lambda **kwargs: type('T', (), {'start': lambda self: None})())
 
     client = JsonRpcLspClient(['server'], workspace_root=Path.cwd())
     client.start()

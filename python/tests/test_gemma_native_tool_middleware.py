@@ -5,11 +5,11 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage
 
-from clara_coder_backend.middleware.gemma_native_tool_middleware import GemmaNativeToolMiddleware
+from valkade_backend.middleware.gemma_native_tool_middleware import GemmaNativeToolMiddleware
 
 
 _GOOGLE_TEMPERATURE = '<|tool_call>call:get_current_temperature{location:<|"|>London<|"|>}<tool_call|>'
-_ACTIVE = 'clara_coder_backend.middleware.gemma_native_tool_middleware._gemma_native_tools_active'
+_ACTIVE = 'valkade_backend.middleware.gemma_native_tool_middleware._gemma_native_tools_active'
 
 
 @patch(_ACTIVE, return_value=True)

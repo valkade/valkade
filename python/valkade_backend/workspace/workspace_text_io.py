@@ -1,0 +1,397 @@
+"""Vetted text encodings and newline handling for workspace read/write tools.
+
+Internal tool pipeline uses Unicode with ``\\n`` line endings. Encoding and newline
+conversion happen at read (bytes → str) and write (str → bytes) boundaries.
+"""
+
+from __future__ import annotations
+
+import codecs
+import errno
+import os
+import shutil
+import time
+import uuid
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterator, Literal
+
+# Chunk size for streaming reads (plain-text `read_workspace_file`); balance syscall count vs memory.
+_READ_FILE_STREAM_CHUNK = 256 * 1024
+# Cap for search fallback / match-line reread (aligned with semantic index default max file bytes).
+SEARCH_MAX_FILE_BYTES = 512_000
+#: Suffix of the temp file an atomic write renames over its target (the Electron workspace watcher skips it).
+ATOMIC_WRITE_TEMP_SUFFIX = '.valkade.tmp'
+# Backoff before each retry of the rename; on Windows another process holding the target open blocks it briefly.
+_REPLACE_RETRY_DELAYS_SEC = (0.02, 0.05, 0.1, 0.2)
+
+NewlineMode = Literal['lf', 'crlf', 'preserve']
+DiskNewline = Literal['lf', 'crlf']
+
+# Aliases → Python codec name (must pass validate_workspace_encoding after mapping).
+_ENCODING_ALIASES: dict[str, str] = {
+    'utf8': 'utf-8',
+    'utf_8': 'utf-8',
+    'utf-8-sig': 'utf-8-sig',
+    'utf8-sig': 'utf-8-sig',
+    'utf16': 'utf-16',
+    'utf_16': 'utf-16',
+    'utf-16le': 'utf-16-le',
+    'utf16le': 'utf-16-le',
+    'utf_16_le': 'utf-16-le',
+    'utf-16be': 'utf-16-be',
+    'utf16be': 'utf-16-be',
+    'utf_16_be': 'utf-16-be',
+    'latin1': 'latin-1',
+    'iso-8859-1': 'latin-1',
+    'iso8859-1': 'latin-1',
+    'cp1252': 'cp1252',
+    'windows-1252': 'cp1252',
+    '1252': 'cp1252',
+    'ascii': 'ascii',
+    'mac_roman': 'mac-roman',
+    'macintosh': 'mac-roman',
+}
+
+# Explicit allowlist (normalized names). All must be valid in Python codecs.
+ALLOWED_ENCODINGS: frozenset[str] = frozenset(
+    {
+        'utf-8',
+        'utf-8-sig',
+        'utf-16',
+        'utf-16-le',
+        'utf-16-be',
+        'latin-1',
+        'cp1252',
+        'ascii',
+        'mac-roman',
+    }
+)
+
+# Tool callers (especially local LLMs) sometimes pass a language or file extension where a Python codec name is required.
+# Treat these as utf-8 so reads/edits do not fail mid-agent.
+_MISTAKEN_ENCODING_LANGUAGE_OR_EXT: frozenset[str] = frozenset(
+    {
+        'bash',
+        'bat',
+        'c',
+        'cc',
+        'cmd',
+        'cpp',
+        'cs',
+        'css',
+        'cxx',
+        'dart',
+        'dockerfile',
+        'fish',
+        'fs',
+        'go',
+        'h',
+        'hpp',
+        'htm',
+        'html',
+        'java',
+        'js',
+        'jsx',
+        'json',
+        'kt',
+        'less',
+        'lua',
+        'makefile',
+        'markdown',
+        'md',
+        'mjs',
+        'perl',
+        'php',
+        'pl',
+        'plaintext',
+        'ps1',
+        'py',
+        'r',
+        'rb',
+        'rst',
+        'rs',
+        'sass',
+        'scala',
+        'scss',
+        'sh',
+        'sql',
+        'styl',
+        'svg',
+        'swift',
+        'svelte',
+        'text',
+        'toml',
+        'ts',
+        'tsx',
+        'txt',
+        'vb',
+        'vue',
+        'xml',
+        'yaml',
+        'yml',
+        'zsh',
+    }
+)
+
+__all__ = [
+    'ALLOWED_ENCODINGS',
+    'ATOMIC_WRITE_TEMP_SUFFIX',
+    'DiskNewline',
+    'FileLineWindowResult',
+    'NewlineMode',
+    'SEARCH_MAX_FILE_BYTES',
+    'decode_for_tools',
+    'detect_newline_preference',
+    'encode_for_disk',
+    'normalize_encoding',
+    'parse_newline_mode',
+    'read_file_for_search_tools',
+    'read_file_for_tools',
+    'read_file_line_window_for_tools',
+    'resolve_newline_for_write',
+    'validate_workspace_encoding',
+    'write_bytes_atomic',
+    'write_file_resolved',
+    'write_file_to_disk',
+]
+
+
+def parse_newline_mode(name: str) -> NewlineMode:
+    """Map tool/UI strings to a newline mode (unknown values default to ``lf``)."""
+    t = name.strip().lower()
+    if t in ('lf', 'unix'):
+        return 'lf'
+    if t in ('crlf', 'windows', 'dos'):
+        return 'crlf'
+    if t == 'preserve':
+        return 'preserve'
+    return 'lf'
+
+
+def normalize_encoding(name: str) -> str:
+    """Strip and map common aliases to a canonical codec name (not yet validated)."""
+    key = name.strip().lower().replace('_', '-')
+    mapped = _ENCODING_ALIASES.get(key, key)
+    # utf-16-le vs utf-16le
+    if mapped == 'utf-16le':
+        return 'utf-16-le'
+    if mapped == 'utf-16be':
+        return 'utf-16-be'
+    return mapped
+
+
+def validate_workspace_encoding(encoding: str) -> str:
+    """Return normalized encoding name or raise ValueError."""
+    norm = normalize_encoding(encoding)
+    if norm not in ALLOWED_ENCODINGS:
+        if norm in _MISTAKEN_ENCODING_LANGUAGE_OR_EXT:
+            return 'utf-8'
+        allowed = ', '.join(sorted(ALLOWED_ENCODINGS))
+        raise ValueError(f'Unsupported encoding {encoding!r}. Allowed: {allowed}')
+    try:
+        codecs.lookup(norm)
+    except LookupError as exc:
+        raise ValueError(f'Encoding {norm!r} is not available in this Python build.') from exc
+    return norm
+
+
+def decode_for_tools(raw: bytes, encoding: str, *, errors: str = 'replace') -> str:
+    """Decode bytes and normalize all line endings to ``\\n`` for merges and line tools."""
+    enc = validate_workspace_encoding(encoding)
+    text = raw.decode(enc, errors=errors)
+    return text.replace('\r\n', '\n').replace('\r', '\n')
+
+
+def detect_newline_preference(raw: bytes) -> DiskNewline:
+    """Guess on-disk newline style. Mixed files: CRLF wins if CRLF pairs are not fewer than lone LF runs."""
+    if not raw:
+        return 'lf'
+    crlf = raw.count(b'\r\n')
+    if crlf == 0:
+        return 'lf'
+    lone_lf = 0
+    i = 0
+    n = len(raw)
+    while i < n:
+        if i + 1 < n and raw[i] == 13 and raw[i + 1] == 10:
+            i += 2
+            continue
+        if raw[i] == 10:
+            lone_lf += 1
+        i += 1
+    return 'crlf' if crlf >= lone_lf else 'lf'
+
+
+def resolve_newline_for_write(
+    newline_mode: NewlineMode,
+    *,
+    path: Path | None,
+    raw_existing: bytes | None = None,
+) -> DiskNewline:
+    """Resolve ``preserve`` using existing file bytes; new files default to LF."""
+    if newline_mode == 'lf':
+        return 'lf'
+    if newline_mode == 'crlf':
+        return 'crlf'
+    if raw_existing is not None:
+        return detect_newline_preference(raw_existing)
+    if path is not None and path.is_file():
+        try:
+            return detect_newline_preference(path.read_bytes())
+        except OSError:
+            return 'lf'
+    return 'lf'
+
+
+def encode_for_disk(text: str, encoding: str, disk_newline: DiskNewline) -> bytes:
+    """Convert internal ``\\n`` to on-disk newlines and encode (strict: unmappable chars raise)."""
+    enc = validate_workspace_encoding(encoding)
+    # A model's text can carry CRLF of its own.
+    body = text.replace('\r\n', '\n')
+    if disk_newline == 'crlf':
+        body = body.replace('\n', '\r\n')
+    return body.encode(enc, errors='strict')
+
+
+def read_file_for_tools(path: Path, encoding: str) -> str:
+    """Read file as bytes and decode for the tool pipeline (newline-normalized to ``\\n``)."""
+    raw = path.read_bytes()
+    return decode_for_tools(raw, encoding)
+
+
+def read_file_for_search_tools(
+    path: Path,
+    encoding: str,
+    *,
+    max_bytes: int = SEARCH_MAX_FILE_BYTES,
+) -> str | None:
+    """Read a file for search; return ``None`` to skip empty, oversized, or binary-looking files.
+
+    Unlike :func:`read_file_for_tools`, this never loads more than ``max_bytes`` into memory.
+    """
+
+    if max_bytes <= 0:
+        return None
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return None
+    if size <= 0 or size > max_bytes:
+        return None
+    try:
+        with path.open('rb') as handle:
+            raw = handle.read(max_bytes + 1)
+    except OSError:
+        return None
+    if not raw or len(raw) > max_bytes or b'\x00' in raw:
+        return None
+    return decode_for_tools(raw, encoding)
+
+
+@dataclass(frozen=True)
+class FileLineWindowResult:
+    """Result of :func:`read_file_line_window_for_tools` (same logical lines as ``decode_for_tools`` + ``splitlines()``)."""
+
+    n_lines: int
+    excerpt_lines: list[str]
+
+
+def _iter_logical_lines_from_path(path: Path, encoding: str) -> Iterator[str]:
+    """Yield logical lines (CRLF / lone CR normalized to LF) in one streaming pass.
+
+    Works on whole decoded chunks with ``str`` methods (C speed) instead of per character. A trailing ``\r``
+    is held back one chunk so a ``\r\n`` split across chunk boundaries still counts as one break.
+    """
+    enc = validate_workspace_encoding(encoding)
+    decoder = codecs.getincrementaldecoder(enc)(errors='replace')
+    carry = ''
+
+    with path.open('rb') as f:
+        while True:
+            raw = f.read(_READ_FILE_STREAM_CHUNK)
+            final = not raw
+            text = carry + decoder.decode(raw, final)
+            held_cr = ''
+            if not final and text.endswith('\r'):
+                text, held_cr = text[:-1], '\r'
+            parts = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+            carry = parts.pop() + held_cr
+            yield from parts
+            if final:
+                break
+
+    if carry:
+        yield carry
+
+
+def read_file_line_window_for_tools(path: Path, encoding: str, start_line: int, end_line: int) -> FileLineWindowResult:
+    """Stream the file once; return total line count and lines for inclusive 1-based ``[start_line, end_line]``.
+
+    Line boundaries match ``read_file_for_tools(path, encoding).splitlines()`` (CRLF normalized, then ``\\r`` → ``\\n``).
+    Does not load the full decoded file into memory.
+    """
+    excerpt: list[str] = []
+    n_lines = 0
+    for line in _iter_logical_lines_from_path(path, encoding):
+        n_lines += 1
+        if start_line <= n_lines <= end_line:
+            excerpt.append(line)
+    return FileLineWindowResult(n_lines=n_lines, excerpt_lines=excerpt)
+
+
+def write_file_resolved(path: Path, text: str, encoding: str, disk_newline: DiskNewline) -> None:
+    """Write using already-resolved LF/CRLF (e.g. after matching read_workspace_file + edit preamble)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_bytes_atomic(path, encode_for_disk(text, encoding, disk_newline))
+
+
+def write_bytes_atomic(path: Path, data: bytes) -> None:
+    """Replace ``path`` with ``data`` so readers see the old bytes or the new ones, never a partial file.
+
+    Writes a sibling temp file and renames it over the target, keeping the target's permission bits. A symlink
+    is written through (its target is replaced, not the link), and a read-only target still fails as a plain
+    write would. If the rename keeps failing (Windows refuses it while another process has the file open
+    without delete sharing), this falls back to writing in place.
+    """
+    target = path.resolve() if path.is_symlink() else path
+    if target.is_dir():
+        raise IsADirectoryError(errno.EISDIR, 'Is a directory', str(target))
+    existed = target.exists()
+    if existed and not os.access(target, os.W_OK):
+        raise PermissionError(errno.EACCES, 'Permission denied', str(target))
+    tmp = target.with_name(f'.{target.name}.{uuid.uuid4().hex[:12]}{ATOMIC_WRITE_TEMP_SUFFIX}')
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_BINARY', 0), 0o666)
+        with os.fdopen(fd, 'wb') as fh:
+            fh.write(data)
+        if existed:
+            shutil.copymode(target, tmp)
+        for delay in (*_REPLACE_RETRY_DELAYS_SEC, None):
+            try:
+                os.replace(tmp, target)
+                return
+            except PermissionError:
+                if delay is None:
+                    break
+                time.sleep(delay)
+        target.write_bytes(data)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def write_file_to_disk(
+    path: Path,
+    text: str,
+    encoding: str,
+    newline_mode: NewlineMode,
+) -> None:
+    """Write Unicode tool text to disk with vetted encoding and newline rules."""
+    raw_existing: bytes | None = None
+    if newline_mode == 'preserve' and path.is_file():
+        try:
+            raw_existing = path.read_bytes()
+        except OSError:
+            raw_existing = None
+    disk_nl = resolve_newline_for_write(newline_mode, path=path, raw_existing=raw_existing)
+    write_file_resolved(path, text, encoding, disk_nl)

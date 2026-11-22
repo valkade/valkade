@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for clara_coder_backend tests."""
+"""Shared pytest fixtures for valkade_backend tests."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 # The suite never touches a running app's state, whoever starts it: a shell may export the sidecar's
 # env, and so did commands the app's agent ran before ``with_subprocess_color_env`` dropped it. On the
 # live checkpoint DB a test run's writes lock the app's turns out ("database is locked"). ``main``
-# configures logging at import, so this runs before any ``clara_coder_backend`` import. Tests that
+# configures logging at import, so this runs before any ``valkade_backend`` import. Tests that
 # need a path of their own still ``monkeypatch.setenv`` it.
 _TEST_STATE_DIR = Path(tempfile.mkdtemp(prefix='clara-tests-'))
 atexit.register(shutil.rmtree, _TEST_STATE_DIR, ignore_errors=True)
@@ -21,20 +21,23 @@ for _suffix, _path in (
     ('STAGING_DIR', _TEST_STATE_DIR / 'staging'),
     ('WORKSPACE_INDEX_DIR', _TEST_STATE_DIR / 'workspace-index'),
 ):
+    # Set under the legacy ``CLARA_`` name, which tests' own ``monkeypatch.setenv`` calls use: a
+    # ``VALKADE_`` value would shadow those through the fallback. ``VALKADE_``/``NEMO_`` must not be set.
     os.environ[f'CLARA_{_suffix}'] = str(_path)
+    os.environ.pop(f'VALKADE_{_suffix}', None)
     os.environ.pop(f'NEMO_{_suffix}', None)
 # The running app's bearer tokens go too: with its sidecar token set, auth is enforced and every route
 # test gets a 401 (``CLARA_SIDECAR_AUTH_OPTIONAL`` only applies without a token), and a screenshot test
 # would post to the live broker. ``test_python_env`` checks this covers ``SIDECAR_PRIVATE_ENV_SUFFIXES``.
 for _suffix in ('SIDECAR_TOKEN', 'SCREENSHOT_URL', 'SCREENSHOT_TOKEN'):
-    os.environ.pop(f'CLARA_{_suffix}', None)
-    os.environ.pop(f'NEMO_{_suffix}', None)
+    for _prefix in ('VALKADE_', 'CLARA_', 'NEMO_'):
+        os.environ.pop(f'{_prefix}{_suffix}', None)
 
 import pytest  # noqa: E402
 
-from clara_coder_backend.domain import RuntimeToolsConfig  # noqa: E402
-from clara_coder_backend.lsp.manager import shutdown_session_lsp  # noqa: E402
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config, sessions  # noqa: E402
+from valkade_backend.domain import RuntimeToolsConfig  # noqa: E402
+from valkade_backend.lsp.manager import shutdown_session_lsp  # noqa: E402
+from valkade_backend.session.state import current_session_id, get_session, runtime_config, sessions  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +58,7 @@ def _sidecar_auth_optional(monkeypatch):
 @pytest.fixture(autouse=True)
 def _runtime_config_already_synced():
     """The app syncs Settings at startup; tests that start a server without a sync would wait for one."""
-    from clara_coder_backend.session.state import runtime_config_received
+    from valkade_backend.session.state import runtime_config_received
 
     runtime_config_received.set()
 
@@ -67,8 +70,8 @@ def _reset_turns_and_subagents():
     The sub-agent registry and its event bus (buffered events, subscribers) are process-wide too, and
     so is the session store: past its prune threshold, a ``get_session`` evicts a test's untouched session.
     """
-    from clara_coder_backend.lang_agent.subagents import reset_subagents_for_tests
-    from clara_coder_backend.session.turns import reset_turns_for_tests
+    from valkade_backend.lang_agent.subagents import reset_subagents_for_tests
+    from valkade_backend.session.turns import reset_turns_for_tests
 
     reset_turns_for_tests()
     reset_subagents_for_tests()
@@ -91,10 +94,10 @@ def _no_real_typescript_language_server(monkeypatch):
     the edit tools report the LSP sync as failed and carry on, and tests that inject a fake client
     never run the command. ``test_typescript_lsp_command.py`` calls the real resolver directly.
     """
-    from clara_coder_backend.lsp.typescript_server import TypescriptLspSpawn
+    from valkade_backend.lsp.typescript_server import TypescriptLspSpawn
 
     monkeypatch.setattr(
-        'clara_coder_backend.lsp.plugins.typescript_plugin.resolve_typescript_lsp_spawn',
+        'valkade_backend.lsp.plugins.typescript_plugin.resolve_typescript_lsp_spawn',
         lambda _root: TypescriptLspSpawn(['clara-tests-no-typescript-language-server', '--stdio']),
     )
 

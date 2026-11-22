@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from clara_coder_backend.lsp.file_policy import (
+from valkade_backend.lsp.file_policy import (
     get_gdscript_lsp_policy,
     get_java_lsp_policy,
     get_python_lsp_policy,

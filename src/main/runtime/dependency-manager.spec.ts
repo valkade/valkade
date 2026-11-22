@@ -43,8 +43,8 @@ describe('isRuntimeEnvPassthrough', () => {
     },
   );
 
-  it.each(['CLARA_LOG_DIR', 'CLARA_RUNTIME_DIR', 'NEMO_FOO', 'clara_x', 'NEMO_bar'])(
-    'passes through CLARA_* / NEMO_* (case-insensitive): %s',
+  it.each(['VALKADE_LOG_DIR', 'valkade_x', 'CLARA_LOG_DIR', 'CLARA_RUNTIME_DIR', 'NEMO_FOO', 'clara_x', 'NEMO_bar'])(
+    'passes through VALKADE_* / CLARA_* / NEMO_* (case-insensitive): %s',
     (key) => {
       expect(isRuntimeEnvPassthrough(key)).toBe(true);
     },

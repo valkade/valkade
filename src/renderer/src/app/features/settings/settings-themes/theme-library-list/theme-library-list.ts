@@ -1,5 +1,5 @@
 import { Component, ViewEncapsulation, inject } from '@angular/core';
-import { builtInThemeForMode, type ClaraThemeDocument } from '@shared/theme';
+import { builtInThemeForMode, type ValkAdeThemeDocument } from '@shared/theme';
 import { SettingsThemesStore } from '../settings-themes-store';
 
 const SWATCH_TOKENS = ['--t-bg', '--t-bg-surface', '--t-primary', '--t-secondary', '--t-fg', '--t-confirm'];
@@ -13,12 +13,12 @@ const SWATCH_TOKENS = ['--t-bg', '--t-bg-surface', '--t-primary', '--t-secondary
 export class ThemeLibraryList {
   protected readonly s = inject(SettingsThemesStore);
 
-  protected swatches(theme: ClaraThemeDocument): string[] {
+  protected swatches(theme: ValkAdeThemeDocument): string[] {
     const base = builtInThemeForMode(theme.mode).tokens;
     return SWATCH_TOKENS.map((name) => theme.tokens[name] ?? base[name] ?? 'transparent');
   }
 
-  protected isSelected(theme: ClaraThemeDocument): boolean {
+  protected isSelected(theme: ValkAdeThemeDocument): boolean {
     return this.s.selectedId() === theme.id;
   }
 }

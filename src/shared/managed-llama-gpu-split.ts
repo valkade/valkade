@@ -83,7 +83,7 @@ export function cudaDeviceListArg(gpus: readonly CudaGpuDevice[]): string {
   return gpus.map((g) => `CUDA${g.cudaIndex}`).join(',');
 }
 
-/** What `-c 0` (model native) usually means for the large-context models Clara runs. */
+/** What `-c 0` (model native) usually means for the large-context models ValkAde runs. */
 const ASSUMED_NATIVE_CTX = 262_144;
 
 /** Size of one cache cell against `q8_0`. Without `-ctk` / `-ctv`, llama.cpp uses f16. */

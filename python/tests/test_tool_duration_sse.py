@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from langchain_core.messages import ToolMessage
 
-from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
+from valkade_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
 
 
 def _run(ev: dict, state: GraphStreamState) -> list[dict]:
@@ -29,7 +29,7 @@ def _end(run_id: str, output: object) -> dict:
 
 def test_finished_status_carries_the_run_time() -> None:
     state = GraphStreamState()
-    with patch('clara_coder_backend.lang_agent.langgraph_sse.time.monotonic', side_effect=[100.0, 101.2345]):
+    with patch('valkade_backend.lang_agent.langgraph_sse.time.monotonic', side_effect=[100.0, 101.2345]):
         running = _status(_run(_start('r1'), state))
         done = _status(_run(_end('r1', ToolMessage(content='File: a.py', tool_call_id='c1')), state))
     assert 'duration_ms' not in running
@@ -40,7 +40,7 @@ def test_finished_status_carries_the_run_time() -> None:
 
 def test_failed_calls_carry_it_too() -> None:
     state = GraphStreamState()
-    with patch('clara_coder_backend.lang_agent.langgraph_sse.time.monotonic', side_effect=[5.0, 5.05]):
+    with patch('valkade_backend.lang_agent.langgraph_sse.time.monotonic', side_effect=[5.0, 5.05]):
         _run(_start('r2'), state)
         done = _status(_run(_end('r2', RuntimeError('boom')), state))
     assert done['state'] == 'error'

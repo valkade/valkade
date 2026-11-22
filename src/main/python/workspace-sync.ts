@@ -34,6 +34,7 @@ import { normalizeOpenAiCompatSettings, openAiCompatBaseUrl } from '../../shared
 import { refreshOpenRouterReasoningCaps } from '../openrouter-reasoning';
 import { refreshAnthropicReasoningCaps } from '../anthropic-models';
 import { getAnthropicApiKey } from '../anthropic-key-store';
+import { setEnvValkade } from '../env-valkade';
 
 /**
  * OAuth fields Python needs. The refresh token stays in Electron, which is the only refresher
@@ -265,7 +266,7 @@ function connectionToRuntimeWire(
   };
 }
 
-/** Sent only when LM Studio does the loading; it ignores the value on a model Clara already loaded. */
+/** Sent only when LM Studio does the loading; it ignores the value on a model ValkAde already loaded. */
 function lmStudioIdleTtlSeconds(c: LlmConnectionConfig): number {
   if (c.provider !== 'lmstudio') {
     return 0;
@@ -296,11 +297,7 @@ export async function syncRuntimeConfigToPython(
     const overrides =
       typeof llamaManagedEndpoints === 'function' ? llamaManagedEndpoints() : llamaManagedEndpoints;
     const modelsDir = config.modelManager?.customModelsDir?.trim();
-    if (modelsDir) {
-      process.env.CLARA_CUSTOM_MODELS_DIR = modelsDir;
-    } else {
-      delete process.env.CLARA_CUSTOM_MODELS_DIR;
-    }
+    setEnvValkade('CUSTOM_MODELS_DIR', modelsDir);
     await postRuntimeConfigToPython(config, overrides);
   };
   runtimeSyncChain = runtimeSyncChain
@@ -564,7 +561,7 @@ export async function syncWorkspaceContextToPython(
 }
 
 /**
- * Push only the workspace `.clara/system-prompt.md` text into a Python session.
+ * Push only the workspace `.valkade/system-prompt.md` text into a Python session.
  * Used after Monaco save so injection does not depend on the file watcher tree.
  */
 export async function syncWorkspaceSystemPromptToPython(
@@ -594,7 +591,7 @@ export async function syncWorkspaceSystemPromptToPython(
 }
 
 /**
- * Create `{workspace}/.clara/checks.json` when it is missing. The backend seeds it with the check
+ * Create `{workspace}/.valkade/checks.json` when it is missing. The backend seeds it with the check
  * commands it detects (package.json scripts, pytest, cargo), all turned off.
  */
 export async function ensureWorkspaceChecksInPython(

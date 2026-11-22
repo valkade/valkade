@@ -1,4 +1,4 @@
-"""Tests for :mod:`clara_coder_backend.middleware.accept_command_review_middleware`."""
+"""Tests for :mod:`valkade_backend.middleware.accept_command_review_middleware`."""
 
 from __future__ import annotations
 
@@ -9,18 +9,18 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import ToolMessage
 
-from clara_coder_backend.hitl.accept_command import (
+from valkade_backend.hitl.accept_command import (
     ACCEPT_COMMAND_KIND_ADMIN_ELEVATION_TOOL,
     ACCEPT_COMMAND_KIND_DEFERRED_TOOL,
 )
-from clara_coder_backend.middleware.accept_command_review_middleware import AcceptCommandReviewAfterToolMiddleware
-from clara_coder_backend.session.pause import stage_hitl_request
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.middleware.accept_command_review_middleware import AcceptCommandReviewAfterToolMiddleware
+from valkade_backend.session.pause import stage_hitl_request
+from valkade_backend.session.state import current_session_id, get_session
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
 
-@patch('clara_coder_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
+@patch('valkade_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
 async def test_middleware_queues_accept_command_when_hitl_queue_set_even_if_worker_apply_off(
     mock_pause: AsyncMock,
 ) -> None:
@@ -72,7 +72,7 @@ async def test_middleware_queues_accept_command_when_hitl_queue_set_even_if_work
     )
 
 
-@patch('clara_coder_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
+@patch('valkade_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
 async def test_middleware_queues_admin_elevation_when_auto_apply_on(
     mock_pause: AsyncMock,
 ) -> None:
@@ -125,7 +125,7 @@ async def test_middleware_queues_admin_elevation_when_auto_apply_on(
     )
 
 
-@patch('clara_coder_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
+@patch('valkade_backend.middleware.accept_command_review_middleware.pause_for_tool_review', new_callable=AsyncMock)
 async def test_middleware_skips_when_auto_apply_on_and_no_pending(
     mock_pause: AsyncMock,
 ) -> None:

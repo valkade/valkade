@@ -171,7 +171,7 @@ export function upsertClaraOuterBriefStreamPart(
     ...closeOpenThought(parts, now),
     {
       streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
-      label: status.label || 'Clara',
+      label: status.label || 'ValkAde',
       text,
     },
   ];

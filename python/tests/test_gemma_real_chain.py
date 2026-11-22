@@ -16,13 +16,13 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from clara_coder_backend.composer import stream_agent_reply
-from clara_coder_backend.domain import RuntimeConnection, RuntimeContextCompressionConfig, RuntimeToolsConfig
-from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
-from clara_coder_backend.llm import http_transport as ht
-from clara_coder_backend.llm.gemma_output import extract_gemma_native_tool_calls, strip_gemma_native_tool_call_blocks
-from clara_coder_backend.session import checkpointing as ck
-from clara_coder_backend.session.state import get_session, runtime_config
+from valkade_backend.composer import stream_agent_reply
+from valkade_backend.domain import RuntimeConnection, RuntimeContextCompressionConfig, RuntimeToolsConfig
+from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+from valkade_backend.llm import http_transport as ht
+from valkade_backend.llm.gemma_output import extract_gemma_native_tool_calls, strip_gemma_native_tool_call_blocks
+from valkade_backend.session import checkpointing as ck
+from valkade_backend.session.state import get_session, runtime_config
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
@@ -131,7 +131,7 @@ async def _turn(server: _LlamaServer) -> tuple[LangGraphWorkerOutcome, list[dict
     """One user turn: its outcome and the status of each tool row it sent, in order."""
     outcome = LangGraphWorkerOutcome()
     turn = stream_agent_reply(_SID, 'read the files', apply_mode=True, outcome_sink=outcome)
-    with patch('clara_coder_backend.llm.factory.acquire_llm_http_clients', server.clients):
+    with patch('valkade_backend.llm.factory.acquire_llm_http_clients', server.clients):
         lines = [line async for line in turn]
     payloads = [json.loads(line[6:]) for line in lines if line.startswith('data: {')]
     statuses = [payload['status'] for payload in payloads if payload.get('type') == 'status']

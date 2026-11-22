@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from clara_coder_backend.runtime.python_interpreter_select import (
+from valkade_backend.runtime.python_interpreter_select import (
     APP_BACKEND_INTERPRETER_ID,
     RUNTIME_VENV_INTERPRETER_ID,
     discover_workspace_python_interpreters,

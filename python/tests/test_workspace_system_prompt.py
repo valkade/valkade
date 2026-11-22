@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from starlette.testclient import TestClient
 
-from clara_coder_backend.domain import RuntimeConnection, SessionState
-from clara_coder_backend.llm.messages import build_system_prompt
+from valkade_backend.domain import RuntimeConnection, SessionState
+from valkade_backend.llm.messages import build_system_prompt
 
 
 def _conn() -> RuntimeConnection:
@@ -26,7 +26,7 @@ def _conn() -> RuntimeConnection:
     )
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_build_system_prompt_includes_workspace_system_prompt(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     session = SessionState(
@@ -39,7 +39,7 @@ def test_build_system_prompt_includes_workspace_system_prompt(mock_conn: MagicMo
     assert 'Always run pytest before claiming done.' in prompt
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_build_system_prompt_omits_empty_workspace_system_prompt(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     session = SessionState(
@@ -51,7 +51,7 @@ def test_build_system_prompt_omits_empty_workspace_system_prompt(mock_conn: Magi
     assert 'Workspace system prompt:' not in prompt
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_build_system_prompt_omits_tts_mood_when_speech_enabled_kokoro(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     session = SessionState(
@@ -64,7 +64,7 @@ def test_build_system_prompt_omits_tts_mood_when_speech_enabled_kokoro(mock_conn
     assert 'TTS is on' not in prompt
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_build_system_prompt_includes_tts_mood_when_speech_openai_compatible(
     mock_conn: MagicMock,
 ) -> None:
@@ -80,7 +80,7 @@ def test_build_system_prompt_includes_tts_mood_when_speech_openai_compatible(
     assert 'TTS is on' in prompt
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_build_system_prompt_omits_tts_mood_when_speech_disabled(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     session = SessionState(
@@ -95,8 +95,8 @@ def test_build_system_prompt_omits_tts_mood_when_speech_disabled(mock_conn: Magi
 
 
 def test_workspace_system_prompt_route_updates_session_without_tree() -> None:
-    from clara_coder_backend.session import state
-    from clara_coder_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.main import app
 
     sid = 'sys-prompt-route-test'
     sess = state.get_session(sid)
@@ -116,8 +116,8 @@ def test_workspace_system_prompt_route_updates_session_without_tree() -> None:
 
 
 def test_workspace_context_without_path_keeps_system_prompt() -> None:
-    from clara_coder_backend.session import state
-    from clara_coder_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.main import app
 
     sid = 'no-ws-sys-prompt-test'
     sess = state.get_session(sid)

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.workspace import workspace_text_io
-from clara_coder_backend.workspace.workspace_text_io import (
+from valkade_backend.workspace import workspace_text_io
+from valkade_backend.workspace.workspace_text_io import (
     ATOMIC_WRITE_TEMP_SUFFIX,
     SEARCH_MAX_FILE_BYTES,
     decode_for_tools,

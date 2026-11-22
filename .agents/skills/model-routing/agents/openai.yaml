@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model Routing"
+  short_description: "Route delegated tasks to preferred models by task type"
+  default_prompt: "Use $model-routing to pick the right model and provider for this task."

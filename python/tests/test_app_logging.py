@@ -12,14 +12,14 @@ from pathlib import Path
 
 class TestAppLoggingHttp(unittest.TestCase):
     def setUp(self) -> None:
-        import clara_coder_backend.logging.app_logging as app_logging
+        import valkade_backend.logging.app_logging as app_logging
 
         app_logging._configured = False  # type: ignore[attr-defined]
         app_logging._ring.clear()  # type: ignore[attr-defined]
         self._td = tempfile.TemporaryDirectory()
         self._prev_log_dir = os.environ.get('CLARA_LOG_DIR')
         os.environ['CLARA_LOG_DIR'] = self._td.name
-        import clara_coder_backend.main as main_mod
+        import valkade_backend.main as main_mod
 
         importlib.reload(main_mod)
         self._main = main_mod
@@ -29,7 +29,7 @@ class TestAppLoggingHttp(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.client.close()
-        from clara_coder_backend.logging.app_logging import reset_logging_handlers
+        from valkade_backend.logging.app_logging import reset_logging_handlers
 
         reset_logging_handlers()
         self._td.cleanup()

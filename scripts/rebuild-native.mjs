@@ -15,8 +15,8 @@
  *
  * Windows + node-pty (including bundled winpty): upstream .gyp enables Spectre mitigation, so MSBuild needs
  * "MSVC ... Spectre-mitigated libs" (VS Installer → Individual components). If you cannot
- * install those, set CLARA_ALLOW_WIN_PTY_NON_SPECTRE=1 (or NEMO_ALLOW_WIN_PTY_NON_SPECTRE=1)
- * for a local-only non-Spectre build.
+ * install those, set VALKADE_ALLOW_WIN_PTY_NON_SPECTRE=1 for a local-only non-Spectre build
+ * (`CLARA_*` and `NEMO_*` names still work until v0.7).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -53,10 +53,11 @@ function stripSpectreMitigationBlocks(text) {
 }
 
 function winPtyNonSpectreAllowed() {
-  return (
-    process.env.CLARA_ALLOW_WIN_PTY_NON_SPECTRE === '1' ||
-    process.env.NEMO_ALLOW_WIN_PTY_NON_SPECTRE === '1'
-  );
+  // Same order as `envValkade` in src/main/env-valkade.ts (this script can't import it).
+  const value = ['VALKADE_', 'CLARA_', 'NEMO_']
+    .map((prefix) => process.env[`${prefix}ALLOW_WIN_PTY_NON_SPECTRE`]?.trim())
+    .find(Boolean);
+  return value === '1';
 }
 
 function maybeRelaxNodePtySpectreMitigation() {
@@ -75,7 +76,7 @@ function maybeRelaxNodePtySpectreMitigation() {
       if (next !== text) {
         fs.writeFileSync(bindingPath, next);
         console.warn(
-          `${logPrefix} Stripped SpectreMitigation from ${rel} (CLARA_ALLOW_WIN_PTY_NON_SPECTRE=1). Prefer installing MSVC Spectre-mitigated libraries instead.`,
+          `${logPrefix} Stripped SpectreMitigation from ${rel} (VALKADE_ALLOW_WIN_PTY_NON_SPECTRE=1). Prefer installing MSVC Spectre-mitigated libraries instead.`,
         );
       }
     } catch {

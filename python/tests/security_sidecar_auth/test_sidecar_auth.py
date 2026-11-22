@@ -22,7 +22,7 @@ def auth_on(monkeypatch):
 
 
 def _client():
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
     return TestClient(app)
 
 

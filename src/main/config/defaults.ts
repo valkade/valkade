@@ -2,6 +2,7 @@ import { defaultLspServersSettings } from '../../shared/lsp-settings';
 import { defaultSubagentsConfig } from '../../shared/subagents-config';
 import { randomUUID } from 'crypto';
 import { DEFAULT_SCREENSHOT_RETENTION } from '../../shared/screenshot-retention';
+import { existsSync } from 'fs';
 import { homedir } from 'os';
 import path = require('path');
 import type {
@@ -258,14 +259,23 @@ export function getDefaultHealthMonitor(): HealthMonitorConfig {
   };
 }
 
+/** Library root earlier releases created by default. */
+export const LEGACY_DEFAULT_CUSTOM_MODELS_DIR_NAME = 'ClaraCoder';
+
 /**
  * Default on-disk library for downloaded / local GGUF models.
  * Lives under the user home (not app install or ``userData``) so large
- * weights do not bloat the Clara Coder app directory.
- * Linux: ``~/ClaraCoder/models`` · Windows: ``%USERPROFILE%\ClaraCoder\models``.
+ * weights do not bloat the ValkAde app directory.
+ * Linux: ``~/ValkAde/models`` · Windows: ``%USERPROFILE%\ValkAde\models``.
+ * An existing ``~/ClaraCoder/models`` keeps being used, so weights downloaded by
+ * Clara Coder are never moved or orphaned; only new installs get the new folder.
  */
-export function getDefaultCustomModelsDir(): string {
-  return path.join(homedir(), 'ClaraCoder', 'models');
+export function getDefaultCustomModelsDir(home: string = homedir()): string {
+  const legacy = path.join(home, LEGACY_DEFAULT_CUSTOM_MODELS_DIR_NAME, 'models');
+  if (existsSync(legacy)) {
+    return legacy;
+  }
+  return path.join(home, 'ValkAde', 'models');
 }
 
 export function getDefaultModelManagerConfig(): ModelManagerConfig {

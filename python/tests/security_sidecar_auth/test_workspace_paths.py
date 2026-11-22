@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.workspace.paths import normalize_relative_path
+from valkade_backend.workspace.paths import normalize_relative_path
 
 
 @pytest.fixture()

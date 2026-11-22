@@ -1,5 +1,5 @@
 /**
- * Clara-owned guard for Monaco FindWidget — no node_modules edits.
+ * ValkAde-owned guard for Monaco FindWidget — no node_modules edits.
  *
  * Upstream FindWidget registers onFindReplaceStateChange before _buildDomNode()
  * creates `_toggleSelectionFind`. A concurrent editor.setModel() then does

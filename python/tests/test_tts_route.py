@@ -8,11 +8,11 @@ from starlette.testclient import TestClient
 
 
 def test_tts_returns_wav_stream() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     fake_wav = b'RIFF\x00\x01fake-wav-bytes'
 
-    with patch('clara_coder_backend.routes.audio.synthesize_wav_bytes', return_value=fake_wav):
+    with patch('valkade_backend.routes.audio.synthesize_wav_bytes', return_value=fake_wav):
         with TestClient(app) as client:
             res = client.post('/tts', json={'text': 'Hello world.', 'voice': 'af_heart', 'speed': 1.0})
     assert res.status_code == 200
@@ -21,18 +21,18 @@ def test_tts_returns_wav_stream() -> None:
 
 
 def test_tts_rejects_invalid_voice() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
-    with patch('clara_coder_backend.routes.audio.synthesize_wav_bytes', return_value=b'x'):
+    with patch('valkade_backend.routes.audio.synthesize_wav_bytes', return_value=b'x'):
         with TestClient(app) as client:
             res = client.post('/tts', json={'text': 'Hello', 'voice': 'not-a-voice!!'})
     assert res.status_code == 400
 
 
 def test_tts_skips_synthesis_when_client_disconnected() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
-    with patch('clara_coder_backend.routes.audio.synthesize_wav_bytes', return_value=b'unused') as mock_syn:
+    with patch('valkade_backend.routes.audio.synthesize_wav_bytes', return_value=b'unused') as mock_syn:
         with patch(
             'starlette.requests.Request.is_disconnected',
             new_callable=AsyncMock,
@@ -47,11 +47,11 @@ def test_tts_skips_synthesis_when_client_disconnected() -> None:
 
 
 def test_tts_accepts_speech_speed_alias() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     fake_wav = b'RIFF\x02'
 
-    with patch('clara_coder_backend.routes.audio.synthesize_wav_bytes', return_value=fake_wav) as mock_syn:
+    with patch('valkade_backend.routes.audio.synthesize_wav_bytes', return_value=fake_wav) as mock_syn:
         with TestClient(app) as client:
             res = client.post('/tts', json={'text': 'Hi', 'speechSpeed': 1.5})
     assert res.status_code == 200

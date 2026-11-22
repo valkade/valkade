@@ -6,18 +6,18 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from clara_coder_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL, execute_pending_accept_command_decision
-from clara_coder_backend.hitl.deferred_tool_hitl import (
+from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL, execute_pending_accept_command_decision
+from valkade_backend.hitl.deferred_tool_hitl import (
     DEFERRED_HITL_TOOL_NAMES,
     deferred_tool_hitl_bypass,
     maybe_await_hitl_for_deferred_tool,
 )
-from clara_coder_backend.tools.deferred_hitl import (
+from valkade_backend.tools.deferred_hitl import (
     ACCEPT_COMMAND_KIND_ADMIN_ELEVATION_TOOL,
     maybe_await_hitl_for_admin_elevation,
 )
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.hitl.tool_registry import hitl_accept_command_pause_tools
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.hitl.tool_registry import hitl_accept_command_pause_tools
 
 
 def test_deferred_hitl_tools_in_accept_command_pause_registry() -> None:
@@ -90,7 +90,7 @@ async def test_execute_pending_deferred_tool_sets_session_context_for_hitl_confi
     mock_tool.ainvoke = AsyncMock(return_value='command ok')
 
     with patch(
-        'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+        'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
         return_value=mock_tool,
     ) as resolve_mock:
         note = await execute_pending_accept_command_decision(
@@ -128,7 +128,7 @@ async def test_execute_pending_deferred_tool_runs_after_confirm() -> None:
     }
     try:
         with patch(
-            'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+            'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
             return_value=AsyncMock(ainvoke=AsyncMock(return_value='overlay ok')),
         ) as resolve_mock:
             note = await execute_pending_accept_command_decision(session, confirm=True, request_id='req-deferred-1')
@@ -244,12 +244,12 @@ async def test_confirm_admin_elevation_tool_warms_helper_then_executes() -> None
     }
     with (
         patch(
-            'clara_coder_backend.runtime.admin_exec.warmup_persistent_broker',
+            'valkade_backend.runtime.admin_exec.warmup_persistent_broker',
             new_callable=AsyncMock,
             return_value=None,
         ) as warmup,
         patch(
-            'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+            'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
             return_value=AsyncMock(ainvoke=AsyncMock(return_value='elevated ok')),
         ),
     ):
@@ -284,12 +284,12 @@ async def test_confirm_admin_elevation_tool_keeps_grant_off_when_helper_fails() 
     }
     with (
         patch(
-            'clara_coder_backend.runtime.admin_exec.warmup_persistent_broker',
+            'valkade_backend.runtime.admin_exec.warmup_persistent_broker',
             new_callable=AsyncMock,
             return_value='User cancelled the administrator prompt.',
         ),
         patch(
-            'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+            'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
             return_value=AsyncMock(ainvoke=AsyncMock(return_value='should not run')),
         ) as resolve_mock,
     ):
@@ -324,7 +324,7 @@ async def test_confirm_session_grants_elevation_then_executes() -> None:
         },
     }
     with patch(
-        'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+        'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
         return_value=AsyncMock(ainvoke=AsyncMock(return_value='elevated ok')),
     ):
         note = await execute_pending_accept_command_decision(
@@ -359,7 +359,7 @@ async def test_confirm_once_does_not_grant_session_elevation() -> None:
         },
     }
     with patch(
-        'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+        'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
         return_value=AsyncMock(ainvoke=AsyncMock(return_value='once ok')),
     ):
         note = await execute_pending_accept_command_decision(
@@ -388,7 +388,7 @@ async def test_confirm_session_without_elevate_does_not_grant() -> None:
         'action': {'tool_name': 'run_command', 'tool_input': {'command': 'echo hi', 'elevate': False}},
     }
     with patch(
-        'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+        'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
         return_value=AsyncMock(ainvoke=AsyncMock(return_value='ok')),
     ):
         await execute_pending_accept_command_decision(
@@ -420,7 +420,7 @@ async def test_cancel_elevated_command_does_not_grant_or_execute() -> None:
         },
     }
     with patch(
-        'clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
+        'valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool',
         return_value=AsyncMock(ainvoke=AsyncMock(return_value='should not run')),
     ) as resolve_mock:
         note = await execute_pending_accept_command_decision(

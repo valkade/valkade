@@ -7,11 +7,11 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.lsp.plugins.rust_plugin import UNTRUSTED_MESSAGE
-from clara_coder_backend.lsp.server_plugin import LspServerNotInstalledError
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.tools.lsp_tools import (
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.lsp.plugins.rust_plugin import UNTRUSTED_MESSAGE
+from valkade_backend.lsp.server_plugin import LspServerNotInstalledError
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.tools.lsp_tools import (
     LSP_READ_TOOLS,
     LSP_WORKSPACE_SYMBOLS_NAME,
     _format_lsp_tool_error,
@@ -111,7 +111,7 @@ def rust_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         requested_servers.append(str(kwargs.get('server')))
         return manager
 
-    monkeypatch.setattr('clara_coder_backend.tools.lsp_tools.get_session_lsp_manager', _fake_get_session_lsp_manager)
+    monkeypatch.setattr('valkade_backend.tools.lsp_tools.get_session_lsp_manager', _fake_get_session_lsp_manager)
 
     class _Env:
         pass
@@ -203,7 +203,7 @@ def test_rust_diagnostics(rust_env) -> None:
 
 def test_rust_type_hierarchy_not_supported(rust_env, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        'clara_coder_backend.tools.lsp_tools.run_editor_feature',
+        'valkade_backend.tools.lsp_tools.run_editor_feature',
         lambda manager, rel, feature, params: {'locations': []},
     )
     result = lsp_type_hierarchy.invoke({'relative_path': 'src/main.rs', 'line': 1, 'character': 1})

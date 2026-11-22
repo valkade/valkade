@@ -202,7 +202,7 @@ describe('runOpenAiCompatTest', () => {
     expect(r.suggestions.streamUsage).toBe(true);
   });
 
-  it('fails streaming when no chunks arrive, since Clara always streams', async () => {
+  it('fails streaming when no chunks arrive, since ValkAde always streams', async () => {
     server(healthy({ stream: { sse: [] } }));
     expect(statusOf(await runOpenAiCompatTest(endpoint, 'm1'), 'stream')).toBe('fail');
   });

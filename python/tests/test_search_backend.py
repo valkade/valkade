@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.workspace import search_backend
-from clara_coder_backend.workspace.search_backend import (
+from valkade_backend.workspace import search_backend
+from valkade_backend.workspace.search_backend import (
     SearchCandidate,
     run_grep_line_search,
     run_grep_workspace_recursive,

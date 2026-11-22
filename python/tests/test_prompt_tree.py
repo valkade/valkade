@@ -18,10 +18,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
-from clara_coder_backend.composer import stream_agent_reply
-from clara_coder_backend.domain import RuntimeConnection, SessionState
-from clara_coder_backend.lang_agent.subagents import fork_subagent_session
-from clara_coder_backend.llm.messages import (
+from valkade_backend.composer import stream_agent_reply
+from valkade_backend.domain import RuntimeConnection, SessionState
+from valkade_backend.lang_agent.subagents import fork_subagent_session
+from valkade_backend.llm.messages import (
     _TREE_SHORTENED_NOTE,
     build_system_prompt,
     compose_outer_turn_human_content,
@@ -32,10 +32,10 @@ from clara_coder_backend.llm.messages import (
     tree_budget_chars,
     workspace_changes_line,
 )
-from clara_coder_backend.routes.session import _record_prompt_tree_changes, load_session, set_workspace_context
-from clara_coder_backend.session import state
-from clara_coder_backend.session.checkpointing import delete_outer_threads_for_session
-from clara_coder_backend.session.schemas import LoadRequest, WorkspaceContextRequest
+from valkade_backend.routes.session import _record_prompt_tree_changes, load_session, set_workspace_context
+from valkade_backend.session import state
+from valkade_backend.session.checkpointing import delete_outer_threads_for_session
+from valkade_backend.session.schemas import LoadRequest, WorkspaceContextRequest
 
 _CHANGES_PREFIX = 'Workspace changes since the tree above: '
 
@@ -77,15 +77,15 @@ def connection(monkeypatch: pytest.MonkeyPatch) -> RuntimeConnection:
         base_url='http://127.0.0.1:1234/v1',
         model='test-model',
     )
-    monkeypatch.setattr('clara_coder_backend.llm.messages.get_active_connection', lambda: conn)
+    monkeypatch.setattr('valkade_backend.llm.messages.get_active_connection', lambda: conn)
     return conn
 
 
 @pytest.fixture()
 def quiet_route(monkeypatch: pytest.MonkeyPatch) -> None:
     """No background index build or language-server thread from the pushes under test."""
-    monkeypatch.setattr('clara_coder_backend.routes.session.embeddings_available', lambda _conn: (False, ''))
-    monkeypatch.setattr('clara_coder_backend.routes.session.notify_session_lsp_disk_changes', lambda *a, **k: None)
+    monkeypatch.setattr('valkade_backend.routes.session.embeddings_available', lambda _conn: (False, ''))
+    monkeypatch.setattr('valkade_backend.routes.session.notify_session_lsp_disk_changes', lambda *a, **k: None)
 
 
 def _request(
@@ -585,11 +585,11 @@ def interpreter_route(monkeypatch: pytest.MonkeyPatch, quiet_route: None) -> lis
         session.python_interpreter_choice_id = entry['id']
 
     monkeypatch.setattr(
-        'clara_coder_backend.routes.session.find_interpreter_entry_by_id',
+        'valkade_backend.routes.session.find_interpreter_entry_by_id',
         lambda _root, wanted: {'id': wanted} if wanted != 'unknown' else None,
     )
-    monkeypatch.setattr('clara_coder_backend.routes.session.apply_python_interpreter_entry', apply_entry)
-    monkeypatch.setattr('clara_coder_backend.routes.session.shutdown_session_python_lsp', stops.append)
+    monkeypatch.setattr('valkade_backend.routes.session.apply_python_interpreter_entry', apply_entry)
+    monkeypatch.setattr('valkade_backend.routes.session.shutdown_session_python_lsp', stops.append)
     return stops
 
 
@@ -652,7 +652,7 @@ class _RecordingChatModel(BaseChatModel):
 @pytest_asyncio.fixture(loop_scope='function')
 async def checkpoints(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'prompt-tree.sqlite'))
-    from clara_coder_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
+    from valkade_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
 
     await init_graph_checkpointing()
     yield
@@ -664,8 +664,8 @@ async def test_the_model_sees_one_prefix_and_each_change_once(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, checkpoints: None, quiet_route: None
 ) -> None:
     model = _RecordingChatModel(seen=[])
-    monkeypatch.setattr('clara_coder_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
-    monkeypatch.setattr('clara_coder_backend.composer.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.composer.build_llm', lambda *a, **k: model)
     sid = 'prompt-tree-e2e'
     workspace = tmp_path / 'ws'
     workspace.mkdir()
@@ -765,8 +765,8 @@ async def conversations(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, checkpoints: None, quiet_route: None
 ) -> _Conversations:
     model = _RecordingChatModel(seen=[])
-    monkeypatch.setattr('clara_coder_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
-    monkeypatch.setattr('clara_coder_backend.composer.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.composer.build_llm', lambda *a, **k: model)
     workspace = tmp_path / 'ws'
     workspace.mkdir()
     return _Conversations(workspace, model)
@@ -935,8 +935,8 @@ async def test_a_kept_thread_gets_the_tree_as_it_is_now(
 ) -> None:
     """A second plan runs on threads the first one kept; what was told since went to another thread."""
     model = _RecordingChatModel(seen=[])
-    monkeypatch.setattr('clara_coder_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
-    monkeypatch.setattr('clara_coder_backend.composer.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
+    monkeypatch.setattr('valkade_backend.composer.build_llm', lambda *a, **k: model)
     sid = 'kept-thread'
     workspace = tmp_path / 'ws'
     workspace.mkdir()

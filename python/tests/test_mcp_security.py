@@ -5,17 +5,17 @@ from __future__ import annotations
 import pytest
 from langchain_core.tools import StructuredTool
 
-from clara_coder_backend.domain import RuntimeMcpServer
-from clara_coder_backend.hitl.tool_registry import planner_discovery_tools_and_map, worker_tools_and_map
-from clara_coder_backend.mcp.manager import _env_overlay, _header_map, mcp_manager
-from clara_coder_backend.mcp.oauth import (
+from valkade_backend.domain import RuntimeMcpServer
+from valkade_backend.hitl.tool_registry import planner_discovery_tools_and_map, worker_tools_and_map
+from valkade_backend.mcp.manager import _env_overlay, _header_map, mcp_manager
+from valkade_backend.mcp.oauth import (
     MemoryTokenStorage,
     _client_info_from_server,
     _token_from_server,
     has_usable_oauth_token,
     stored_from_memory,
 )
-from clara_coder_backend.session.state import get_session, runtime_config
+from valkade_backend.session.state import get_session, runtime_config
 
 
 def _oauth_server(url: str, issued_for: str) -> RuntimeMcpServer:
@@ -92,7 +92,7 @@ def test_read_only_surfaces_do_not_bind_mcp_tools(monkeypatch: pytest.MonkeyPatc
         description='Writes a file.',
         args_schema={'type': 'object', 'properties': {}},
     )
-    monkeypatch.setattr('clara_coder_backend.mcp.tools.bound_mcp_tools', lambda: [fake])
+    monkeypatch.setattr('valkade_backend.mcp.tools.bound_mcp_tools', lambda: [fake])
 
     session = get_session('mcp-read-only-surfaces')
     assert fake.name not in {t.name for t in worker_tools_and_map(False, session=session)[0]}

@@ -9,7 +9,7 @@
  */
 
 /** The only release source the updater trusts. Keep in sync with electron-builder.yml `publish`. */
-export const APP_UPDATE_REPO = { owner: 'dpere122', repo: 'ClaraCoder' } as const;
+export const APP_UPDATE_REPO = { owner: 'valkade', repo: 'valkade' } as const;
 
 export const APP_UPDATE_RELEASES_PAGE = `https://github.com/${APP_UPDATE_REPO.owner}/${APP_UPDATE_REPO.repo}/releases`;
 

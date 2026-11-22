@@ -1,4 +1,4 @@
-"""``.clara/checks.json``: tolerant parsing, what the harness refuses to run, path globs and seeding."""
+"""``.valkade/checks.json``: tolerant parsing, what the harness refuses to run, path globs and seeding."""
 
 from __future__ import annotations
 
@@ -9,22 +9,22 @@ from typing import Any
 import pytest
 from fastapi import HTTPException
 
-from clara_coder_backend.routes.session import ensure_workspace_checks
-from clara_coder_backend.session.schemas import WorkspaceChecksEnsureRequest
-from clara_coder_backend.verify.checks_config import (
+from valkade_backend.routes.session import ensure_workspace_checks
+from valkade_backend.session.schemas import WorkspaceChecksEnsureRequest
+from valkade_backend.verify.checks_config import (
     CHECK_TIMEOUT_DEFAULT_SEC,
     MAX_ENABLED_CHECKS,
     WorkspaceCheck,
     check_applies,
     load_workspace_checks,
 )
-from clara_coder_backend.verify.checks_suggest import ensure_workspace_checks_file, suggest_workspace_checks
+from valkade_backend.verify.checks_suggest import ensure_workspace_checks_file, suggest_workspace_checks
 
 
 def _write(root: Path, data: Any) -> None:
-    (root / '.clara').mkdir(exist_ok=True)
+    (root / '.valkade').mkdir(exist_ok=True)
     text = data if isinstance(data, str) else json.dumps(data)
-    (root / '.clara' / 'checks.json').write_text(text, encoding='utf-8')
+    (root / '.valkade' / 'checks.json').write_text(text, encoding='utf-8')
 
 
 def test_missing_file_means_no_checks(tmp_path: Path) -> None:
@@ -141,7 +141,7 @@ def test_ensure_creates_the_file_once_and_never_overwrites(tmp_path: Path) -> No
     (tmp_path / 'package.json').write_text(json.dumps({'scripts': {'test': 'vitest run'}}), encoding='utf-8')
 
     path, created = ensure_workspace_checks_file(tmp_path)
-    assert created and path == tmp_path / '.clara' / 'checks.json'
+    assert created and path == tmp_path / '.valkade' / 'checks.json'
     loaded = load_workspace_checks(tmp_path)
     assert [check.command for check in loaded.checks] == ['npm run test'] and loaded.enabled == ()
 
@@ -158,7 +158,7 @@ def test_ensure_seeds_an_example_when_nothing_is_detected(tmp_path: Path) -> Non
 
 def test_ensure_route(tmp_path: Path) -> None:
     body = ensure_workspace_checks(WorkspaceChecksEnsureRequest(workspace_path=str(tmp_path)))
-    assert body['ok'] is True and body['created'] is True and body['relativePath'] == '.clara/checks.json'
+    assert body['ok'] is True and body['created'] is True and body['relativePath'] == '.valkade/checks.json'
     assert Path(body['absolutePath']).is_file()
     assert ensure_workspace_checks(WorkspaceChecksEnsureRequest(workspace_path=str(tmp_path)))['created'] is False
 

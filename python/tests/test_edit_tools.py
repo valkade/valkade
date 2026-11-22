@@ -11,18 +11,18 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from clara_coder_backend.domain import RuntimeToolsConfig, SessionState
-from clara_coder_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES
-from clara_coder_backend.hitl.tool_registry import (
+from valkade_backend.domain import RuntimeToolsConfig, SessionState
+from valkade_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES
+from valkade_backend.hitl.tool_registry import (
     hitl_accept_command_pause_tools,
     hitl_delete_pause_tools,
     worker_tools_and_map,
 )
-from clara_coder_backend.middleware.tool_batch_middleware import ToolBatchMiddleware
-from clara_coder_backend.session.state import current_tool_batch_id, runtime_config
-from clara_coder_backend.tools import edit as edit_module
-from clara_coder_backend.tools.edit_diffs import take_edit_diff
-from clara_coder_backend.tools.edit import (
+from valkade_backend.middleware.tool_batch_middleware import ToolBatchMiddleware
+from valkade_backend.session.state import current_tool_batch_id, runtime_config
+from valkade_backend.tools import edit as edit_module
+from valkade_backend.tools.edit_diffs import take_edit_diff
+from valkade_backend.tools.edit import (
     edit_tools,
     replace_workspace_lines,
     replace_workspace_snippet,
@@ -397,7 +397,7 @@ def test_line_range_edit_past_the_base_end_is_refused_after_an_append(journaled)
 
 
 def test_copy_over_a_file_in_the_same_batch_refuses_later_line_edits(journaled) -> None:
-    from clara_coder_backend.tools.copy import copy_workspace_files
+    from valkade_backend.tools.copy import copy_workspace_files
 
     (journaled.workspace / 'src.txt').write_text('copied\n', encoding='utf-8')
     target = journaled.workspace / 'dst.txt'

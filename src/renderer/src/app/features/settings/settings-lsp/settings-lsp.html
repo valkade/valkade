@@ -128,7 +128,7 @@
   } @else if (server().id === 'python') {
     <div class='form-section'>
       <h4>Language server</h4>
-      <p class='panel__copy'>basedpyright · ships with Clara</p>
+      <p class='panel__copy'>basedpyright · ships with ValkAde</p>
       <p class='settings-field-hint'>
         Finds installed packages through the workspace's Python interpreter or virtual environment. Changing
         a setting here restarts the server.
@@ -624,7 +624,7 @@
       <p class='settings-field-hint'>
         One per line, as execution environment=JDK folder. A Maven or Gradle project compiles against the one
         matching its Java version. The first is the default for folders with no build file, unless a folder's
-        <code>.clara/java.json</code> lists its own runtimes. A folder that isn't a JDK stops the server from starting.
+        <code>.valkade/java.json</code> lists its own runtimes. A folder that isn't a JDK stops the server from starting.
       </p>
       @for (problem of javaRuntimeProblems(); track problem) {
         <p class='settings-field-hint settings-field-hint--warning'>{{ problem }}</p>
@@ -671,7 +671,7 @@
           </label>
           <p class='settings-field-hint'>
             Importing creates <code>.project</code>, <code>.classpath</code> and <code>.settings</code>. With this off
-            they stay in Clara's own data, out of your project and source control. Files already in the project stay
+            they stay in ValkAde's own data, out of your project and source control. Files already in the project stay
             until you delete them, and the project keeps working if you do. Build output, such as Maven's
             <code>target</code> folder, still goes in the project.
           </p>

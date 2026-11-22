@@ -12,15 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.lsp.manager import (
     _full_replace_content_changes,
     _lsp_document_end_position,
     _server_uses_incremental_sync,
     get_session_lsp_manager,
     shutdown_all_lsp_managers,
 )
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
 
 
 @pytest.mark.parametrize(

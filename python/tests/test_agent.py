@@ -6,15 +6,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from clara_coder_backend.session import state
-from clara_coder_backend.composer import stream_agent_reply
-from clara_coder_backend.domain import SessionState
+from valkade_backend.session import state
+from valkade_backend.composer import stream_agent_reply
+from valkade_backend.domain import SessionState
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.delete_outer_thread', new_callable=AsyncMock)
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_single_agent_langgraph')
+@patch('valkade_backend.composer.delete_outer_thread', new_callable=AsyncMock)
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_single_agent_langgraph')
 async def test_stream_agent_reply_keeps_an_aborted_agent_turn_as_interrupted(
     mock_stream_single_agent_langgraph: MagicMock,
     mock_build_llm: MagicMock,
@@ -54,9 +54,9 @@ async def test_stream_agent_reply_keeps_an_aborted_agent_turn_as_interrupted(
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.delete_outer_thread', new_callable=AsyncMock)
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_plan_execute_langgraph')
+@patch('valkade_backend.composer.delete_outer_thread', new_callable=AsyncMock)
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_plan_execute_langgraph')
 async def test_stream_agent_reply_still_drops_an_aborted_plan_turn(
     mock_stream_plan: MagicMock,
     mock_build_llm: MagicMock,
@@ -81,8 +81,8 @@ async def test_stream_agent_reply_still_drops_an_aborted_plan_turn(
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_single_agent_langgraph')
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_single_agent_langgraph')
 async def test_stream_agent_reply_closes_the_runner_before_post_stream_chores(
     mock_stream_single_agent_langgraph: MagicMock,
     mock_build_llm: MagicMock,
@@ -108,7 +108,7 @@ async def test_stream_agent_reply_closes_the_runner_before_post_stream_chores(
         order.append('post-stream')
 
     try:
-        with patch('clara_coder_backend.composer.queue_interrupted_turn_note', side_effect=_note):
+        with patch('valkade_backend.composer.queue_interrupted_turn_note', side_effect=_note):
             lines = [line async for line in stream_agent_reply(session_id, 'hello')]
         assert order == ['runner cleanup', 'post-stream']
         assert lines == ['data: {"type":"chunk","delta":"a"}\n\n', 'data: [DONE]\n\n']
@@ -117,15 +117,15 @@ async def test_stream_agent_reply_closes_the_runner_before_post_stream_chores(
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_single_agent_langgraph')
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_single_agent_langgraph')
 async def test_outcome_sink_is_filled_on_every_exit_path(
     mock_stream_single_agent_langgraph: MagicMock,
     mock_build_llm: MagicMock,
 ) -> None:
     from fastapi import HTTPException
 
-    from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+    from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
 
     session_id = 'test-outcome-sink'
     state.sessions[session_id] = SessionState()
@@ -177,8 +177,8 @@ async def test_outcome_sink_is_filled_on_every_exit_path(
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_single_agent_langgraph')
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_single_agent_langgraph')
 async def test_subagent_turns_skip_history(
     mock_stream_single_agent_langgraph: MagicMock,
     mock_build_llm: MagicMock,

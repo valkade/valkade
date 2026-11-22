@@ -1,4 +1,4 @@
-"""Tests for :func:`clara_coder_backend.llm.factory.build_llm` wiring (reasoning_effort, Gemma sampling)."""
+"""Tests for :func:`valkade_backend.llm.factory.build_llm` wiring (reasoning_effort, Gemma sampling)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from clara_coder_backend.domain import RuntimeConnection
+from valkade_backend.domain import RuntimeConnection
 
 
 def _gemma_conn(**kwargs: object) -> RuntimeConnection:
@@ -49,16 +49,16 @@ def _openai_conn() -> RuntimeConnection:
     )
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_omits_reasoning_effort_for_gemma(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn()
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -67,24 +67,24 @@ def test_build_llm_omits_reasoning_effort_for_gemma(
     assert kwargs.get('extra_body', {}).get('top_k') == 64
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_lmstudio_appends_v1_when_missing(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(base_url='http://127.0.0.1:1234')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     assert mock_ctor.call_args.kwargs.get('base_url') == 'http://127.0.0.1:1234/v1'
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_llamacpp_defaults_base_url(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -103,7 +103,7 @@ def test_build_llm_llamacpp_defaults_base_url(
         optimization_preset='generic',
         max_output_tokens=0,
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -114,41 +114,41 @@ def test_build_llm_llamacpp_defaults_base_url(
     assert isinstance(kwargs.get('http_async_client'), httpx.AsyncClient)
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_passes_reasoning_effort_for_openai(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _openai_conn()
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
     assert kwargs.get('reasoning_effort') == 'low'
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_passes_reasoning_effort_for_gemma_model_when_preset_generic(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(optimization_preset='generic')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
     assert kwargs.get('reasoning_effort') == 'high'
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_sets_idle_read_timeout_and_no_retries(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -158,7 +158,7 @@ def test_build_llm_sets_idle_read_timeout_and_no_retries(
     """A stalled stream must fail via httpx read timeout instead of hanging forever."""
     monkeypatch.delenv('CLARA_LLM_IDLE_TIMEOUT_SEC', raising=False)
     mock_get.return_value = _openai_conn()
-    from clara_coder_backend.llm.factory import _DEFAULT_LLM_IDLE_TIMEOUT_SEC, build_llm
+    from valkade_backend.llm.factory import _DEFAULT_LLM_IDLE_TIMEOUT_SEC, build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -169,9 +169,9 @@ def test_build_llm_sets_idle_read_timeout_and_no_retries(
     assert kwargs.get('stream_chunk_timeout') == _DEFAULT_LLM_IDLE_TIMEOUT_SEC
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_idle_timeout_env_override(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -180,7 +180,7 @@ def test_build_llm_idle_timeout_env_override(
 ) -> None:
     monkeypatch.setenv('CLARA_LLM_IDLE_TIMEOUT_SEC', '45')
     mock_get.return_value = _openai_conn()
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     timeout = mock_ctor.call_args.kwargs.get('timeout')
@@ -189,9 +189,9 @@ def test_build_llm_idle_timeout_env_override(
     assert mock_ctor.call_args.kwargs.get('stream_chunk_timeout') == 45.0
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_idle_timeout_invalid_env_falls_back(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -200,7 +200,7 @@ def test_build_llm_idle_timeout_invalid_env_falls_back(
 ) -> None:
     monkeypatch.setenv('CLARA_LLM_IDLE_TIMEOUT_SEC', 'not-a-number')
     mock_get.return_value = _openai_conn()
-    from clara_coder_backend.llm.factory import _DEFAULT_LLM_IDLE_TIMEOUT_SEC, build_llm
+    from valkade_backend.llm.factory import _DEFAULT_LLM_IDLE_TIMEOUT_SEC, build_llm
 
     build_llm()
     timeout = mock_ctor.call_args.kwargs.get('timeout')
@@ -208,9 +208,9 @@ def test_build_llm_idle_timeout_invalid_env_falls_back(
     assert timeout.read == _DEFAULT_LLM_IDLE_TIMEOUT_SEC
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_generic_merges_optional_sampling(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -234,7 +234,7 @@ def test_build_llm_generic_merges_optional_sampling(
         presence_penalty=0.0,
         repeat_penalty=1.0,
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -247,31 +247,31 @@ def test_build_llm_generic_merges_optional_sampling(
     assert eb.get('repeat_penalty') == 1.0
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_gemma_thinking_mode_on(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(thinking_mode='on')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     ctk = (mock_ctor.call_args.kwargs.get('extra_body') or {}).get('chat_template_kwargs') or {}
     assert ctk.get('enable_thinking') is True
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_gemma_stops_the_empty_channel_loop_on_local_servers(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     mock_get.return_value = _gemma_conn()
     build_llm()
@@ -282,32 +282,32 @@ def test_build_llm_gemma_stops_the_empty_channel_loop_on_local_servers(
     assert 'stop' not in mock_ctor.call_args.kwargs
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_gemma_thinking_mode_off(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(thinking_mode='off')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     ctk = (mock_ctor.call_args.kwargs.get('extra_body') or {}).get('chat_template_kwargs') or {}
     assert ctk.get('enable_thinking') is False
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_gemma_thinking_mode_default_omits_kwarg(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(thinking_mode='default')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     eb = mock_ctor.call_args.kwargs.get('extra_body') or {}
@@ -333,9 +333,9 @@ def _qwen_conn(**kwargs: object) -> RuntimeConnection:
     return RuntimeConnection(**base)
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_qwen_caps_enable_thinking_on(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -345,7 +345,7 @@ def test_build_llm_qwen_caps_enable_thinking_on(
         thinking_mode='on',
         chat_template_reasoning={'enableThinking': True, 'reasoningEffortValues': None},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -354,9 +354,9 @@ def test_build_llm_qwen_caps_enable_thinking_on(
     assert ctk.get('enable_thinking') is True
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_qwen_caps_effort_allow_list(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -366,7 +366,7 @@ def test_build_llm_qwen_caps_effort_allow_list(
         reasoning_effort='low',
         chat_template_reasoning={'enableThinking': False, 'reasoningEffortValues': ['xhigh', 'medium', 'low']},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -376,9 +376,9 @@ def test_build_llm_qwen_caps_effort_allow_list(
     assert 'enable_thinking' not in ctk
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_caps_invalid_effort_omitted(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -388,7 +388,7 @@ def test_build_llm_caps_invalid_effort_omitted(
         reasoning_effort='high',
         chat_template_reasoning={'enableThinking': False, 'reasoningEffortValues': ['xhigh', 'medium', 'low']},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -397,9 +397,9 @@ def test_build_llm_caps_invalid_effort_omitted(
     assert 'reasoning_effort' not in ctk
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_caps_neither_knob_omits_both(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -410,7 +410,7 @@ def test_build_llm_caps_neither_knob_omits_both(
         thinking_mode='on',
         chat_template_reasoning={'enableThinking': False, 'reasoningEffortValues': None},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -419,9 +419,9 @@ def test_build_llm_caps_neither_knob_omits_both(
     assert 'chat_template_kwargs' not in eb
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_caps_thinking_off_skips_effort(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -432,7 +432,7 @@ def test_build_llm_caps_thinking_off_skips_effort(
         thinking_mode='off',
         chat_template_reasoning={'enableThinking': True, 'reasoningEffortValues': ['xhigh', 'medium', 'low']},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -442,16 +442,16 @@ def test_build_llm_caps_thinking_off_skips_effort(
     assert 'reasoning_effort' not in ctk
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_qwen_no_caps_thinking_off(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _qwen_conn(thinking_mode='off', reasoning_effort='medium')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -460,32 +460,32 @@ def test_build_llm_qwen_no_caps_thinking_off(
     assert ctk.get('enable_thinking') is False
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_qwen_no_caps_thinking_on(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _qwen_conn(thinking_mode='on')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     ctk = (mock_ctor.call_args.kwargs.get('extra_body') or {}).get('chat_template_kwargs') or {}
     assert ctk.get('enable_thinking') is True
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_disable_thinking_overrides_gemma_on(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _gemma_conn(thinking_mode='on')
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=True)
     kwargs = mock_ctor.call_args.kwargs
@@ -495,9 +495,9 @@ def test_build_llm_disable_thinking_overrides_gemma_on(
     assert ctk.get('enable_thinking') is False
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_disable_thinking_unknown_generic_local(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -517,7 +517,7 @@ def test_build_llm_disable_thinking_unknown_generic_local(
         max_output_tokens=0,
         thinking_mode='on',
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=True)
     kwargs = mock_ctor.call_args.kwargs
@@ -526,16 +526,16 @@ def test_build_llm_disable_thinking_unknown_generic_local(
     assert ctk.get('enable_thinking') is False
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_disable_thinking_openai_uses_none_effort(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _openai_conn()
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=True)
     kwargs = mock_ctor.call_args.kwargs
@@ -544,9 +544,9 @@ def test_build_llm_disable_thinking_openai_uses_none_effort(
     assert 'chat_template_kwargs' not in eb
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_disable_thinking_qwen_caps_effort_allow_list(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -557,7 +557,7 @@ def test_build_llm_disable_thinking_qwen_caps_effort_allow_list(
         reasoning_effort='low',
         chat_template_reasoning={'enableThinking': True, 'reasoningEffortValues': ['xhigh', 'medium', 'low', 'none']},
     )
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=True)
     kwargs = mock_ctor.call_args.kwargs
@@ -589,16 +589,16 @@ def _openrouter_conn(**kwargs: object) -> RuntimeConnection:
     return RuntimeConnection(**base)
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_headers_reasoning_and_no_llama_extra(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _openrouter_conn()
-    from clara_coder_backend.llm.factory import OPENROUTER_APP_TITLE, OPENROUTER_HTTP_REFERER, build_llm
+    from valkade_backend.llm.factory import OPENROUTER_APP_TITLE, OPENROUTER_HTTP_REFERER, build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -609,7 +609,7 @@ def test_build_llm_openrouter_headers_reasoning_and_no_llama_extra(
         'X-OpenRouter-Title': OPENROUTER_APP_TITLE,
     }
     assert OPENROUTER_HTTP_REFERER == 'https://clara.coder'
-    assert OPENROUTER_APP_TITLE == 'Clara Coder'
+    assert OPENROUTER_APP_TITLE == 'ValkAde'
     assert 'reasoning_effort' not in kwargs
     assert kwargs.get('top_p') == 0.9
     eb = kwargs.get('extra_body') or {}
@@ -620,16 +620,16 @@ def test_build_llm_openrouter_headers_reasoning_and_no_llama_extra(
     assert 'chat_template_kwargs' not in eb
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_omits_reasoning_when_default(
     mock_get: MagicMock,
     _mock_log: MagicMock,
     mock_ctor: MagicMock,
 ) -> None:
     mock_get.return_value = _openrouter_conn(reasoning_effort='', top_k=None, min_p=None, repeat_penalty=None, top_p=None)
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm()
     kwargs = mock_ctor.call_args.kwargs
@@ -641,7 +641,7 @@ def test_build_llm_openrouter_omits_reasoning_when_default(
 
 def _build_openrouter_kwargs(mock_get: MagicMock, mock_ctor: MagicMock, *, disable_thinking: bool = False, **conn: object) -> dict:
     mock_get.return_value = _openrouter_conn(top_k=None, min_p=None, repeat_penalty=None, **conn)
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=disable_thinking)
     return mock_ctor.call_args.kwargs
@@ -651,9 +651,9 @@ _OPTIONAL_CAPS = {'enableThinking': True, 'reasoningEffortValues': ['low', 'medi
 _MANDATORY_CAPS = {'enableThinking': False, 'reasoningEffortValues': ['low', 'medium', 'high', 'xhigh', 'max']}
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_toggle_off_sends_none_when_reasoning_optional(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -665,9 +665,9 @@ def test_build_llm_openrouter_toggle_off_sends_none_when_reasoning_optional(
     assert (kwargs.get('extra_body') or {}).get('reasoning') == {'effort': 'none'}
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_mandatory_ignores_saved_off_and_keeps_effort(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -679,9 +679,9 @@ def test_build_llm_openrouter_mandatory_ignores_saved_off_and_keeps_effort(
     assert (kwargs.get('extra_body') or {}).get('reasoning') == {'effort': 'max'}
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_disable_thinking_never_sends_none_to_mandatory(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -693,9 +693,9 @@ def test_build_llm_openrouter_disable_thinking_never_sends_none_to_mandatory(
     assert 'reasoning' not in (kwargs.get('extra_body') or {})
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_toggle_on_with_default_effort_enables_reasoning(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -707,9 +707,9 @@ def test_build_llm_openrouter_toggle_on_with_default_effort_enables_reasoning(
     assert (kwargs.get('extra_body') or {}).get('reasoning') == {'enabled': True}
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_openrouter_drops_effort_the_model_does_not_advertise(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -723,15 +723,15 @@ def test_build_llm_openrouter_drops_effort_the_model_does_not_advertise(
 
 def _lmstudio_kwargs(mock_get: MagicMock, mock_ctor: MagicMock, *, disable_thinking: bool = False, **conn: object) -> dict:
     mock_get.return_value = _gemma_conn(**conn)
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=disable_thinking)
     return mock_ctor.call_args.kwargs
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_lmstudio_thinking_off_sends_reasoning_effort_none(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -741,9 +741,9 @@ def test_build_llm_lmstudio_thinking_off_sends_reasoning_effort_none(
     assert _lmstudio_kwargs(mock_get, mock_ctor, thinking_mode='off').get('reasoning_effort') == 'none'
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_lmstudio_internal_calls_pin_thinking_off(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -754,9 +754,9 @@ def test_build_llm_lmstudio_internal_calls_pin_thinking_off(
     assert kwargs.get('reasoning_effort') == 'none'
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_lmstudio_thinking_on_leaves_the_model_default(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -767,9 +767,9 @@ def test_build_llm_lmstudio_thinking_on_leaves_the_model_default(
     assert 'reasoning_effort' not in kwargs
 
 
-@patch('clara_coder_backend.llm.factory.ChatOpenAI')
-@patch('clara_coder_backend.llm.factory.log_llm_connection_settings')
-@patch('clara_coder_backend.llm.factory.get_active_connection')
+@patch('valkade_backend.llm.factory.ChatOpenAI')
+@patch('valkade_backend.llm.factory.log_llm_connection_settings')
+@patch('valkade_backend.llm.factory.get_active_connection')
 def test_build_llm_lmstudio_sends_idle_ttl_only_when_set(
     mock_get: MagicMock,
     _mock_log: MagicMock,
@@ -802,16 +802,16 @@ def _compat_conn(compat: dict | None = None, **kwargs: object) -> RuntimeConnect
 
 def _compat_kwargs(mock_get: MagicMock, mock_ctor: MagicMock, conn: RuntimeConnection, *, disable_thinking: bool = False) -> dict:
     mock_get.return_value = conn
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     build_llm(disable_thinking=disable_thinking)
     return mock_ctor.call_args.kwargs
 
 
 COMPAT_PATCHES = (
-    'clara_coder_backend.llm.factory.ChatOpenAI',
-    'clara_coder_backend.llm.factory.log_llm_connection_settings',
-    'clara_coder_backend.llm.factory.get_active_connection',
+    'valkade_backend.llm.factory.ChatOpenAI',
+    'valkade_backend.llm.factory.log_llm_connection_settings',
+    'valkade_backend.llm.factory.get_active_connection',
 )
 
 
@@ -949,7 +949,7 @@ def test_compat_custom_headers_are_sent_but_never_logged(get: MagicMock, ctor: M
 
 
 def test_parallel_tool_calls_field_can_be_left_out() -> None:
-    from clara_coder_backend.llm.model_tuning import sends_parallel_tool_calls_field
+    from valkade_backend.llm.model_tuning import sends_parallel_tool_calls_field
 
     assert sends_parallel_tool_calls_field(_compat_conn({'sendParallelToolCalls': False})) is False
     assert sends_parallel_tool_calls_field(_compat_conn()) is True

@@ -7,9 +7,9 @@ Run:
 
 from __future__ import annotations
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.hitl.tool_budget import TOOL_BUDGET_CAP, assert_under_budget, measure_mode, measure_tools
-from clara_coder_backend.plan.tool_budget import assert_plan_under_budget
+from valkade_backend.domain import SessionState
+from valkade_backend.hitl.tool_budget import TOOL_BUDGET_CAP, assert_under_budget, measure_mode, measure_tools
+from valkade_backend.plan.tool_budget import assert_plan_under_budget
 
 
 def test_read_only_under_budget() -> None:
@@ -25,8 +25,8 @@ def test_plan_under_budget() -> None:
 
 
 def test_worst_case_web_and_formatters_under_budget(monkeypatch) -> None:
-    from clara_coder_backend.domain import RuntimeToolsConfig
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.domain import RuntimeToolsConfig
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(
         runtime_config,
@@ -48,7 +48,7 @@ def test_tool_budget_measures_known_tools() -> None:
     names = [name for name, _ in result['per_tool']]
     assert 'read_workspace_file' in names
     # Sanity-check the low-level helper too: same set, same total (the agent-mode Ask set).
-    from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
+    from valkade_backend.hitl.tool_registry import worker_tools_and_map
 
     tools, _ = worker_tools_and_map(False, session=SessionState(), include_subagent_tool=True)
     direct = measure_tools(tools)

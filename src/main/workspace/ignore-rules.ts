@@ -34,12 +34,15 @@ function stripIgnoreNegation(rule: string): { pattern: string; negated: boolean 
   return { pattern: rule, negated: false };
 }
 
-/** Suffix of the temp file the Python sidecar renames over a file it edits (`ATOMIC_WRITE_TEMP_SUFFIX`). */
-const ATOMIC_WRITE_TEMP_SUFFIX = '.clara.tmp';
+/**
+ * Suffixes of the temp file the Python sidecar renames over a file it edits (`ATOMIC_WRITE_TEMP_SUFFIX`).
+ * `.clara.tmp` is the pre-rename suffix; keep matching it so leftovers never show up in the tree.
+ */
+const ATOMIC_WRITE_TEMP_SUFFIXES = ['.valkade.tmp', '.clara.tmp'];
 
 /** True for a sidecar atomic-write temp file; it lives for milliseconds and is never a real change. */
 export function isAtomicWriteTempPath(relativePath: string): boolean {
-  return relativePath.endsWith(ATOMIC_WRITE_TEMP_SUFFIX);
+  return ATOMIC_WRITE_TEMP_SUFFIXES.some((suffix) => relativePath.endsWith(suffix));
 }
 
 /** True for always-denied secret/credential workspace entries (denylist). */

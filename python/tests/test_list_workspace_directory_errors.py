@@ -1,7 +1,7 @@
 """list_workspace_directory should return guidance instead of raising when the path is wrong."""
 
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.tools.workspace import list_workspace_directory
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.workspace import list_workspace_directory
 
 
 def test_list_workspace_directory_missing_returns_string_not_raise(tmp_path) -> None:

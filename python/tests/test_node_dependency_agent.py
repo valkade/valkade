@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clara_coder_backend.workspace.npm_projects import detect_package_manager
+from valkade_backend.workspace.npm_projects import detect_package_manager
 
 
 def test_detect_package_manager_prefers_pnpm_lock(tmp_path: Path) -> None:
