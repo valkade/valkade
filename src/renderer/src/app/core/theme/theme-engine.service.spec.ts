@@ -47,7 +47,7 @@ function groupsCss(): string {
 describe('theme-dom', () => {
   it('applyBuiltInThemeSync paints the dark built-in before bootstrap', () => {
     applyBuiltInThemeSync(document);
-    expect(document.documentElement.getAttribute('data-theme-id')).toBe('valkade-dark');
+    expect(document.documentElement.getAttribute('data-theme-id')).toBe('valkade-dark-valkyrie-gold');
     expect(document.documentElement.getAttribute('data-theme-mode')).toBe('dark');
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     expect(tokensCss()).toContain(`--t-bg: ${DEFAULT_THEME.tokens['--t-bg']};`);
@@ -128,7 +128,7 @@ describe('ThemeEngineService', () => {
   it('paints the default theme on construction and stamps a revision', () => {
     const engine = TestBed.inject(ThemeEngineService);
     TestBed.tick();
-    expect(engine.applied().id).toBe('valkade-dark');
+    expect(engine.applied().id).toBe('valkade-dark-valkyrie-gold');
     expect(engine.revision()).toBeGreaterThan(0);
     expect(document.documentElement.getAttribute('data-theme-revision')).toBe(String(engine.revision()));
     expect(tokensCss()).toContain(':root {');
@@ -141,10 +141,11 @@ describe('ThemeEngineService', () => {
     await Promise.resolve();
     await Promise.resolve();
     TestBed.tick();
-    // `woodland` from the mocked loadConfig → valkade-dark.
-    expect(engine.activeThemeId()).toBe('valkade-dark');
+    // `woodland` from the mocked loadConfig → valkade-dark-valkyrie-gold.
+    expect(engine.activeThemeId()).toBe('valkade-dark-valkyrie-gold');
     expect(listThemes).toHaveBeenCalled();
     expect(engine.library().map((t) => t.id)).toEqual([
+      'valkade-dark-valkyrie-gold',
       'valkade-dark',
       'valkade-dark-cadmium-lantern',
       'valkade-dark-cadmium-orange',
@@ -210,6 +211,7 @@ describe('ThemeEngineService', () => {
     const engine = TestBed.inject(ThemeEngineService);
     engine.setLibrary([neon, { ...VALKADE_DARK_THEME }]);
     expect(engine.library().map((t) => t.id)).toEqual([
+      'valkade-dark-valkyrie-gold',
       'valkade-dark',
       'valkade-dark-cadmium-lantern',
       'valkade-dark-cadmium-orange',

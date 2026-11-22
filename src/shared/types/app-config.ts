@@ -1573,7 +1573,7 @@ export interface AppConfig {
   lastActiveConversationByWorkspaceId?: Record<string, string>;
   workspaces: Workspace[];
   /**
-   * The single app-wide UI theme id: a built-in (`valkade-dark`, `valkade-light`) or a user theme
+   * The single app-wide UI theme id: a built-in (`valkade-dark-valkyrie-gold`, `valkade-dark`, `valkade-light`) or a user theme
    * stored under `{userData}/themes/<id>/theme.json` (see `src/shared/theme`). Not per-workspace.
    */
   themeId: string;

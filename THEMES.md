@@ -2,7 +2,7 @@
 
 The UI is painted by a theme engine (`src/renderer/src/app/core/theme`, shared schema in `src/shared/theme`).
 A theme is a JSON document — global design tokens (`--t-*`), per-element-group overrides, optional
-background images, and an optional Monaco palette. Read-only built-ins ship (`valkade-dark` — ValkAde Dark Royal Ocean, the default, `valkade-dark-cadmium-lantern` — ValkAde Dark Cadmium Lantern, `valkade-dark-cadmium-orange` — ValkAde Dark Cadmium Orange, `valkade-light` — ValkAde Light Mint, `valkade-light-iris` — ValkAde Light Iris, `valkade-light-ochre` — ValkAde Light Ochre);
+background images, and an optional Monaco palette. Read-only built-ins ship (`valkade-dark-valkyrie-gold` — ValkAde Dark Valkyrie Gold, the default, `valkade-dark` — ValkAde Dark Royal Ocean, `valkade-dark-cadmium-lantern` — ValkAde Dark Cadmium Lantern, `valkade-dark-cadmium-orange` — ValkAde Dark Cadmium Orange, `valkade-light` — ValkAde Light Mint, `valkade-light-iris` — ValkAde Light Iris, `valkade-light-ochre` — ValkAde Light Ochre);
 a saved legacy `clara-*` built-in id switches to its `valkade-*` id automatically.
 User themes live under `{userData}/themes/<id>/theme.json` with images in `assets/`, which the UI
 loads over `valkade-theme://asset/…` (the legacy `clara-theme://` scheme is still accepted).

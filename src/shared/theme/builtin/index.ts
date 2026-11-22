@@ -1,4 +1,5 @@
 import type { ValkAdeThemeDocument, ThemeMode } from '../theme-document';
+import { VALKADE_DARK_VALKYRIE_GOLD_THEME } from './valkade-dark-valkyrie-gold';
 import { VALKADE_DARK_THEME } from './valkade-dark';
 import { VALKADE_DARK_CADMIUM_LANTERN_THEME } from './valkade-dark-cadmium-lantern';
 import { VALKADE_DARK_CADMIUM_ORANGE_THEME } from './valkade-dark-cadmium-orange';
@@ -6,6 +7,7 @@ import { VALKADE_LIGHT_THEME } from './valkade-light';
 import { VALKADE_LIGHT_IRIS_THEME } from './valkade-light-iris';
 import { VALKADE_LIGHT_OCHRE_THEME } from './valkade-light-ochre';
 
+export { VALKADE_DARK_VALKYRIE_GOLD_THEME } from './valkade-dark-valkyrie-gold';
 export { VALKADE_DARK_THEME } from './valkade-dark';
 export { VALKADE_DARK_CADMIUM_LANTERN_THEME } from './valkade-dark-cadmium-lantern';
 export { VALKADE_DARK_CADMIUM_ORANGE_THEME } from './valkade-dark-cadmium-orange';
@@ -27,10 +29,11 @@ export const CLARA_LIGHT_IRIS_THEME = VALKADE_LIGHT_IRIS_THEME;
 export const CLARA_LIGHT_OCHRE_THEME = VALKADE_LIGHT_OCHRE_THEME;
 
 /** First-run selection and fallback when a theme id cannot be resolved. */
-export const DEFAULT_THEME: ValkAdeThemeDocument = VALKADE_DARK_THEME;
+export const DEFAULT_THEME: ValkAdeThemeDocument = VALKADE_DARK_VALKYRIE_GOLD_THEME;
 
 /** Bundled, read-only themes. Users duplicate these to start their own. */
 export const BUILTIN_THEMES: readonly ValkAdeThemeDocument[] = [
+  VALKADE_DARK_VALKYRIE_GOLD_THEME,
   VALKADE_DARK_THEME,
   VALKADE_DARK_CADMIUM_LANTERN_THEME,
   VALKADE_DARK_CADMIUM_ORANGE_THEME,
@@ -49,9 +52,9 @@ export const BUILTIN_THEME_IDS: readonly string[] = BUILTIN_THEMES.map((t) => t.
  */
 export const LEGACY_THEME_ID_MAP: Readonly<Record<string, string>> = {
   // pre-engine / former default
-  default: VALKADE_DARK_THEME.id,
-  woodland: VALKADE_DARK_THEME.id,
-  'dark-classical': VALKADE_DARK_THEME.id,
+  default: VALKADE_DARK_VALKYRIE_GOLD_THEME.id,
+  woodland: VALKADE_DARK_VALKYRIE_GOLD_THEME.id,
+  'dark-classical': VALKADE_DARK_VALKYRIE_GOLD_THEME.id,
   classical: VALKADE_LIGHT_THEME.id,
   // Clara → ValkAde (v0.6)
   'clara-dark': VALKADE_DARK_THEME.id,
