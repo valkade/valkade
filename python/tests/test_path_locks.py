@@ -5,10 +5,10 @@ from __future__ import annotations
 import sys
 import threading
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.session.file_journal import first_mutation_this_turn
-from clara_coder_backend.session.state import current_session_id, current_tool_batch_id
-from clara_coder_backend.workspace.path_locks import (
+from valkade_backend.domain import SessionState
+from valkade_backend.session.file_journal import first_mutation_this_turn
+from valkade_backend.session.state import current_session_id, current_tool_batch_id
+from valkade_backend.workspace.path_locks import (
     BatchLineMap,
     batch_line_map,
     note_batch_replaced,

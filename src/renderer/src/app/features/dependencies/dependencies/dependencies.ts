@@ -124,7 +124,7 @@ export function installedLlamaVariant(dep: Pick<DependencyInfo, 'state' | 'compo
 /** Says the install is behind the version a reinstall would fetch; null when it is current. */
 export function dependencyUpdateHint(dep: Pick<DependencyInfo, 'state' | 'updateAvailable'>): string | null {
   if (dep.state !== 'installed' || !dep.updateAvailable) return null;
-  return `Clara now installs ${dep.updateAvailable}. Reinstall to update: newer models can fail to load on this older build.`;
+  return `ValkAde now installs ${dep.updateAvailable}. Reinstall to update: newer models can fail to load on this older build.`;
 }
 
 @Component({
@@ -470,7 +470,7 @@ export class Dependencies implements OnInit, OnDestroy {
     const installed = installedLlamaVariant(dep);
     const chosen = this.variantFor(dep);
     if (!installed || chosen === installed) return null;
-    if (chosen === 'auto') return 'Reinstall to let Clara pick the best build for this machine.';
+    if (chosen === 'auto') return 'Reinstall to let ValkAde pick the best build for this machine.';
     return `Installed: ${this.variantLabels[installed]}. Reinstall to switch to ${this.variantLabels[chosen]}.`;
   }
 

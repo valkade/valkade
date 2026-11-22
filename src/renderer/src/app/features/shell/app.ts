@@ -677,7 +677,7 @@ export class App implements OnInit, OnDestroy {
   );
   /** Running app version, shown at the right of the title bar. */
   protected readonly appVersion = signal('');
-  /** Watches GitHub Releases for a newer installable Clara build. */
+  /** Watches GitHub Releases for a newer installable ValkAde build. */
   private readonly appUpdateStatus = inject(AppUpdateStatusService);
   /** Flags the title-bar version button with "!" while an update is available. */
   protected readonly updateAvailable = this.appUpdateStatus.updateAvailable;

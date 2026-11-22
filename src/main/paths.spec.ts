@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path = require('path');
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +30,7 @@ vi.mock('electron', () => electronMock);
 
 import {
   BUNDLED_RUNTIME_MANIFEST_FILE,
+  discardRelocatedRuntimeVenv,
   expectedRequirementsHash,
   getBundledPythonExecutable,
   getBundledRuntimeDir,
@@ -37,9 +38,13 @@ import {
   getRuntimePythonDir,
   isUsablePythonVenv,
   isolatedVenvStaleReason,
+  LEGACY_BUNDLED_RUNTIME_MANIFEST_FILE,
+  LEGACY_REQUIREMENTS_HASH_FILE,
   pythonVenvUnusableReason,
   readBundledRuntimeManifest,
+  REQUIREMENTS_HASH_FILE,
   venvBelongsToBundledRuntime,
+  venvLegacyAppDataReason,
 } from './paths';
 
 const BASE_PY_NAME = process.platform === 'win32' ? 'python.exe' : 'python3';
@@ -136,10 +141,77 @@ describe('isolatedVenvStaleReason', () => {
       return;
     }
     expect(isolatedVenvStaleReason(root)).toContain('out of date');
-    writeFileSync(path.join(root, '.clara-requirements-hash'), 'old\n');
+    writeFileSync(path.join(root, REQUIREMENTS_HASH_FILE), 'old\n');
     expect(isolatedVenvStaleReason(root)).toContain('out of date');
-    writeFileSync(path.join(root, '.clara-requirements-hash'), `${expected}\n`);
+    writeFileSync(path.join(root, REQUIREMENTS_HASH_FILE), `${expected}\n`);
     expect(isolatedVenvStaleReason(root)).toBeNull();
+  });
+
+  it('reads the pre-rename .clara-requirements-hash when the new marker is missing', () => {
+    const expected = expectedRequirementsHash();
+    writeFileSync(path.join(root, 'pyvenv.cfg'), 'include-system-site-packages = false\n');
+    if (!expected) return;
+    expect(REQUIREMENTS_HASH_FILE).toBe('.valkade-requirements-hash');
+    expect(LEGACY_REQUIREMENTS_HASH_FILE).toBe('.clara-requirements-hash');
+    writeFileSync(path.join(root, LEGACY_REQUIREMENTS_HASH_FILE), `${expected}\n`);
+    expect(isolatedVenvStaleReason(root)).toBeNull();
+    // The new marker wins once the provider writes it.
+    writeFileSync(path.join(root, REQUIREMENTS_HASH_FILE), 'old\n');
+    expect(isolatedVenvStaleReason(root)).toContain('out of date');
+  });
+});
+
+describe('venvLegacyAppDataReason / discardRelocatedRuntimeVenv', () => {
+  let appDataRoot: string;
+
+  beforeEach(() => {
+    appDataRoot = mkdtempSync(path.join(tmpdir(), 'valkade-relocated-'));
+  });
+
+  afterEach(() => {
+    rmSync(appDataRoot, { recursive: true, force: true });
+  });
+
+  function migratedVenv(home: string): string {
+    const venv = path.join(appDataRoot, 'valkade', 'runtime', 'python-venv');
+    writeStub(path.join(venv, VENV_PY));
+    writeFileSync(path.join(venv, 'pyvenv.cfg'), `home = ${home}\ninclude-system-site-packages = false\n`);
+    return venv;
+  }
+
+  it('flags a venv whose base interpreter is under the old clara-coder dir', () => {
+    const oldHome = path.join(appDataRoot, 'clara-coder', 'runtime', 'python-base');
+    const venv = migratedVenv(oldHome);
+    expect(venvLegacyAppDataReason(venv, appDataRoot)).toContain(path.join(appDataRoot, 'clara-coder'));
+    expect(discardRelocatedRuntimeVenv(venv, appDataRoot)).toBe(true);
+    expect(existsSync(venv)).toBe(false);
+  });
+
+  it('flags the older nemo-wrapper dir too', () => {
+    const venv = migratedVenv(path.join(appDataRoot, 'nemo-wrapper', 'python'));
+    expect(venvLegacyAppDataReason(venv, appDataRoot)).toContain('nemo-wrapper');
+  });
+
+  it('keeps a venv built from the bundled runtime or the current dir', () => {
+    const bundled = migratedVenv(path.join(appDataRoot, 'Program Files', 'ValkAde', 'resources', 'runtime-python'));
+    expect(venvLegacyAppDataReason(bundled, appDataRoot)).toBeNull();
+    writeFileSync(
+      path.join(bundled, 'pyvenv.cfg'),
+      `home = ${path.join(appDataRoot, 'valkade', 'runtime', 'python-base')}\n`,
+    );
+    expect(venvLegacyAppDataReason(bundled, appDataRoot)).toBeNull();
+    // A sibling whose name only starts with a legacy name is not under it.
+    writeFileSync(path.join(bundled, 'pyvenv.cfg'), `home = ${path.join(appDataRoot, 'clara-coder-other')}\n`);
+    expect(venvLegacyAppDataReason(bundled, appDataRoot)).toBeNull();
+    expect(discardRelocatedRuntimeVenv(bundled, appDataRoot)).toBe(false);
+    expect(existsSync(path.join(bundled, VENV_PY))).toBe(true);
+  });
+
+  it('does nothing without a pyvenv.cfg', () => {
+    const venv = path.join(appDataRoot, 'valkade', 'runtime', 'python-venv');
+    mkdirSync(venv, { recursive: true });
+    expect(discardRelocatedRuntimeVenv(venv, appDataRoot)).toBe(false);
+    expect(existsSync(venv)).toBe(true);
   });
 });
 
@@ -224,7 +296,7 @@ describe('readBundledRuntimeManifest / getPythonExecutable', () => {
     delete process.env.NEMO_PYTHON;
     electronMock.resetStored();
     electronMock.setAppDataRoot(tmp);
-    electronMock.app.setPath('userData', path.join(tmp, 'clara-coder'));
+    electronMock.app.setPath('userData', path.join(tmp, 'valkade'));
     electronMock.app.isPackaged = true;
     setResourcesPath(path.join(tmp, 'resources'));
   });
@@ -255,6 +327,17 @@ describe('readBundledRuntimeManifest / getPythonExecutable', () => {
       JSON.stringify(manifest),
     );
     expect(readBundledRuntimeManifest()).toEqual(manifest);
+  });
+
+  it('readBundledRuntimeManifest falls back to the pre-rename manifest name', () => {
+    mkdirSync(getBundledRuntimeDir(), { recursive: true });
+    expect(BUNDLED_RUNTIME_MANIFEST_FILE).toBe('.valkade-runtime-manifest.json');
+    const legacy = { schemaVersion: 1, pythonVersion: '3.12.10' };
+    writeFileSync(path.join(getBundledRuntimeDir(), LEGACY_BUNDLED_RUNTIME_MANIFEST_FILE), JSON.stringify(legacy));
+    expect(readBundledRuntimeManifest()).toEqual(legacy);
+    const current = { schemaVersion: 1, pythonVersion: '3.12.11' };
+    writeFileSync(path.join(getBundledRuntimeDir(), BUNDLED_RUNTIME_MANIFEST_FILE), JSON.stringify(current));
+    expect(readBundledRuntimeManifest()).toEqual(current);
   });
 
   it('readBundledRuntimeManifest returns null when the file is missing', () => {

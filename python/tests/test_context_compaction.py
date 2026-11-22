@@ -13,8 +13,8 @@ from langchain_core.exceptions import ContextOverflowError
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
-from clara_coder_backend.domain import RuntimeContextCompressionConfig
-from clara_coder_backend.lang_agent.context_compaction import (
+from valkade_backend.domain import RuntimeContextCompressionConfig
+from valkade_backend.lang_agent.context_compaction import (
     BLOCK_HEADER,
     CHARS_PER_TOKEN,
     IMAGE_REMOVED_TEXT,
@@ -51,8 +51,8 @@ from clara_coder_backend.lang_agent.context_compaction import (
     tool_output_cap_chars,
     truncate_tool_result,
 )
-from clara_coder_backend.lang_agent.subagents import REPORTS_ARRIVED_HEADER
-from clara_coder_backend.llm.messages import USER_TURN_KEY
+from valkade_backend.lang_agent.subagents import REPORTS_ARRIVED_HEADER
+from valkade_backend.llm.messages import USER_TURN_KEY
 
 CFG = RuntimeContextCompressionConfig()
 IMAGE = {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AAAA'}}
@@ -640,8 +640,8 @@ def test_block_wording_still_holds_once_a_later_request_follows() -> None:
 
 
 def test_strings_user_facing_have_no_em_dash() -> None:
-    from clara_coder_backend.lang_agent import context_compaction as module
-    from clara_coder_backend.middleware import context_compaction_middleware as middleware
+    from valkade_backend.lang_agent import context_compaction as module
+    from valkade_backend.middleware import context_compaction_middleware as middleware
 
     for text in (module.SUMMARY_REQUEST, module.BLOCK_HEADER, module.PIN_LEAD):
         assert '—' not in text

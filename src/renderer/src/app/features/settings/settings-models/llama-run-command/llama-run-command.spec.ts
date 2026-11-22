@@ -291,7 +291,7 @@ describe('the checks that need the header', () => {
   });
 });
 
-describe('the flags Clara sends on every request', () => {
+describe('the flags ValkAde sends on every request', () => {
   it('marks -n a fallback at Max output 0 too, where local steps send the default limit', async () => {
     const { fixture } = setup({ command: `${BASE} -n 50000` });
     const el = await render(fixture);
@@ -301,7 +301,7 @@ describe('the flags Clara sends on every request', () => {
   });
 });
 
-describe('the command Clara starts', () => {
+describe('the command ValkAde starts', () => {
   it('shows the context floor when the command sets no -c', async () => {
     const { fixture } = setup({ command: BASE });
     const el = await render(fixture);

@@ -27,6 +27,7 @@ export const WORKSPACE_CONTEXT_IGNORED_NAMES = new Set([
   '.next',
   '.clara',
   '.nemo',
+  '.valkade',
   '.nuxt',
   '.svn',
   '.venv',
@@ -43,7 +44,7 @@ export const WORKSPACE_CONTEXT_IGNORED_NAMES = new Set([
   'tmp',
   'vendor',
   'venv',
-  // Clara pack artifacts (also in root .gitignore; keep if gitignore matching fails).
+  // ValkAde pack artifacts (also in root .gitignore; keep if gitignore matching fails).
   'runtime-bundle',
   'vtsls-bundle',
 ]);

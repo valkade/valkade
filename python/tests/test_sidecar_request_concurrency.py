@@ -13,7 +13,7 @@ import httpx
 
 
 async def _health_and_clear_while_log_stream_open() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:

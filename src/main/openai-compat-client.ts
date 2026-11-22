@@ -314,15 +314,15 @@ export async function runOpenAiCompatTest(endpoint: OpenAiCompatEndpoint, select
     stream = await postStream(endpoint, chatUrl, chatBody());
   }
   if (stream.kind !== 'ok') {
-    add('stream', 'Streaming and token usage', 'fail', `${stream.error} Clara streams every reply, so chat won't work.`);
+    add('stream', 'Streaming and token usage', 'fail', `${stream.error} ValkAde streams every reply, so chat won't work.`);
   } else {
     result.suggestions.streamUsage = usageOption;
     if (!stream.chunks) {
-      add('stream', 'Streaming and token usage', 'fail', "The server didn't stream a reply. Clara streams every reply, so chat won't work.");
+      add('stream', 'Streaming and token usage', 'fail', "The server didn't stream a reply. ValkAde streams every reply, so chat won't work.");
     } else if (stream.usage) {
       add('stream', 'Streaming and token usage', 'ok', 'Streams, and reports token usage.');
     } else {
-      add('stream', 'Streaming and token usage', 'warn', "Streams, but reports no token usage, so Clara has to estimate how full the context is.");
+      add('stream', 'Streaming and token usage', 'warn', "Streams, but reports no token usage, so ValkAde has to estimate how full the context is.");
     }
   }
 
@@ -340,14 +340,14 @@ export async function runOpenAiCompatTest(endpoint: OpenAiCompatEndpoint, select
     tool = await postChat(endpoint, chatUrl, toolBody(false));
   }
   if (tool.kind !== 'ok') {
-    add('tools', 'Tool calling', 'fail', `${tool.error} Clara's agent relies on tool calls.`);
+    add('tools', 'Tool calling', 'fail', `${tool.error} ValkAde's agent relies on tool calls.`);
   } else {
     result.suggestions.sendParallelToolCalls = parallelField;
     const calls = tool.message['tool_calls'];
     if (Array.isArray(calls) && calls.length) {
       add('tools', 'Tool calling', 'ok', parallelField ? 'The model called the test tool.' : 'The model called the test tool. The server rejects parallel_tool_calls.');
     } else {
-      add('tools', 'Tool calling', 'warn', "The request was accepted, but the model didn't call the test tool. Clara's agent relies on tool calls.");
+      add('tools', 'Tool calling', 'warn', "The request was accepted, but the model didn't call the test tool. ValkAde's agent relies on tool calls.");
     }
   }
 

@@ -7,7 +7,7 @@ import {
   deriveMonacoTheme,
   resolveLegacyThemeId,
   resolveThemeDocument,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ThemeMode,
   type ThemeMonacoDefinition,
 } from '@shared/theme';
@@ -47,17 +47,17 @@ export class ThemeEngineService {
   readonly fallbackMode = signal<ThemeMode>(readCachedThemeMode(browserModeStorage()));
 
   /** All selectable themes: built-ins first, then user themes. */
-  readonly library = signal<readonly ClaraThemeDocument[]>(BUILTIN_THEMES);
+  readonly library = signal<readonly ValkAdeThemeDocument[]>(BUILTIN_THEMES);
   /**
    * Persisted selection (`AppConfig.themeId`, legacy ids already mapped). Starts as the
    * built-in for {@link fallbackMode} so the pre-config paint matches the pre-bootstrap one.
    */
   readonly activeThemeId = signal<string>(builtInThemeForMode(this.fallbackMode()).id);
   /** Draft shown instead of the active theme while non-null. */
-  readonly preview = signal<ClaraThemeDocument | null>(null);
+  readonly preview = signal<ValkAdeThemeDocument | null>(null);
 
   /** Document currently painted. Unknown ids fall back to the built-in for {@link fallbackMode}. */
-  readonly applied = computed<ClaraThemeDocument>(() => {
+  readonly applied = computed<ValkAdeThemeDocument>(() => {
     const preview = this.preview();
     if (preview) {
       return preview;
@@ -126,12 +126,12 @@ export class ThemeEngineService {
     this.activeThemeId.set(resolveLegacyThemeId(config.themeId));
   }
 
-  setLibrary(themes: readonly ClaraThemeDocument[]): void {
+  setLibrary(themes: readonly ValkAdeThemeDocument[]): void {
     const userThemes = themes.filter((t) => !BUILTIN_THEMES.some((b) => b.id === t.id));
     this.library.set([...BUILTIN_THEMES, ...userThemes]);
   }
 
-  findTheme(id: string): ClaraThemeDocument | undefined {
+  findTheme(id: string): ValkAdeThemeDocument | undefined {
     return this.library().find((t) => t.id === id);
   }
 }

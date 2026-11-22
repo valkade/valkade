@@ -8,16 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.lang_agent.langgraph_sse import sse_lines_for_graph_event, GraphStreamState
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.tools.run_command import (
+from valkade_backend.lang_agent.langgraph_sse import sse_lines_for_graph_event, GraphStreamState
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.run_command import (
     RUN_COMMAND_STREAM_TAG_PREFIX,
     background_command_jobs,
     handle_background_command_terminal_closed,
     kill_session_background_commands,
     run_command_tool,
 )
-from clara_coder_backend.session.user_events import drain_user_event_notes
+from valkade_backend.session.user_events import drain_user_event_notes
 
 
 @pytest.fixture()

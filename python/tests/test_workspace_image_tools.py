@@ -9,13 +9,13 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.types import Command
 from PIL import Image
 
-from clara_coder_backend.llm.model_tuning import combined_model_prompt_suffix, is_qwen35_vision_model
-from clara_coder_backend.middleware.vision_tool_middleware import (
+from valkade_backend.llm.model_tuning import combined_model_prompt_suffix, is_qwen35_vision_model
+from valkade_backend.middleware.vision_tool_middleware import (
     VisionImageInjectionMiddleware,
     tool_responses_before_interjections,
 )
-from clara_coder_backend.session.state import current_session_id, get_active_connection, get_session
-from clara_coder_backend.tools.workspace_image import (
+from valkade_backend.session.state import current_session_id, get_active_connection, get_session
+from valkade_backend.tools.workspace_image import (
     READ_WORKSPACE_IMAGE_NAME,
     VisionImagePayload,
     load_workspace_image,
@@ -342,7 +342,7 @@ def test_vision_middleware_sends_reordered_history_to_the_model() -> None:
 
 
 def test_qwen_vision_prompt_suffix_when_preset_and_model_match() -> None:
-    from clara_coder_backend.domain import RuntimeConnection
+    from valkade_backend.domain import RuntimeConnection
 
     conn = RuntimeConnection(
         id='q',

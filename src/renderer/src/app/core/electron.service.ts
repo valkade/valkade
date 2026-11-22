@@ -107,7 +107,7 @@ import type {
 import { getDefaultContextCompression, isThemeProposalPayload, SecretValue } from '@shared/index';
 import {
   DEFAULT_THEME_ID,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ThemeAssetPickResult,
   type ThemeExportResult,
   type ThemeImportResult,
@@ -434,8 +434,8 @@ export class ElectronService {
   private readonly subagentStartedSubject = new Subject<SubagentStartedEvent>();
   private readonly subagentResultsReadySubject = new Subject<SubagentResultsReadyEvent>();
   private readonly configSubject = new Subject<AppConfig>();
-  private readonly themeLibrarySubject = new Subject<ClaraThemeDocument[]>();
-  private readonly themePreviewSubject = new Subject<ClaraThemeDocument | null>();
+  private readonly themeLibrarySubject = new Subject<ValkAdeThemeDocument[]>();
+  private readonly themePreviewSubject = new Subject<ValkAdeThemeDocument | null>();
   private readonly settingsWindowVisibilitySubject = new Subject<boolean>();
   private readonly settingsSelectTabSubject = new Subject<string>();
   private readonly activeConversationChangedSubject = new Subject<string | null>();
@@ -1524,7 +1524,7 @@ export class ElectronService {
     );
   }
 
-  /** Create the workspace's `.clara/checks.json` when missing (seeded with disabled suggestions). */
+  /** Create the workspace's `.valkade/checks.json` when missing (seeded with disabled suggestions). */
   ensureWorkspaceChecks(workspaceId: string): Promise<EnsureWorkspaceChecksResult> {
     return (
       this.api?.ensureWorkspaceChecks?.(workspaceId) ?? Promise.resolve({ ok: false, error: 'API not available' })
@@ -1542,11 +1542,11 @@ export class ElectronService {
 
   // ── Theme library (see src/main/ipc/handlers/themes.ts) ──
 
-  listThemes(): Promise<ClaraThemeDocument[]> {
+  listThemes(): Promise<ValkAdeThemeDocument[]> {
     return this.api?.listThemes?.() ?? Promise.resolve([]);
   }
 
-  saveTheme(theme: ClaraThemeDocument): Promise<ThemeSaveResult> {
+  saveTheme(theme: ValkAdeThemeDocument): Promise<ThemeSaveResult> {
     return this.api?.saveTheme?.(theme) ?? Promise.resolve({ ok: false, error: 'API not available' });
   }
 
@@ -1575,7 +1575,7 @@ export class ElectronService {
   }
 
   /** Paint `theme` in every window without persisting; `null` returns to the saved theme. */
-  previewTheme(theme: ClaraThemeDocument | null): Promise<void> {
+  previewTheme(theme: ValkAdeThemeDocument | null): Promise<void> {
     if (this.api?.previewTheme) {
       return this.api.previewTheme(theme);
     }

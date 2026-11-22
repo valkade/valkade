@@ -2,33 +2,71 @@ import { createHash } from 'crypto';
 import { existsSync, mkdirSync, renameSync, cpSync, rmSync, readdirSync, readFileSync } from 'fs';
 import { app } from 'electron';
 import path = require('path');
-import { migrateLegacyAppDataDir } from './app-data';
+import { ensureAppDataDir, legacyAppDataDirNames } from './app-data';
 import { envClara } from './env-clara';
 import { WORKSPACE_META_DIR, WORKSPACE_SYSTEM_PROMPT_FILE } from '../shared';
 
 let appDataConfigured = false;
 
 /**
- * Migrate legacy data dirs and pin Electron ``userData`` to ``{appData}/clara-coder``
- * (packaged) or ``{appData}/clara-coder-dev`` (dev). Must run once before any
- * ``getAppDataDir()`` / config / SQLite open.
+ * Pin Electron ``userData`` to ``{appData}/valkade`` (packaged) or ``{appData}/valkade-dev``
+ * (dev) without auto-migrating legacy folders. Explicit opt-in migration runs from the
+ * pre-boot migration prompt before config, SQLite, or the sidecar open. Must run once
+ * before any ``getAppDataDir()`` / config / SQLite open.
  */
 export function configureAppDataDir(): string {
   if (!appDataConfigured) {
     const isDev = !app.isPackaged;
-    const { target, migrated, from, method } = migrateLegacyAppDataDir(app.getPath('appData'), isDev);
+    const appDataRoot = app.getPath('appData');
+    const target = ensureAppDataDir(appDataRoot, isDev);
     app.setPath('userData', target);
     appDataConfigured = true;
-    if (migrated && from) {
-      console.log(`[app-data] Migrated app data (${method}) from ${from} → ${target}`);
-    }
   }
   return app.getPath('userData');
 }
 
+/** ``{appDataRoot}/{name}`` for each app-data dir name earlier releases used. */
+export function legacyAppDataDirs(appDataRoot: string, isDev = false): string[] {
+  return legacyAppDataDirNames(isDev).map((name) => path.join(appDataRoot, name));
+}
+
+/**
+ * Why the venv at ``root`` still depends on a legacy app-data dir, or null.
+ * ``pyvenv.cfg`` ``home`` is an absolute path to the base interpreter. When that interpreter
+ * lived under the old dir's ``runtime/``, the venv breaks once the dir moves (or keeps running
+ * from the stale copy a copy-fallback migration leaves behind). The venv's own location
+ * (``command = … -m venv <dir>``) also goes stale, but its launcher still works from the new
+ * place, so that alone is no reason to rebuild it and re-download its packages.
+ */
+export function venvLegacyAppDataReason(root: string, appDataRoot: string, isDev = false): string | null {
+  const home = readPyvenvHome(root);
+  if (!home) return null;
+  const legacy = legacyAppDataDirs(appDataRoot, isDev).find((dir) => isPathUnder(home, dir));
+  return legacy ? `base interpreter is under the old app data dir ${legacy}` : null;
+}
+
+/**
+ * Remove the migrated runtime venv when it still points into the legacy app-data dir, so the
+ * Kokoro / Whisper installs recreate it cleanly under the new one. The venv only holds
+ * re-installable packages; nothing else lives there.
+ */
+export function discardRelocatedRuntimeVenv(venvRoot: string, appDataRoot: string, isDev = false): boolean {
+  if (!existsSync(path.join(venvRoot, 'pyvenv.cfg'))) return false;
+  const reason = venvLegacyAppDataReason(venvRoot, appDataRoot, isDev);
+  if (!reason) return false;
+  try {
+    rmSync(venvRoot, { recursive: true, force: true });
+    console.warn(`[app-data] Removed runtime venv at ${venvRoot} (${reason}); the next install rebuilds it.`);
+    return true;
+  } catch (err) {
+    console.warn(`[app-data] Could not remove relocated runtime venv at ${venvRoot}:`, err);
+    return false;
+  }
+}
+
 /**
  * Resolves the directory used for config.json, workspaces, and conversations.
- * ``{appData}/clara-coder`` (packaged) or ``{appData}/clara-coder-dev`` (dev) after
+ * ``{appData}/valkade`` (packaged) or ``{appData}/valkade-dev`` (dev) after
  * {@link configureAppDataDir}.
  */
 export function getAppDataDir(): string {
@@ -54,12 +92,12 @@ export function getWorkspaceConversationsDir(workspaceId: string): string {
   return path.join(getWorkspaceDir(workspaceId), 'conversations');
 }
 
-/** Single managed workspace system-prompt copy under app data (legacy; migrated into `.clara`). */
+/** Single managed workspace system-prompt copy under app data (legacy; migrated into `.valkade`). */
 export function getLegacyAppDataSystemPromptPath(workspaceId: string): string {
   return path.join(getWorkspaceDir(workspaceId), 'system-prompt.md');
 }
 
-/** Workspace-tree system prompt: `{workspaceRoot}/.clara/system-prompt.md`. */
+/** Workspace-tree system prompt: `{workspaceRoot}/.valkade/system-prompt.md`. */
 export function getWorkspaceSystemPromptPath(workspaceRoot: string): string {
   return path.join(workspaceRoot, WORKSPACE_META_DIR, WORKSPACE_SYSTEM_PROMPT_FILE);
 }
@@ -176,7 +214,16 @@ export function getJavaLspCacheDir(): string {
   return runtimeJava;
 }
 
-export const BUNDLED_RUNTIME_MANIFEST_FILE = '.clara-runtime-manifest.json';
+export const BUNDLED_RUNTIME_MANIFEST_FILE = '.valkade-runtime-manifest.json';
+
+/** Pre-rename manifest name; read when the bundle has no {@link BUNDLED_RUNTIME_MANIFEST_FILE}. */
+export const LEGACY_BUNDLED_RUNTIME_MANIFEST_FILE = '.clara-runtime-manifest.json';
+
+/** Requirements-hash marker in a runtime venv (written by the Python provider). */
+export const REQUIREMENTS_HASH_FILE = '.valkade-requirements-hash';
+
+/** Pre-rename requirements-hash marker; read when {@link REQUIREMENTS_HASH_FILE} is missing. */
+export const LEGACY_REQUIREMENTS_HASH_FILE = '.clara-requirements-hash';
 
 export interface BundledRuntimeManifest {
   schemaVersion: number;
@@ -220,11 +267,30 @@ export function getBundledPythonExecutable(): string | null {
   return null;
 }
 
-/** Parse ``<bundle root>/.clara-runtime-manifest.json``. Null when missing or invalid; never throws. */
+/** First of ``names`` under ``dir`` that can be read, as text; null when none can. */
+function readFirstFile(dir: string, names: readonly string[]): string | null {
+  for (const name of names) {
+    try {
+      return readFileSync(path.join(dir, name), 'utf8');
+    } catch {
+      /* try the next name */
+    }
+  }
+  return null;
+}
+
+/**
+ * Parse ``<bundle root>/.valkade-runtime-manifest.json`` (``.clara-runtime-manifest.json`` in
+ * older bundles). Null when missing or invalid; never throws.
+ */
 export function readBundledRuntimeManifest(): BundledRuntimeManifest | null {
-  const file = path.join(getBundledRuntimeDir(), BUNDLED_RUNTIME_MANIFEST_FILE);
+  const text = readFirstFile(getBundledRuntimeDir(), [
+    BUNDLED_RUNTIME_MANIFEST_FILE,
+    LEGACY_BUNDLED_RUNTIME_MANIFEST_FILE,
+  ]);
+  if (text === null) return null;
   try {
-    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    const parsed: unknown = JSON.parse(text);
     if (!parsed || typeof parsed !== 'object') return null;
     const rec = parsed as Record<string, unknown>;
     if (typeof rec.schemaVersion !== 'number' || typeof rec.pythonVersion !== 'string') {
@@ -274,7 +340,7 @@ export function readPyvenvHome(root: string): string | null {
   return readPyvenvValue(root, 'home');
 }
 
-/** Requirements SHA the Python provider writes to ``.clara-requirements-hash`` ('' when unknown). */
+/** Requirements SHA the Python provider writes to the requirements-hash marker ('' when unknown). */
 export function expectedRequirementsHash(): string {
   if (getBundledPythonExecutable()) {
     const manifest = readBundledRuntimeManifest();
@@ -297,12 +363,8 @@ export function isolatedVenvStaleReason(root: string): string | null {
   if (readPyvenvValue(root, 'include-system-site-packages')?.toLowerCase() !== 'false') return null;
   const expected = expectedRequirementsHash();
   if (!expected) return null;
-  let stored = '';
-  try {
-    stored = readFileSync(path.join(root, '.clara-requirements-hash'), 'utf8').trim();
-  } catch {
-    /* no marker: treat as stale */
-  }
+  // No marker: treat as stale. The old marker name counts until the provider rewrites it.
+  const stored = (readFirstFile(root, [REQUIREMENTS_HASH_FILE, LEGACY_REQUIREMENTS_HASH_FILE]) ?? '').trim();
   return stored === expected ? null : 'packages out of date with requirements.txt';
 }
 
@@ -314,6 +376,14 @@ function normalizeInterpreterHome(p: string): string {
   const resolved = stripTrailingSeps(path.resolve(p));
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
+
+/** True when ``p`` is ``dir`` or inside it (case-insensitive on Windows). */
+function isPathUnder(p: string, dir: string): boolean {
+  const child = normalizeInterpreterHome(p);
+  const parent = normalizeInterpreterHome(dir);
+  return child === parent || child.startsWith(parent + path.sep);
+}
+
 
 /** True when ``pyvenv.cfg`` ``home`` is the directory that contains ``bundledExe``. */
 export function venvBelongsToBundledRuntime(venvRoot: string, bundledExe: string): boolean {

@@ -47,7 +47,7 @@ export function createUpdaterWindow(): void {
     maximizable: true,
     show: false,
     backgroundColor: '#0a0a0a',
-    title: 'Clara Coder — Updates',
+    title: 'ValkAde — Updates',
     ...(icon ? { icon } : {}),
     webPreferences: secureWebPreferences(preloadPath()),
   });

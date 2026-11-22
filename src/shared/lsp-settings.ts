@@ -92,12 +92,12 @@ export interface JavaRuntime {
   path: string;
 }
 
-/** Eclipse JDT LS. Defaults keep what Clara ran before these settings existed, except signature help, which is on. */
+/** Eclipse JDT LS. Defaults keep what ValkAde ran before these settings existed, except signature help, which is on. */
 export interface JavaLspSettings {
   /** JDK that runs JDT LS; empty looks at ``JAVA_HOME``, then ``java`` on ``PATH``. */
   jdkHome: string;
   maxHeap: JavaMaxHeapSize;
-  /** The first is the default for folders with no build file. A folder's ``.clara/java.json`` wins over these. */
+  /** The first is the default for folders with no build file. A folder's ``.valkade/java.json`` wins over these. */
   runtimes: JavaRuntime[];
   importMaven: boolean;
   importGradle: boolean;
@@ -450,7 +450,7 @@ export interface LspServerCatalogEntry {
   /** The language server behind it. */
   server: string;
   languages: string;
-  /** The Dependencies entry that installs it; null when it ships with Clara. */
+  /** The Dependencies entry that installs it; null when it ships with ValkAde. */
   dependencyId: DependencyId | null;
 }
 

@@ -81,7 +81,7 @@ function parseLocation(raw: unknown): ClaraJavaShowLocation | null {
 
 /**
  * JDT code lenses send ``java.show.references`` / ``java.show.implementations``.
- * Clara rewrites arguments to ``[origin, locations]`` (workspace-relative).
+ * ValkAde rewrites arguments to ``[origin, locations]`` (workspace-relative).
  */
 export function parseJavaShowLocationsCommandArgs(args: readonly unknown[]): ParsedJavaShowLocationsArgs {
   if (args.length >= 2 && Array.isArray(args[1])) {

@@ -33,7 +33,7 @@ import { getRecentWorkspaces } from './recent-workspaces';
 
 describe('validateExternalUrl', () => {
   it.each([
-    'https://github.com/dpere122/ClaraCoder',
+    'https://github.com/valkade/valkade',
     'https://github.com/',
     'https://docs.claraverse.ai/',
     'http://github.com/',

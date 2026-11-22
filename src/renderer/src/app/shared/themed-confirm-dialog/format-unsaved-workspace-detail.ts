@@ -71,8 +71,8 @@ export function closeAppWithRunningAgentsPrompt(count: number): ThemedConfirmOpe
     title: 'Agent still running',
     message:
       count > 1
-        ? `${count} agents are still working. Close Clara Coder and stop them?`
-        : 'An agent is still working. Close Clara Coder and stop it?',
+        ? `${count} agents are still working. Close ValkAde and stop them?`
+        : 'An agent is still working. Close ValkAde and stop it?',
     cancelText: 'Keep open',
     confirmText: 'Close and stop',
     variant: 'warning',

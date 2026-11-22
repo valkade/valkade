@@ -1,22 +1,25 @@
 import { promises as fs } from 'fs';
 import path = require('path');
 import {
-  LEGACY_WORKSPACE_META_DIR,
+  LEGACY_WORKSPACE_META_DIRS,
   WORKSPACE_BUILD_PLANS_DIR,
   WORKSPACE_BUILD_PLANS_REL_DIR,
   WORKSPACE_META_DIR,
 } from '../../shared';
 
-const LEGACY_BUILD_PLANS_PREFIX = `${LEGACY_WORKSPACE_META_DIR}/${WORKSPACE_BUILD_PLANS_DIR}/`;
+const LEGACY_BUILD_PLANS_REL_DIRS = LEGACY_WORKSPACE_META_DIRS.map((dir) => `${dir}/${WORKSPACE_BUILD_PLANS_DIR}`);
 const BUILD_PLANS_PREFIX = `${WORKSPACE_BUILD_PLANS_REL_DIR}/`;
 
+/** Map `.clara/build-plans/…` and `.nemo/build-plans/…` onto `.valkade/build-plans/…`. */
 export function rewriteLegacyBuildPlanRelativePath(relativePath: string): string {
   const n = (relativePath || '').replace(/\\/g, '/');
-  if (n.startsWith(LEGACY_BUILD_PLANS_PREFIX)) {
-    return BUILD_PLANS_PREFIX + n.slice(LEGACY_BUILD_PLANS_PREFIX.length);
-  }
-  if (n === `${LEGACY_WORKSPACE_META_DIR}/${WORKSPACE_BUILD_PLANS_DIR}`) {
-    return WORKSPACE_BUILD_PLANS_REL_DIR;
+  for (const legacyDir of LEGACY_BUILD_PLANS_REL_DIRS) {
+    if (n.startsWith(`${legacyDir}/`)) {
+      return BUILD_PLANS_PREFIX + n.slice(legacyDir.length + 1);
+    }
+    if (n === legacyDir) {
+      return WORKSPACE_BUILD_PLANS_REL_DIR;
+    }
   }
   return n;
 }
@@ -140,19 +143,7 @@ async function mergeLegacyBuildPlanIndex(legacyRoot: string, currentRoot: string
   await fs.writeFile(currentIndex, `${JSON.stringify(merged, null, 2)}\n`, 'utf8');
 }
 
-/**
- * Rename `{root}/.nemo` → `{root}/.clara` when the target does not exist,
- * then rewrite `build-plans/index.json` relativePath values.
- * If both folders exist, copy missing files into `.clara` (no overwrite),
- * merge `build-plans/index.json` (prefer `.clara` on id collision), and leave `.nemo`.
- */
-export async function migrateLegacyWorkspaceMetaDir(workspaceRoot: string): Promise<void> {
-  const root = (workspaceRoot || '').trim();
-  if (!root) {
-    return;
-  }
-  const legacy = path.join(root, LEGACY_WORKSPACE_META_DIR);
-  const current = path.join(root, WORKSPACE_META_DIR);
+async function migrateOneLegacyMetaDir(legacy: string, current: string): Promise<void> {
   try {
     const legacyStat = await fs.stat(legacy);
     if (legacyStat.isDirectory()) {
@@ -176,8 +167,26 @@ export async function migrateLegacyWorkspaceMetaDir(workspaceRoot: string): Prom
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
     if (code !== 'ENOENT') {
-      console.warn('[workspace-meta] Failed to migrate legacy metadata dir:', err);
+      console.warn(`[workspace-meta] Failed to migrate legacy metadata dir ${legacy}:`, err);
     }
+  }
+}
+
+/**
+ * Bring each legacy dir (`.clara`, then `.nemo`) into `{root}/.valkade`, then rewrite
+ * `build-plans/index.json` relativePath values.
+ * A legacy dir is renamed when `.valkade` does not exist yet. Otherwise its missing files are
+ * copied in (no overwrite), `build-plans/index.json` is merged (the current entry wins on an
+ * id collision), and the legacy dir is left in place.
+ */
+export async function migrateLegacyWorkspaceMetaDir(workspaceRoot: string): Promise<void> {
+  const root = (workspaceRoot || '').trim();
+  if (!root) {
+    return;
+  }
+  const current = path.join(root, WORKSPACE_META_DIR);
+  for (const legacyName of LEGACY_WORKSPACE_META_DIRS) {
+    await migrateOneLegacyMetaDir(path.join(root, legacyName), current);
   }
   try {
     await rewriteBuildPlanIndexFile(path.join(current, WORKSPACE_BUILD_PLANS_DIR, 'index.json'));

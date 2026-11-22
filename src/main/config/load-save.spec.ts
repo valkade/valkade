@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, promises as fs, readdirSync, rmSync, readFileSync, writeFileSync, existsSync, utimesSync } from 'fs';
+import { mkdirSync, mkdtempSync, promises as fs, readdirSync, rmSync, readFileSync, writeFileSync, existsSync, utimesSync } from 'fs';
 import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { tmpdir } from 'os';
@@ -20,7 +20,17 @@ vi.mock('../paths', () => ({
   getConfigPath: () => join(process.env.CLARA_TEST_CONFIG_DIR ?? '', 'config.json'),
 }));
 
-import { loadConfig, loadConfigSync, loadTutorialProgress, mergeSettingsConfigSave, migrateConfig, saveConfig, updateConfig, updateTutorialProgress } from './load-save';
+import {
+  loadConfig,
+  loadConfigSync,
+  loadTutorialProgress,
+  mergeSettingsConfigSave,
+  migrateConfig,
+  rewriteLegacyAppDataPaths,
+  saveConfig,
+  updateConfig,
+  updateTutorialProgress,
+} from './load-save';
 import { applyTutorialTransition, isTutorialPhaseResolved, normalizeTutorialProgress, TUTORIAL_PHASE_REGISTRY } from '../../shared/types/tutorial';
 
 function sampleConfig(overrides: Partial<AppConfig> = {}): AppConfig {
@@ -939,13 +949,13 @@ describe('migrateConfig Claude pin', () => {
 
 describe('durable tutorial progress', () => {
   it('migrates an older config without changing its workspace or unrelated settings', () => {
-    const raw = sampleConfig({ themeId: 'clara-light', chatFontSizeRem: 1.25 });
+    const raw = sampleConfig({ themeId: 'valkade-light', chatFontSizeRem: 1.25 });
     delete raw.tutorial;
     const migrated = migrateConfig(raw);
     expect(migrated.tutorial).toEqual({ revision: 0, phases: {}, active: null });
     expect(migrated.workspaces).toEqual(raw.workspaces);
     expect(migrated.currentWorkspaceId).toBe('ws-a');
-    expect(migrated.themeId).toBe('clara-light');
+    expect(migrated.themeId).toBe('valkade-light');
     expect(migrated.chatFontSizeRem).toBe(1.25);
     expect(createDefaultConfig().tutorial).not.toBe(createDefaultConfig().tutorial);
   });
@@ -1345,5 +1355,95 @@ describe('durable tutorial progress', () => {
       delete process.env.CLARA_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('rewriteLegacyAppDataPaths', () => {
+  const root = join(tmpdir(), 'valkade-rewrite-root');
+  const oldDir = join(root, 'clara-coder');
+  const newDir = join(root, 'valkade');
+  const legacyDirs = [oldDir, join(root, 'nemo-wrapper'), join(root, 'Clara Coder')];
+  const nothingExists = () => false;
+
+  it('rewrites a whole path under the old dir when it no longer exists', () => {
+    const value = { a: join(oldDir, 'runtime', 'java-lsp'), b: [join(oldDir, 'models')], c: oldDir };
+    expect(rewriteLegacyAppDataPaths(value, newDir, legacyDirs, nothingExists)).toEqual({
+      a: join(newDir, 'runtime', 'java-lsp'),
+      b: [join(newDir, 'models')],
+      c: newDir,
+    });
+  });
+
+  it('keeps a whole path that still exists (copy-fallback migration left the old dir)', () => {
+    const value = { a: join(oldDir, 'models') };
+    expect(rewriteLegacyAppDataPaths(value, newDir, legacyDirs, () => true)).toBe(value);
+  });
+
+  it('rewrites a path embedded in a command only when the old dir is gone', () => {
+    const command = `"${join(oldDir, 'runtime', 'bin', 'llama-server')}" --port {{PORT}}`;
+    const expected = `"${join(newDir, 'runtime', 'bin', 'llama-server')}" --port {{PORT}}`;
+    expect(rewriteLegacyAppDataPaths(command, newDir, legacyDirs, nothingExists)).toBe(expected);
+    expect(rewriteLegacyAppDataPaths(command, newDir, legacyDirs, (p) => p === oldDir)).toBe(command);
+  });
+
+  it('leaves unrelated paths, look-alike siblings and SecretValue wrappers alone', () => {
+    const secret = SecretValue.of(join(oldDir, 'not-a-path'));
+    const value = {
+      other: join(root, 'clara-coder-dev', 'x'),
+      prefix: join(root, 'clara-coderish'),
+      home: '/home/me/project',
+      n: 3,
+      secret,
+    };
+    const out = rewriteLegacyAppDataPaths(value, newDir, legacyDirs, nothingExists);
+    expect(out).toBe(value);
+    expect(out.secret).toBe(secret);
+  });
+
+  it('returns the same object when nothing changes and copies only changed branches', () => {
+    const untouched = { x: 'y' };
+    const value = { untouched, changed: { p: join(root, 'nemo-wrapper', 'runtime') } };
+    const out = rewriteLegacyAppDataPaths(value, newDir, legacyDirs, nothingExists);
+    expect(out).not.toBe(value);
+    expect(out.untouched).toBe(untouched);
+    expect(out.changed.p).toBe(join(newDir, 'runtime'));
+    expect(value.changed.p).toBe(join(root, 'nemo-wrapper', 'runtime'));
+  });
+});
+
+describe('migrateConfig legacy app-data paths', () => {
+  let root: string;
+  const prevDir = process.env.CLARA_TEST_CONFIG_DIR;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'valkade-migrate-paths-'));
+  });
+
+  afterEach(() => {
+    if (prevDir === undefined) delete process.env.CLARA_TEST_CONFIG_DIR;
+    else process.env.CLARA_TEST_CONFIG_DIR = prevDir;
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('points a models dir set inside the old clara-coder dir at the new valkade dir', () => {
+    const newDir = join(root, 'valkade');
+    mkdirSync(newDir, { recursive: true });
+    process.env.CLARA_TEST_CONFIG_DIR = newDir;
+    const cfg = sampleConfig();
+    cfg.modelManager = { ...cfg.modelManager, customModelsDir: join(root, 'clara-coder', 'models') };
+    const migrated = migrateConfig(cfg);
+    expect(migrated.modelManager.customModelsDir).toBe(join(newDir, 'models'));
+    // Idempotent: the rewritten path no longer matches.
+    expect(migrateConfig(migrated).modelManager.customModelsDir).toBe(join(newDir, 'models'));
+  });
+
+  it('does not rewrite when the config lives outside a valkade dir (dev builds)', () => {
+    const devDir = join(root, 'valkade-dev');
+    mkdirSync(devDir, { recursive: true });
+    process.env.CLARA_TEST_CONFIG_DIR = devDir;
+    const cfg = sampleConfig();
+    const legacyModels = join(root, 'clara-coder', 'models');
+    cfg.modelManager = { ...cfg.modelManager, customModelsDir: legacyModels };
+    expect(migrateConfig(cfg).modelManager.customModelsDir).toBe(legacyModels);
   });
 });

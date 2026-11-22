@@ -1,4 +1,4 @@
-"""Tests for :mod:`clara_coder_backend.workspace_index.embeddings_factory`."""
+"""Tests for :mod:`valkade_backend.workspace_index.embeddings_factory`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeConnection
+from valkade_backend.domain import RuntimeConnection
 
 
 def _llamacpp_conn(**kwargs: object) -> RuntimeConnection:
@@ -69,7 +69,7 @@ def _openai_conn(**kwargs: object) -> RuntimeConnection:
 
 
 def test_build_embedding_model_uses_cpu_nomic_for_llamacpp(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     mock_cpu = MagicMock()
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', True)
@@ -81,7 +81,7 @@ def test_build_embedding_model_uses_cpu_nomic_for_llamacpp(monkeypatch) -> None:
 
 
 def test_build_embedding_model_uses_cpu_nomic_for_lmstudio(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     mock_cpu = MagicMock()
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', True)
@@ -93,7 +93,7 @@ def test_build_embedding_model_uses_cpu_nomic_for_lmstudio(monkeypatch) -> None:
 
 
 def test_build_embedding_model_uses_cpu_nomic_for_openai(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     mock_cpu = MagicMock()
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', True)
@@ -105,7 +105,7 @@ def test_build_embedding_model_uses_cpu_nomic_for_openai(monkeypatch) -> None:
 
 
 def test_build_embedding_model_skips_when_chat_server_not_running(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     called: list[object] = []
 
@@ -124,7 +124,7 @@ def test_build_embedding_model_skips_when_chat_server_not_running(monkeypatch) -
 
 
 def test_build_embedding_model_skips_when_no_chat_model(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     called: list[object] = []
 
@@ -141,7 +141,7 @@ def test_build_embedding_model_skips_when_no_chat_model(monkeypatch) -> None:
 
 
 def test_build_embedding_model_skips_when_cpu_disabled(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     called: list[object] = []
 
@@ -158,7 +158,7 @@ def test_build_embedding_model_skips_when_cpu_disabled(monkeypatch) -> None:
 
 
 def test_build_embedding_model_skips_unsupported_provider(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     called: list[object] = []
 
@@ -177,15 +177,15 @@ def test_build_embedding_model_skips_unsupported_provider(monkeypatch) -> None:
 
 
 def test_resolve_embedding_model_id_always_returns_fastembed_default() -> None:
-    from clara_coder_backend.workspace_index.embeddings_factory import resolve_embedding_model_id
-    from clara_coder_backend.workspace_index.fastembed_backend import DEFAULT_FASTEMBED_MODEL
+    from valkade_backend.workspace_index.embeddings_factory import resolve_embedding_model_id
+    from valkade_backend.workspace_index.fastembed_backend import DEFAULT_FASTEMBED_MODEL
 
     conn = _llamacpp_conn(embeddings_model='custom-emb-id')
     assert resolve_embedding_model_id(conn) == DEFAULT_FASTEMBED_MODEL
 
 
 def test_embeddings_available_true_when_chat_connected(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', True)
     ok, reason = ef.embeddings_available(_llamacpp_conn())
@@ -194,7 +194,7 @@ def test_embeddings_available_true_when_chat_connected(monkeypatch: pytest.Monke
 
 
 def test_embeddings_available_false_when_chat_not_connected(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', True)
     ok, reason = ef.embeddings_available(_llamacpp_conn(model=''))
@@ -203,7 +203,7 @@ def test_embeddings_available_false_when_chat_not_connected(monkeypatch: pytest.
 
 
 def test_embeddings_available_false_when_cpu_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     monkeypatch.setattr(ef, 'CLARA_EMBEDDINGS_CPU_ENABLED', False)
     ok, reason = ef.embeddings_available(_llamacpp_conn())
@@ -212,7 +212,7 @@ def test_embeddings_available_false_when_cpu_disabled(monkeypatch: pytest.Monkey
 
 
 def test_preload_embedding_model_triggers_background_load(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     loaded: list[str] = []
     event = threading.Event()
@@ -234,7 +234,7 @@ def test_preload_embedding_model_triggers_background_load(monkeypatch) -> None:
 
 
 def test_preload_embedding_model_skips_when_chat_not_connected(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     loaded: list[str] = []
 
@@ -251,7 +251,7 @@ def test_preload_embedding_model_skips_when_chat_not_connected(monkeypatch) -> N
 
 
 def test_preload_embedding_model_retries_after_failure(monkeypatch) -> None:
-    from clara_coder_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import embeddings_factory as ef
 
     calls: list[str] = []
     fail_done = threading.Event()

@@ -30,17 +30,18 @@ import { loadConfigSync } from '../config/load-save';
 import { unwrapSecret } from '../../shared';
 import { killProcessTree } from '../utils/kill-process-tree';
 import { screenshotBrokerEnvironment, startScreenshotBroker } from '../web/screenshot-browser';
+import { envValkade, legacyEnvKeys } from '../env-valkade';
 
 let reportedMissingBundledRuntime = false;
 
 function reportMissingBundledRuntime(): void {
   if (reportedMissingBundledRuntime) return;
   reportedMissingBundledRuntime = true;
-  const msg = `Clara Coder installation is incomplete: the bundled Python runtime was not found at ${getBundledRuntimeDir()}. Please reinstall Clara Coder.`;
+  const msg = `ValkAde installation is incomplete: the bundled Python runtime was not found at ${getBundledRuntimeDir()}. Please reinstall ValkAde.`;
   console.error(msg);
   void ingestElectronLog('ERROR', 'clara.electron.python', msg, 'electron');
   const show = (): void => {
-    dialog.showErrorBox('Clara Coder installation is incomplete', msg);
+    dialog.showErrorBox('ValkAde installation is incomplete', msg);
   };
   if (app.isReady()) {
     show();
@@ -129,7 +130,7 @@ export async function ensurePythonReady(
   const probe = await probePythonListener();
   if (probe === 'foreign') {
     throw new Error(
-      `Foreign process already listening on PYTHON_PORT (${PYTHON_PORT}); refusing to treat it as the Clara sidecar.`,
+      `Foreign process already listening on PYTHON_PORT (${PYTHON_PORT}); refusing to treat it as the ValkAde sidecar.`,
     );
   }
   if (!pythonReadyWait) {
@@ -152,7 +153,7 @@ export async function ensurePythonServer(): Promise<void> {
   }
   if (probe === 'foreign') {
     throw new Error(
-      `Foreign process already listening on PYTHON_PORT (${PYTHON_PORT}); refusing to reuse it as the Clara sidecar.`,
+      `Foreign process already listening on PYTHON_PORT (${PYTHON_PORT}); refusing to reuse it as the ValkAde sidecar.`,
     );
   }
   await startScreenshotBroker();
@@ -263,6 +264,29 @@ export function startPythonServer(): ChildProcess {
       delete spawnEnv[key];
     }
   }
+  /** Sidecar wiring, set only as ``VALKADE_*``; Python reads it through ``env_valkade``. */
+  const sidecarWiring: Record<string, string> = {
+    SIDECAR_TOKEN: sidecarToken,
+    ...screenshotBrokerEnvironment(),
+    PYTHON_PORT: String(PYTHON_PORT),
+    LOG_DIR: logDir,
+    STAGING_DIR: stagingDir,
+    CHECKPOINT_DB: checkpointDb,
+    WORKSPACE_INDEX_DIR: workspaceSemanticIndexDir,
+    JAVA_LSP_CACHE_DIR: javaLspCacheDir,
+    RUNTIME_DIR: runtimeDir,
+    RUNTIME_PYTHON_DIR: getRuntimePythonDir(),
+    RUNTIME_BIN_DIR: getRuntimeBinDir(),
+    CUSTOM_MODELS_DIR: envValkade('CUSTOM_MODELS_DIR') || getDefaultCustomModelsDir(),
+    // Lets the Python sidecar run the vtsls LSP installed from Dependencies via the Electron
+    // binary in Node mode (ELECTRON_RUN_AS_NODE=1) without requiring a system Node install.
+    ELECTRON_EXEC_PATH: process.execPath,
+    RG_PATH: getBundledRipgrep() ?? '',
+  };
+  // An inherited legacy spelling would win the fallback whenever our value is empty (RG_PATH, SCREENSHOT_URL).
+  for (const suffix of Object.keys(sidecarWiring)) {
+    for (const key of legacyEnvKeys(suffix)) delete spawnEnv[key];
+  }
   const child = spawn(pythonCmd, ['-u', scriptPath], {
     stdio: ['ignore', 'pipe', 'pipe'],
     /** POSIX: new session so ``kill(-pid)`` tears down LSP / run_command children. */
@@ -277,22 +301,7 @@ export function startPythonServer(): ChildProcess {
       OPENBLAS_NUM_THREADS: '1',
       ...spawnEnv,
       PYTHONUNBUFFERED: '1',
-      CLARA_SIDECAR_TOKEN: sidecarToken,
-      ...screenshotBrokerEnvironment(),
-      CLARA_PYTHON_PORT: String(PYTHON_PORT),
-      CLARA_LOG_DIR: logDir,
-      CLARA_STAGING_DIR: stagingDir,
-      CLARA_CHECKPOINT_DB: checkpointDb,
-      CLARA_WORKSPACE_INDEX_DIR: workspaceSemanticIndexDir,
-      CLARA_JAVA_LSP_CACHE_DIR: javaLspCacheDir,
-      CLARA_RUNTIME_DIR: runtimeDir,
-      CLARA_RUNTIME_PYTHON_DIR: getRuntimePythonDir(),
-      CLARA_RUNTIME_BIN_DIR: getRuntimeBinDir(),
-      CLARA_CUSTOM_MODELS_DIR: process.env.CLARA_CUSTOM_MODELS_DIR || getDefaultCustomModelsDir(),
-      // Lets the Python sidecar run the vtsls LSP installed from Dependencies via the Electron
-      // binary in Node mode (ELECTRON_RUN_AS_NODE=1) without requiring a system Node install.
-      CLARA_ELECTRON_EXEC_PATH: process.execPath,
-      CLARA_RG_PATH: getBundledRipgrep() ?? '',
+      ...Object.fromEntries(Object.entries(sidecarWiring).map(([suffix, value]) => [`VALKADE_${suffix}`, value])),
       ...(hfToken ? { HF_TOKEN: hfToken, HUGGING_FACE_HUB_TOKEN: hfToken } : {}),
       ...pythonIsolationEnv(),
     },
@@ -338,7 +347,7 @@ export function startPythonServer(): ChildProcess {
 /**
  * Stop the Python sidecar and every descendant (LSP, background ``run_command``,
  * FastEmbed/ONNX workers). ``ChildProcess.kill()`` alone leaves those on Windows
- * and POSIX, which is why RAM stays high after closing Clara Coder.
+ * and POSIX, which is why RAM stays high after closing ValkAde.
  */
 export function stopPythonSidecar(): void {
   const proc = mainState.pythonProcess;

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clara_coder_backend.lsp.editor_monaco import (
+from valkade_backend.lsp.editor_monaco import (
     serialize_code_lenses_payload,
     serialize_completion_result,
     serialize_locations_payload,

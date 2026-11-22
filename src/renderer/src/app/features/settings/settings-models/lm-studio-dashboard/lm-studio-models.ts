@@ -68,7 +68,7 @@ export function lmStudioThinkingPatch(value: string): { thinkingMode: 'on' | 'of
   return { thinkingMode: 'on', reasoningEffort: (value === 'on' ? '' : value) as LlmReasoningEffort };
 }
 
-/** The Clara profile written for this model's architecture, if there is one. */
+/** The ValkAde profile written for this model's architecture, if there is one. */
 export function lmStudioSuggestedProfile(card: Pick<LmStudioModelCard, 'arch'> | null): LlmOptimizationPreset | null {
   const arch = (card?.arch ?? '').toLowerCase();
   if (arch.startsWith('qwen')) {

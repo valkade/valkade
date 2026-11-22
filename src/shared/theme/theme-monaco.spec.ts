@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLARA_DARK_THEME, CLARA_LIGHT_THEME } from './builtin';
+import { VALKADE_DARK_THEME, VALKADE_LIGHT_THEME } from './builtin';
 import { cssColorToHex, deriveMonacoTheme, hexWithAlpha, resolveThemeTokenColor } from './theme-monaco';
 
 describe('cssColorToHex', () => {
@@ -46,7 +46,7 @@ describe('resolveThemeTokenColor', () => {
 
 describe('deriveMonacoTheme', () => {
   it('derives a full palette from the dark built-in', () => {
-    const def = deriveMonacoTheme(CLARA_DARK_THEME);
+    const def = deriveMonacoTheme(VALKADE_DARK_THEME);
     expect(def.base).toBe('vs-dark');
     expect(def.colors['editor.background']).toBe('#101013');
     expect(def.colors['editor.foreground']).toBe('#e4e4e7');
@@ -55,7 +55,7 @@ describe('deriveMonacoTheme', () => {
   });
 
   it('uses vs for light themes and honours transparentBackground', () => {
-    const def = deriveMonacoTheme(CLARA_LIGHT_THEME, { transparentBackground: true });
+    const def = deriveMonacoTheme(VALKADE_LIGHT_THEME, { transparentBackground: true });
     expect(def.base).toBe('vs');
     expect(def.colors['editor.background']).toBe('#00000000');
     expect(def.colors['editor.foreground']).toBe('#173b31');
@@ -63,8 +63,8 @@ describe('deriveMonacoTheme', () => {
 
   it('lets editor.monaco group tokens override global tokens for the editor palette', () => {
     const def = deriveMonacoTheme({
-      ...CLARA_DARK_THEME,
-      tokens: { ...CLARA_DARK_THEME.tokens, '--t-code-bg': '#111111' },
+      ...VALKADE_DARK_THEME,
+      tokens: { ...VALKADE_DARK_THEME.tokens, '--t-code-bg': '#111111' },
       groups: { 'editor.monaco': { tokens: { '--t-code-bg': '#222222', '--t-primary': 'var(--t-code-text)' } } },
     });
     expect(def.colors['editor.background']).toBe('#222222');
@@ -74,7 +74,7 @@ describe('deriveMonacoTheme', () => {
 
   it('prefers an explicit monaco block', () => {
     const def = deriveMonacoTheme({
-      ...CLARA_DARK_THEME,
+      ...VALKADE_DARK_THEME,
       monaco: { base: 'hc-black', colors: { 'editor.background': '#000000' }, rules: [{ token: 'keyword', foreground: 'ff00ff' }] },
     });
     expect(def.base).toBe('hc-black');

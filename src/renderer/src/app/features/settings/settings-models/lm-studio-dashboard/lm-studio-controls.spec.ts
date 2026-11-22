@@ -131,7 +131,7 @@ describe('the LM Studio controls', () => {
     expect(setup({ preset: 'gemma' }).host.querySelector('.lms-suggest')).toBeNull();
   });
 
-  it('has no context field for Clara to contradict the server with', () => {
+  it('has no context field for ValkAde to contradict the server with', () => {
     const { host } = setup();
     expect(host.querySelector('input[max="10000000"]')).toBeNull();
   });

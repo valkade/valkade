@@ -4,7 +4,7 @@ import { mainState } from '../../state';
 import { updateConfig } from '../../config/load-save';
 import { assertTrustedAppRenderer } from '../assert-trusted-renderer';
 import { DEFAULT_THEME_ID, isBuiltInThemeId } from '../../../shared/theme/builtin';
-import { validateThemeDocument, type ClaraThemeDocument, type ThemeMode } from '../../../shared/theme/theme-document';
+import { validateThemeDocument, type ValkAdeThemeDocument, type ThemeMode } from '../../../shared/theme/theme-document';
 import { THEME_IPC } from '../../../shared/theme/theme-ipc';
 import type { ThemeAssetPickResult, ThemeExportResult, ThemeImportResult, ThemeMutationResult, ThemeSaveResult } from '../../../shared/theme/theme-ipc';
 import {
@@ -25,7 +25,7 @@ import { dialogFolderOption, rememberDialogFolder } from '../../utils/dialog-fol
 export { broadcastThemePreview } from './theme-broadcast';
 
 /** Push the full library to every window (after any mutation). */
-export async function broadcastThemeLibrary(): Promise<ClaraThemeDocument[]> {
+export async function broadcastThemeLibrary(): Promise<ValkAdeThemeDocument[]> {
   const themes = await listAllThemes();
   broadcast(THEME_IPC.libraryUpdated, themes);
   return themes;
@@ -41,7 +41,7 @@ function errorMessage(err: unknown): string {
 
 /** Theme library CRUD, import/export, asset picking, and live preview. */
 export function registerThemesIpc(): void {
-  ipcMain.handle(THEME_IPC.list, async (event): Promise<ClaraThemeDocument[]> => {
+  ipcMain.handle(THEME_IPC.list, async (event): Promise<ValkAdeThemeDocument[]> => {
     try {
       assertTrustedAppRenderer(event);
     } catch {
@@ -150,7 +150,7 @@ export function registerThemesIpc(): void {
           title: 'Import theme',
           properties: ['openFile'],
           filters: [
-            { name: 'Clara theme', extensions: ['json'] },
+            { name: 'ValkAde theme', extensions: ['json'] },
             { name: 'All files', extensions: ['*'] },
           ],
           ...dialogFolderOption(),
@@ -190,7 +190,7 @@ export function registerThemesIpc(): void {
       const options = {
         title: 'Export theme',
         defaultPath: bundle.fileName,
-        filters: [{ name: 'Clara theme', extensions: ['json'] }],
+        filters: [{ name: 'ValkAde theme', extensions: ['json'] }],
         properties: ['createDirectory', 'showOverwriteConfirmation'] as Array<'createDirectory' | 'showOverwriteConfirmation'>,
       };
       const picked = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);

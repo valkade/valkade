@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps.providers import gpu_detect, llama_server as ls
+from valkade_backend.runtime.deps.providers import gpu_detect, llama_server as ls
 
 
 # --------------------------------------------------------------------------- #

@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.python_bootstrap import bootstrap_session_python_dependencies
-from clara_coder_backend.runtime.python_env import workspace_python_executable
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.runtime.python_bootstrap import bootstrap_session_python_dependencies
+from valkade_backend.runtime.python_env import workspace_python_executable
+from valkade_backend.session.state import current_session_id, get_session
 
 
 class _FakeProc:

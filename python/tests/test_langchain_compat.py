@@ -1,4 +1,4 @@
-"""Tests for :mod:`clara_coder_backend.llm.langchain_compat` OpenAI reasoning patches."""
+"""Tests for :mod:`valkade_backend.llm.langchain_compat` OpenAI reasoning patches."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_openai import ChatOpenAI
 
-from clara_coder_backend.llm.langchain_compat import output_was_truncated  # also installs patches on import
+from valkade_backend.llm.langchain_compat import output_was_truncated  # also installs patches on import
 from langchain_openai.chat_models import base as lc_openai_base
 
 

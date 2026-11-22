@@ -47,7 +47,7 @@ export function createDependenciesWindow(): void {
     maximizable: true,
     show: false,
     backgroundColor: '#0a0a0a',
-    title: 'Clara Coder — Dependencies',
+    title: 'ValkAde — Dependencies',
     ...(icon ? { icon } : {}),
     webPreferences: secureWebPreferences(preloadPath()),
   });

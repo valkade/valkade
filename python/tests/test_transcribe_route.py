@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from starlette.testclient import TestClient
 
-from clara_coder_backend.session import state
+from valkade_backend.session import state
 
 _WAV = b'RIFF\x00\x00fake-wav'
 
@@ -18,7 +18,7 @@ def _restore_audio(orig) -> None:
 
 
 def test_transcribe_empty_body_returns_empty_text() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     with TestClient(app) as client:
         res = client.post('/transcribe', content=b'')
@@ -27,7 +27,7 @@ def test_transcribe_empty_body_returns_empty_text() -> None:
 
 
 def test_transcribe_disabled_returns_400() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     orig = deepcopy(state.runtime_config.audio)
     state.runtime_config.audio.provider = 'disabled'
@@ -40,12 +40,12 @@ def test_transcribe_disabled_returns_400() -> None:
 
 
 def test_transcribe_whisper_returns_text() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     orig = deepcopy(state.runtime_config.audio)
     state.runtime_config.audio.provider = 'whisper'
     try:
-        with patch('clara_coder_backend.routes.audio.transcribe_whisper', return_value='hello'):
+        with patch('valkade_backend.routes.audio.transcribe_whisper', return_value='hello'):
             with TestClient(app) as client:
                 res = client.post('/transcribe', content=_WAV)
         assert res.status_code == 200
@@ -55,13 +55,13 @@ def test_transcribe_whisper_returns_text() -> None:
 
 
 def test_transcribe_whisper_missing_dep_returns_503() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     orig = deepcopy(state.runtime_config.audio)
     state.runtime_config.audio.provider = 'whisper'
     try:
         with patch(
-            'clara_coder_backend.routes.audio.transcribe_whisper',
+            'valkade_backend.routes.audio.transcribe_whisper',
             side_effect=RuntimeError('Whisper STT is not installed. Open Dependencies'),
         ):
             with TestClient(app) as client:
@@ -73,13 +73,13 @@ def test_transcribe_whisper_missing_dep_returns_503() -> None:
 
 
 def test_transcribe_whisper_missing_size_returns_503() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     orig = deepcopy(state.runtime_config.audio)
     state.runtime_config.audio.provider = 'whisper'
     try:
         with patch(
-            'clara_coder_backend.routes.audio.transcribe_whisper',
+            'valkade_backend.routes.audio.transcribe_whisper',
             side_effect=RuntimeError(
                 "Whisper model 'medium' is not downloaded. Open Dependencies and download that size."
             ),
@@ -93,7 +93,7 @@ def test_transcribe_whisper_missing_size_returns_503() -> None:
 
 
 def test_transcribe_openai_returns_text() -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     orig = deepcopy(state.runtime_config.audio)
     state.runtime_config.audio.provider = 'openai'
@@ -101,7 +101,7 @@ def test_transcribe_openai_returns_text() -> None:
     fake = MagicMock()
     fake.audio.transcriptions.create.return_value = SimpleNamespace(text='from-openai')
     try:
-        with patch('clara_coder_backend.routes.audio.get_openai_client', return_value=fake):
+        with patch('valkade_backend.routes.audio.get_openai_client', return_value=fake):
             with TestClient(app) as client:
                 res = client.post('/transcribe', content=_WAV)
         assert res.status_code == 200

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from clara_coder_backend.tools.project_review_tools import RollingTextBuffer
+from valkade_backend.tools.project_review_tools import RollingTextBuffer
 
 
 def test_rolling_text_buffer_drops_oldest_past_cap() -> None:

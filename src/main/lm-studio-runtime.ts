@@ -1,6 +1,6 @@
 /**
  * What LM Studio reports about the active model, and loading it before a chat turn. A request for
- * an unloaded model makes LM Studio auto-load it with its own settings, so Clara loads it first
+ * an unloaded model makes LM Studio auto-load it with its own settings, so ValkAde loads it first
  * with the ones from Settings unless the user turned that off.
  */
 import type { AppConfig, ChatTemplateReasoningCaps, LlmConnectionConfig } from '../shared';

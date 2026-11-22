@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lsp.plugins import typescript_plugin as typescript_plugin_mod
-from clara_coder_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin, TypescriptPluginState
-from clara_coder_backend.lsp.typescript_server import TypescriptLspSpawn
+from valkade_backend.domain import SessionState
+from valkade_backend.lsp.plugins import typescript_plugin as typescript_plugin_mod
+from valkade_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin, TypescriptPluginState
+from valkade_backend.lsp.typescript_server import TypescriptLspSpawn
 
 
 @pytest.fixture(autouse=True)

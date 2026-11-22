@@ -1,6 +1,6 @@
 """Tests for partial workspace edit merge."""
 
-from clara_coder_backend.workspace.partial_edit import line_range_edit_tool_feedback, merge_partial_edit
+from valkade_backend.workspace.partial_edit import line_range_edit_tool_feedback, merge_partial_edit
 
 
 def test_full_file() -> None:

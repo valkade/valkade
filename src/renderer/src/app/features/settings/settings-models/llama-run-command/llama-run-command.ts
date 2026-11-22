@@ -91,7 +91,7 @@ const STATUS_LABELS: Readonly<Record<LlamaFlagStatus, string>> = {
   request: 'Per request',
   'no-effect': 'No effect',
   rewritten: 'Changed at start',
-  managed: 'Set by Clara',
+  managed: 'Set by ValkAde',
   invalid: 'Invalid',
   unknown: 'Not recognized',
 };

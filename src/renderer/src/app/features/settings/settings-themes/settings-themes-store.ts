@@ -9,7 +9,7 @@ import {
   scopeThemeCss,
   themeGroupDef,
   validateThemeDocument,
-  type ClaraThemeDocument,
+  type ValkAdeThemeDocument,
   type ThemeGroupBackground,
   type ThemeGroupOverride,
   type ThemeMode,
@@ -54,12 +54,12 @@ export class SettingsThemesStore {
   /** Theme highlighted in the library list (also the pending `AppConfig.themeId`). */
   readonly selectedId = signal<string>(DEFAULT_THEME_ID);
   /** Editable copy of the selected user theme (null for built-ins). */
-  readonly draft = signal<ClaraThemeDocument | null>(null);
+  readonly draft = signal<ValkAdeThemeDocument | null>(null);
   readonly draftDirty = signal(false);
   readonly busy = signal(false);
   readonly status = signal<string>('');
 
-  readonly selectedTheme = computed<ClaraThemeDocument>(() => {
+  readonly selectedTheme = computed<ValkAdeThemeDocument>(() => {
     const draft = this.draft();
     if (draft) {
       return draft;
@@ -137,7 +137,7 @@ export class SettingsThemesStore {
 
   // ── Draft mutations ──
 
-  private mutateDraft(mutator: (doc: ClaraThemeDocument) => void): void {
+  private mutateDraft(mutator: (doc: ValkAdeThemeDocument) => void): void {
     const current = this.draft();
     if (!current) {
       return;
@@ -184,14 +184,14 @@ export class SettingsThemesStore {
     });
   }
 
-  private groupOverride(doc: ClaraThemeDocument, groupId: string): ThemeGroupOverride {
+  private groupOverride(doc: ValkAdeThemeDocument, groupId: string): ThemeGroupOverride {
     if (!doc.groups[groupId]) {
       doc.groups[groupId] = {};
     }
     return doc.groups[groupId]!;
   }
 
-  private pruneGroup(doc: ClaraThemeDocument, groupId: string): void {
+  private pruneGroup(doc: ValkAdeThemeDocument, groupId: string): void {
     const g = doc.groups[groupId];
     if (!g) {
       return;

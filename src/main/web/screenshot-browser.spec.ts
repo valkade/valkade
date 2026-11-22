@@ -108,10 +108,10 @@ describe('private screenshot broker', () => {
   it('rejects unauthenticated and browser-origin requests before running a capture', async () => {
     await startScreenshotBroker();
     const env = screenshotBrokerEnvironment();
-    const denied = await fetch(env.CLARA_SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid) });
+    const denied = await fetch(env.SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid) });
     expect(denied.status).toBe(403);
-    const origin = await fetch(env.CLARA_SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid), headers: {
-      Authorization: `Bearer ${env.CLARA_SCREENSHOT_TOKEN}`, Origin: 'https://example.com',
+    const origin = await fetch(env.SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid), headers: {
+      Authorization: `Bearer ${env.SCREENSHOT_TOKEN}`, Origin: 'https://example.com',
     } });
     expect(origin.status).toBe(403);
     expect(mocks.construct).not.toHaveBeenCalled();
@@ -121,8 +121,8 @@ describe('private screenshot broker', () => {
     await startScreenshotBroker();
     mocks.config.mockReturnValue({ workspaceTools: { allowWebAccess: false } });
     const env = screenshotBrokerEnvironment();
-    const denied = await fetch(env.CLARA_SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid), headers: {
-      Authorization: `Bearer ${env.CLARA_SCREENSHOT_TOKEN}`,
+    const denied = await fetch(env.SCREENSHOT_URL, { method: 'POST', body: JSON.stringify(valid), headers: {
+      Authorization: `Bearer ${env.SCREENSHOT_TOKEN}`,
     } });
     expect(denied.status).toBe(429);
     expect(mocks.construct).not.toHaveBeenCalled();

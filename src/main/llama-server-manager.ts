@@ -292,7 +292,7 @@ function persistManagedLlamaPids(): void {
 }
 
 /**
- * Kill llama-server processes left over from a previous Clara session that did not
+ * Kill llama-server processes left over from a previous ValkAde session that did not
  * run ``will-quit`` (crash, Task Manager kill). Those orphans hold model weights
  * in RAM/VRAM after the UI is gone.
  *
@@ -621,7 +621,7 @@ export function resolveAllowedManagedLlamaServerBinary(
     return {
       ok: false,
       error:
-        'Run command binary must be the managed llama-server under the Clara runtime bin directory.',
+        'Run command binary must be the managed llama-server under the ValkAde runtime bin directory.',
     };
   }
   let realBinDir: string;
@@ -631,14 +631,14 @@ export function resolveAllowedManagedLlamaServerBinary(
     return {
       ok: false,
       error:
-        'Run command binary must be the managed llama-server under the Clara runtime bin directory.',
+        'Run command binary must be the managed llama-server under the ValkAde runtime bin directory.',
     };
   }
   if (path.dirname(realBin) !== realBinDir) {
     return {
       ok: false,
       error:
-        'Run command binary must be the managed llama-server under the Clara runtime bin directory.',
+        'Run command binary must be the managed llama-server under the ValkAde runtime bin directory.',
     };
   }
   const base = path.basename(realBin);
@@ -646,7 +646,7 @@ export function resolveAllowedManagedLlamaServerBinary(
     return {
       ok: false,
       error:
-        'Run command binary must be the managed llama-server under the Clara runtime bin directory.',
+        'Run command binary must be the managed llama-server under the ValkAde runtime bin directory.',
     };
   }
   return { ok: true, bin: realBin };
@@ -683,7 +683,7 @@ export function hfAuthFailureInLogs(logs: string): boolean {
 function hfWarmHintFromLogs(logBuf: StreamBuf, kind: StreamKind): string {
   const t = logTailForStream(logBuf, kind).toLowerCase();
   if (hfAuthFailureInLogs(t)) {
-    return ' Hugging Face rejected the request (often HTTP 401 for gated or private repos). Set a read token in Clara → Settings → Model Manager → Hugging Face token (used when you Start managed servers), or set HF_TOKEN in your user environment.';
+    return ' Hugging Face rejected the request (often HTTP 401 for gated or private repos). Set a read token in ValkAde → Settings → Model Manager → Hugging Face token (used when you Start managed servers), or set HF_TOKEN in your user environment.';
   }
   if (/repository not found|"error":\s*"repository not found"|manifests\//i.test(t)) {
     return ' Hugging Face returned 404 (unknown repo, branch, or manifest/quantization tag in your chat `-hf` command). Fix chat first: the embedding server starts only after chat is healthy, so a bad chat preset used to abort an embed download mid-way.';

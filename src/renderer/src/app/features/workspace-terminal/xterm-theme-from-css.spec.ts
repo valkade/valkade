@@ -70,7 +70,7 @@ describe('buildXterm256PaletteFromCss', () => {
 
   it('recomputes when the theme engine bumps data-theme-revision', () => {
     invalidateTerminalPaletteCache();
-    document.documentElement.setAttribute('data-theme-id', 'clara-dark');
+    document.documentElement.setAttribute('data-theme-id', 'valkade-dark');
     document.documentElement.setAttribute('data-theme-revision', '1');
     const first = buildXterm256PaletteFromCss(fakeRoot({ '--t-log-level-error': '#ff0000' }));
     expect(first[1]).toBe('#ff0000');

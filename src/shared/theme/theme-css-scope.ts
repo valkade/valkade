@@ -26,7 +26,7 @@
  *   hoisted outside the `@scope` block (they are global by nature).
  * - `@import` / `@scope` / unknown at-rules, `expression()`, `behavior:`, `-moz-binding`,
  *   `javascript:`, CSS escapes outside strings, and `url()` / `src()` / `image-set()` values
- *   outside `clara-theme:` / `data:image/` / `data:font/` are removed.
+ *   outside `valkade-theme:` (or legacy `clara-theme:`) / `data:image/` / `data:font/` are removed.
  */
 
 export interface ThemeCssScopeResult {
@@ -52,7 +52,7 @@ const LEADING_ROOT_COMPOUND = /^\s*>?\s*(?::root|:scope|html|body)(?![\w(-])/;
 const DANGEROUS_DECLARATION = /(expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|@import|<\/?\s*style|vbscript\s*:)/i;
 /** Functions whose arguments load a resource. */
 const URL_FUNCTIONS = new Set(['url', 'src', 'image', 'image-set', '-webkit-image-set']);
-const ALLOWED_URL_PREFIXES = ['clara-theme:', 'data:image/', 'data:font/'];
+const ALLOWED_URL_PREFIXES = ['valkade-theme:', 'clara-theme:', 'data:image/', 'data:font/'];
 const IDENT_CHAR = /[A-Za-z0-9_-]/;
 
 export function isAllowedThemeCssUrl(url: string): boolean {

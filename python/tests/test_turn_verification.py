@@ -15,21 +15,21 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from clara_coder_backend.middleware import turn_verification_middleware as tvm
-from clara_coder_backend.middleware.plan_pending_steps_middleware import PlanPendingStepsMiddleware
-from clara_coder_backend.middleware.turn_verification_middleware import VERIFY_PILL_LABEL, TurnVerificationMiddleware
-from clara_coder_backend.plan.build_plan_store import ActionStep, BuildPlanModel, FileChangeEntry, create_build_plan
-from clara_coder_backend.plan.build_plan_tools import mark_build_plan_steps_complete
-from clara_coder_backend.session import state
-from clara_coder_backend.session.file_journal import emit_edit_journal, turn_touched_paths, turn_verify_state
-from clara_coder_backend.session.state import current_session_id, runtime_config
-from clara_coder_backend.tools.copy import copy_workspace_files
-from clara_coder_backend.tools.delete import delete_workspace_entries
-from clara_coder_backend.tools.edit import write_workspace_file
-from clara_coder_backend.tools.run_command import background_command_jobs, run_harness_command
-from clara_coder_backend.verify import evidence
-from clara_coder_backend.verify.checks_config import WorkspaceCheck, WorkspaceChecks
-from clara_coder_backend.verify.evidence import (
+from valkade_backend.middleware import turn_verification_middleware as tvm
+from valkade_backend.middleware.plan_pending_steps_middleware import PlanPendingStepsMiddleware
+from valkade_backend.middleware.turn_verification_middleware import VERIFY_PILL_LABEL, TurnVerificationMiddleware
+from valkade_backend.plan.build_plan_store import ActionStep, BuildPlanModel, FileChangeEntry, create_build_plan
+from valkade_backend.plan.build_plan_tools import mark_build_plan_steps_complete
+from valkade_backend.session import state
+from valkade_backend.session.file_journal import emit_edit_journal, turn_touched_paths, turn_verify_state
+from valkade_backend.session.state import current_session_id, runtime_config
+from valkade_backend.tools.copy import copy_workspace_files
+from valkade_backend.tools.delete import delete_workspace_entries
+from valkade_backend.tools.edit import write_workspace_file
+from valkade_backend.tools.run_command import background_command_jobs, run_harness_command
+from valkade_backend.verify import evidence
+from valkade_backend.verify.checks_config import WorkspaceCheck, WorkspaceChecks
+from valkade_backend.verify.evidence import (
     FEEDBACK_HEADER,
     CheckOutcome,
     DiagnosticsEvidence,
@@ -38,7 +38,7 @@ from clara_coder_backend.verify.evidence import (
     format_feedback,
     gather_evidence,
 )
-from clara_coder_backend.workspace.trust import trusted_workspace_keys
+from valkade_backend.workspace.trust import trusted_workspace_keys
 from test_subagents import (  # noqa: F401 (``checkpoints``, ``parent_session`` and ``use_model`` are fixtures)
     ScriptedChatModel,
     _call,
@@ -67,8 +67,8 @@ def _touch(session, rel: str) -> None:
 
 
 def _write_checks(workspace: Path, checks: list[dict[str, Any]]) -> None:
-    (workspace / '.clara').mkdir(exist_ok=True)
-    (workspace / '.clara' / 'checks.json').write_text(json.dumps({'checks': checks}), encoding='utf-8')
+    (workspace / '.valkade').mkdir(exist_ok=True)
+    (workspace / '.valkade' / 'checks.json').write_text(json.dumps({'checks': checks}), encoding='utf-8')
 
 
 @pytest.fixture(autouse=True)
@@ -320,7 +320,7 @@ async def test_checks_run_only_in_a_trusted_workspace_and_only_when_their_paths_
     ]
     assert result.failed
     assert result.summary().startswith('fails failed (exit code 1) · nowhere failed')
-    assert '.clara/checks.json: check 9' in result.summary()
+    assert '.valkade/checks.json: check 9' in result.summary()
     feedback = format_feedback(result, fix_round=1, max_rounds=2)
     assert feedback.startswith(FEEDBACK_HEADER)
     assert 'Check `fails` failed (exit code 1)' in feedback and '2 tests failed' in feedback
@@ -565,7 +565,7 @@ async def test_an_untrusted_workspace_runs_no_check_and_the_turn_just_ends(
 
 async def test_the_finish_gates_cost_one_graph_step_however_many_there_are(checkpoints, parent_session) -> None:
     """Each after-model node is a step against the turn's step limit on every model call."""
-    from clara_coder_backend.lang_agent.graph import build_clara_single_outer_graph
+    from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
 
     _sid, session = parent_session
     model = ScriptedChatModel(scripts={'parent': []})
@@ -601,35 +601,35 @@ async def test_a_read_only_turn_is_never_verified(checkpoints, parent_session, u
 async def test_file_tools_refuse_the_checks_file(turn) -> None:
     _session, workspace = turn
     _write_checks(workspace, [])
-    checks_file = workspace / '.clara' / 'checks.json'
+    checks_file = workspace / '.valkade' / 'checks.json'
     before = checks_file.read_text(encoding='utf-8')
     (workspace / 'mine.json').write_text('{"checks": [{"command": "evil"}]}', encoding='utf-8')
 
     # Windows drops trailing dots and spaces and opens a file's main stream for ``::$DATA``.
     for path in (
-        '.clara/checks.json',
-        '.CLARA/Checks.JSON',
-        './.clara/../.clara/checks.json',
+        '.valkade/checks.json',
+        '.VALKADE/Checks.JSON',
+        './.valkade/../.valkade/checks.json',
         '.nemo/checks.json',
-        '.clara/checks.json.',
-        '.clara/checks.json ',
-        '.clara./checks.json',
-        '.clara/checks.json::$DATA',
+        '.valkade/checks.json.',
+        '.valkade/checks.json ',
+        '.valkade./checks.json',
+        '.valkade/checks.json::$DATA',
     ):
         out = write_workspace_file.invoke({'relative_path': path, 'content': '{}'})
         assert out.startswith('Tool error:') and 'only the user changes it' in out, path
     copied = copy_workspace_files.invoke(
-        {'copies': [{'source_path': 'mine.json', 'destination_path': '.clara/checks.json'}], 'overwrite': True}
+        {'copies': [{'source_path': 'mine.json', 'destination_path': '.valkade/checks.json'}], 'overwrite': True}
     )
     assert 'only the user changes it' in copied
-    for paths in (['.clara/checks.json'], ['.clara']):
+    for paths in (['.valkade/checks.json'], ['.valkade']):
         deleted = delete_workspace_entries.invoke({'relative_paths': paths, 'recursive': True})
         assert deleted.startswith('Tool error:') and 'only the user changes it' in deleted
 
     assert checks_file.read_text(encoding='utf-8') == before
     assert not (workspace / '.nemo').exists()
     # Other files in the folder stay editable.
-    assert write_workspace_file.invoke({'relative_path': '.clara/notes.md', 'content': 'x\n'}).startswith('Created')
+    assert write_workspace_file.invoke({'relative_path': '.valkade/notes.md', 'content': 'x\n'}).startswith('Created')
 
 
 # ---------------------------------------------------------------------------

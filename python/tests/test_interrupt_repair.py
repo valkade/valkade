@@ -12,7 +12,7 @@ from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, Tool
 from langchain_core.tools import tool
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
-from clara_coder_backend.lang_agent.interrupt_repair import (
+from valkade_backend.lang_agent.interrupt_repair import (
     INTERRUPTED_TOOL_RESULT,
     NOT_APPROVED_TOOL_RESULT,
     repair_interrupted_tool_calls,
@@ -161,7 +161,7 @@ async def test_repair_against_a_real_checkpoint_after_a_cancelled_parallel_step(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'repair.sqlite'))
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session.checkpointing import (
         get_graph_checkpointer,
         init_graph_checkpointing,
         shutdown_graph_checkpointing,

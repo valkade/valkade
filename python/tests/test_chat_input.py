@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pydantic import ValidationError
 
-from clara_coder_backend.session.chat_input import effective_user_message_content, validate_user_turn_not_empty
-from clara_coder_backend.session.schemas import ChatRequest
+from valkade_backend.session.chat_input import effective_user_message_content, validate_user_turn_not_empty
+from valkade_backend.session.schemas import ChatRequest
 
 
 def test_effective_plain_message_only() -> None:
@@ -91,7 +91,7 @@ def test_chat_request_rejects_empty_structured_list_only() -> None:
         ChatRequest(session_id='s', structured_content=[])
 
 
-@patch('clara_coder_backend.routes.session.delete_outer_threads_for_session', new_callable=AsyncMock)
+@patch('valkade_backend.routes.session.delete_outer_threads_for_session', new_callable=AsyncMock)
 def test_load_session_accepts_multimodal_user_content(
     _mock_delete: AsyncMock,
     monkeypatch: pytest.MonkeyPatch,
@@ -100,8 +100,8 @@ def test_load_session_accepts_multimodal_user_content(
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp_chat.sqlite'))
     from starlette.testclient import TestClient
 
-    from clara_coder_backend.session import state
-    from clara_coder_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.main import app
 
     blocks = [{'type': 'text', 'text': 'hi'}, {'type': 'image_url', 'image_url': {'url': 'x'}}]
     with TestClient(app) as client:

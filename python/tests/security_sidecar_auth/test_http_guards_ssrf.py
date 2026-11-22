@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from clara_coder_backend.tools.http_guards import (
+from valkade_backend.tools.http_guards import (
     assert_public_http_url,
     resolve_public_http_url,
 )

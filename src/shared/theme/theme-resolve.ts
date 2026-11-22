@@ -6,7 +6,7 @@
 
 import { builtInThemeForMode } from './builtin';
 import { scopeThemeCss } from './theme-css-scope';
-import type { ClaraThemeDocument, ThemeBackgroundFit, ThemeMode } from './theme-document';
+import type { ValkAdeThemeDocument, ThemeBackgroundFit, ThemeMode } from './theme-document';
 import { THEME_GROUPS } from './theme-registry.generated';
 import type { ThemeGroupDef } from './theme-registry-types';
 
@@ -44,7 +44,7 @@ export interface ResolveThemeOptions {
   groups?: readonly ThemeGroupDef[];
 }
 
-export function resolveThemeDocument(doc: ClaraThemeDocument, options: ResolveThemeOptions = {}): ResolvedTheme {
+export function resolveThemeDocument(doc: ValkAdeThemeDocument, options: ResolveThemeOptions = {}): ResolvedTheme {
   const registry = options.groups ?? THEME_GROUPS;
   const base = builtInThemeForMode(doc.mode);
   const tokens: Record<string, string> = { ...base.tokens, ...doc.tokens };
@@ -87,7 +87,7 @@ export function resolveThemeDocument(doc: ClaraThemeDocument, options: ResolveTh
   return { id: doc.id, name: doc.name, mode: doc.mode, tokens, groups };
 }
 
-/** Maps a background asset to a URL the renderer may load (`clara-theme://…` or a `data:` URL). */
+/** Maps a background asset to a URL the renderer may load (`valkade-theme://…` or a `data:` URL). */
 export type ThemeAssetUrlResolver = (themeId: string, asset: string, assetValue: string) => string | null;
 
 function declarations(tokens: Record<string, string>, indent = '  '): string {

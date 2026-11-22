@@ -12,7 +12,7 @@
         {{ targetDetail() }}
       }
     } @else if (view === 'invitation') {
-      An optional Clara Coder tour is available.
+      An optional ValkAde tour is available.
     } @else if (view === 'handoff' || view === 'recovery') {
       Resume the tour in {{ destinationLabel() }}.
     } @else if (view === 'unsupported') {
@@ -37,7 +37,7 @@
     <section
       class='tutorial-card'
       role='region'
-      [attr.aria-label]='minimized() ? "Minimized Clara tour" : null'
+      [attr.aria-label]='minimized() ? "Minimized ValkAde tour" : null'
       [attr.aria-labelledby]='minimized() ? null : "tutorial-title"'
       [attr.aria-describedby]='minimized() ? null : "tutorial-description"'
       [class.tutorial-card--minimized]='minimized()'
@@ -59,7 +59,7 @@
       @switch (view) {
         @case ('invitation') {
           <p class='tutorial-eyebrow'>A quick tour</p>
-          <h2 id='tutorial-title' tabindex='-1'>Welcome to Clara Coder</h2>
+          <h2 id='tutorial-title' tabindex='-1'>Welcome to ValkAde</h2>
           <p id='tutorial-description'>Take a quick look around and, if you like, see how to run AI on your own computer. Anything you have open stays open, and you can skip any part.</p>
           <div class='tutorial-actions'>
             <button type='button' class='tutorial-button tutorial-button--primary' [disabled]='tour.busy()' (click)='performAction("start")'>Start tour</button>

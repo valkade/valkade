@@ -8,21 +8,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
-from clara_coder_backend.plan.build_plan_store import (
+from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+from valkade_backend.plan.build_plan_store import (
     ActionStep,
     BuildPlanModel,
     FileChangeEntry,
     OpenQuestion,
     render_build_plan_md,
 )
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.plan.plan_confirm import (
+from valkade_backend.domain import SessionState
+from valkade_backend.plan.plan_confirm import (
     execute_pending_plan_confirm_decision,
     plan_confirm_sse_payload,
     stage_plan_confirm_request,
 )
-from clara_coder_backend.plan.plan_execute import (
+from valkade_backend.plan.plan_execute import (
     PLAN_AUTHORING_GUIDELINES,
     PLAN_DRAFTING_OVERRIDE,
     PLAN_EXECUTE_APPLY_MODE,
@@ -37,12 +37,12 @@ from clara_coder_backend.plan.plan_execute import (
     build_planner_context_block,
     stream_plan_execute_langgraph,
 )
-from clara_coder_backend.hitl.deferred_tool_hitl import deferred_tool_hitl_bypass
-from clara_coder_backend.hitl.tool_registry import format_tools_catalog, worker_tools_and_map
-from clara_coder_backend.plan.plan_tools_registry import plan_execute_tools_and_map
-from clara_coder_backend.plan.build_plan_tools import read_build_plan
-from clara_coder_backend.tools.workspace import read_workspace_file
-from clara_coder_backend.session.state import get_session
+from valkade_backend.hitl.deferred_tool_hitl import deferred_tool_hitl_bypass
+from valkade_backend.hitl.tool_registry import format_tools_catalog, worker_tools_and_map
+from valkade_backend.plan.plan_tools_registry import plan_execute_tools_and_map
+from valkade_backend.plan.build_plan_tools import read_build_plan
+from valkade_backend.tools.workspace import read_workspace_file
+from valkade_backend.session.state import get_session
 
 
 async def _collect_lines(generator: Any) -> list[str]:
@@ -100,7 +100,7 @@ def test_build_planner_context_block_includes_edit_tools_in_plan_mode() -> None:
 
 
 def test_build_build_plan_executor_prompt_references_plan_and_mark_tool() -> None:
-    prompt = build_build_plan_executor_prompt('.clara/build-plans/plan-abc.md')
+    prompt = build_build_plan_executor_prompt('.valkade/build-plans/plan-abc.md')
     assert 'read_build_plan' in prompt
     assert 'mark_build_plan_steps_complete' in prompt
     assert 'own pace' in prompt.lower()
@@ -126,7 +126,7 @@ def test_plan_execute_tools_include_build_plan_helpers() -> None:
 def test_build_planner_context_block_includes_system_prompt_and_tools() -> None:
     session = SessionState(workspace_path='/tmp/ws')
     block = build_planner_context_block(session, apply_mode=True)
-    assert 'You are Clara' in block
+    assert 'You are ValkAde' in block
     assert 'Available tools' in block
     tools, _ = worker_tools_and_map(True, session=session)
     assert f'`{tools[0].name}`' in block
@@ -160,8 +160,8 @@ async def test_stream_planner_md_retries_when_model_emits_tool_call(tmp_path: Pa
     """A tool-call-as-text first attempt should trigger one retry that yields the real plan."""
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     call = {'n': 0}
@@ -182,7 +182,7 @@ async def test_stream_planner_md_retries_when_model_emits_tool_call(tmp_path: Pa
     record = create_build_plan_draft(str(tmp_path), 'sess-retry', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', side_effect=_fake_chain):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', side_effect=_fake_chain):
         lines = await _collect_lines(
             _stream_planner_md(
                 'Build feature',
@@ -204,8 +204,8 @@ async def test_stream_planner_md_emits_reasoning_chunks(tmp_path: Path) -> None:
     """Reasoning-model sidecar text should stream into the chat auxiliary trail."""
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
 
@@ -221,7 +221,7 @@ async def test_stream_planner_md_emits_reasoning_chunks(tmp_path: Path) -> None:
     record = create_build_plan_draft(str(tmp_path), 'sess-reason', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = await _collect_lines(
             _stream_planner_md(
                 'Build feature',
@@ -244,8 +244,8 @@ async def test_stream_planner_md_emits_reasoning_chunks(tmp_path: Path) -> None:
 def test_stream_planner_md_strips_gemma_thought_from_document(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
 
@@ -258,7 +258,7 @@ def test_stream_planner_md_strips_gemma_thought_from_document(tmp_path: Path) ->
     record = create_build_plan_draft(str(tmp_path), 'sess-gemma-split', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -280,8 +280,8 @@ def test_stream_planner_md_strips_gemma_thought_from_document(tmp_path: Path) ->
 def test_stream_planner_md_recovers_plan_written_in_thought_channel(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
 
@@ -293,7 +293,7 @@ def test_stream_planner_md_recovers_plan_written_in_thought_channel(tmp_path: Pa
     record = create_build_plan_draft(str(tmp_path), 'sess-gemma-thought-plan', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -328,12 +328,12 @@ def test_slice_build_plan_markdown_ignores_inline_mentions_and_takes_last_headin
 def test_stream_planner_md_holds_plan_write_until_heading(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import (
+    from valkade_backend.plan.build_plan_store import (
         BUILD_PLAN_DRAFT_STUB,
         create_build_plan_draft,
         read_build_plan_md,
     )
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     leaked_thought = 'Still thinking about the architecture and files to change.\n'
@@ -348,7 +348,7 @@ def test_stream_planner_md_holds_plan_write_until_heading(tmp_path: Path) -> Non
     assert read_build_plan_md(str(tmp_path), record) == BUILD_PLAN_DRAFT_STUB
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -375,8 +375,8 @@ def test_stream_planner_md_holds_plan_write_until_heading(tmp_path: Path) -> Non
 def test_stream_planner_md_does_not_write_reasoning_to_plan(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     thinking = 'Considering discovery facts for a long time before writing anything.\n'
@@ -390,7 +390,7 @@ def test_stream_planner_md_does_not_write_reasoning_to_plan(tmp_path: Path) -> N
     record = create_build_plan_draft(str(tmp_path), 'sess-gated-reason', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -419,8 +419,8 @@ def test_stream_planner_md_does_not_write_reasoning_to_plan(tmp_path: Path) -> N
 def test_stream_planner_md_slices_think_block_then_real_plan(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     leaked = (
@@ -440,7 +440,7 @@ def test_stream_planner_md_slices_think_block_then_real_plan(tmp_path: Path) -> 
     record = create_build_plan_draft(str(tmp_path), 'sess-think-tags', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -466,8 +466,8 @@ def test_stream_planner_md_slices_think_block_then_real_plan(tmp_path: Path) -> 
 def test_stream_planner_md_recovers_thought_channel_plan_after_preamble(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     preamble = 'I will think carefully about auth and routing for a long time.\n\n'
@@ -480,7 +480,7 @@ def test_stream_planner_md_recovers_thought_channel_plan_after_preamble(tmp_path
     record = create_build_plan_draft(str(tmp_path), 'sess-thought-preamble', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -502,8 +502,8 @@ def test_stream_planner_md_recovers_thought_channel_plan_after_preamble(tmp_path
 def test_stream_planner_md_drops_thinking_content_blocks_from_plan_file(tmp_path: Path) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft, read_build_plan_md
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     plan_md = _sample_plan_md()
     cot = 'Long CoT about the request that must not land in the plan file.\n'
@@ -521,7 +521,7 @@ def test_stream_planner_md_drops_thinking_content_blocks_from_plan_file(tmp_path
     record = create_build_plan_draft(str(tmp_path), 'sess-thinking-blocks', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         lines = asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -556,15 +556,15 @@ def _sample_gemma_native_plan_markup(*, in_thought_channel: bool = False) -> str
     return '<|channel>thought\nNeed a structured plan.\n<channel|>' + call
 
 
-@patch('clara_coder_backend.plan.plan_execute.gemma_output_parsing_active', return_value=True)
+@patch('valkade_backend.plan.plan_execute.gemma_output_parsing_active', return_value=True)
 def test_stream_planner_md_recovers_gemma_native_tool_call_plan(
     _active: MagicMock,
     tmp_path: Path,
 ) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     class _FakeChain:
         async def astream(self, _inputs: Any):
@@ -574,7 +574,7 @@ def test_stream_planner_md_recovers_gemma_native_tool_call_plan(
     record = create_build_plan_draft(str(tmp_path), 'sess-gemma-native-plan', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -593,15 +593,15 @@ def test_stream_planner_md_recovers_gemma_native_tool_call_plan(
     assert '<|tool_call>' not in (md_out[0] or '')
 
 
-@patch('clara_coder_backend.plan.plan_execute.gemma_output_parsing_active', return_value=True)
+@patch('valkade_backend.plan.plan_execute.gemma_output_parsing_active', return_value=True)
 def test_stream_planner_md_recovers_native_tool_call_in_thought_channel(
     _active: MagicMock,
     tmp_path: Path,
 ) -> None:
     from langchain_core.messages import AIMessageChunk
 
-    from clara_coder_backend.plan.build_plan_store import create_build_plan_draft
-    from clara_coder_backend.plan.plan_execute import _stream_planner_md
+    from valkade_backend.plan.build_plan_store import create_build_plan_draft
+    from valkade_backend.plan.plan_execute import _stream_planner_md
 
     class _FakeChain:
         async def astream(self, _inputs: Any):
@@ -611,7 +611,7 @@ def test_stream_planner_md_recovers_native_tool_call_in_thought_channel(
     record = create_build_plan_draft(str(tmp_path), 'sess-gemma-thought-native', session=session)
     md_out: list[str] = ['']
 
-    with patch('clara_coder_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
+    with patch('valkade_backend.plan.plan_execute._planner_markdown_chain', return_value=_FakeChain()):
         asyncio.run(
             _collect_lines(
                 _stream_planner_md(
@@ -652,7 +652,7 @@ def test_plan_confirm_sse_payload_includes_structured_files_to_change() -> None:
     ]
 
 
-@patch('clara_coder_backend.plan.plan_execute.build_llm')
+@patch('valkade_backend.plan.plan_execute.build_llm')
 def test_planner_markdown_chain_prompt_requires_markdown_template(mock_llm: MagicMock) -> None:
     mock_llm.return_value = MagicMock()
     chain = _planner_markdown_chain('planner-context', discovery_summary='Auth in middleware')
@@ -662,7 +662,7 @@ def test_planner_markdown_chain_prompt_requires_markdown_template(mock_llm: Magi
     assert 'Auth in middleware' in system
 
 
-@patch('clara_coder_backend.plan.plan_execute.build_llm')
+@patch('valkade_backend.plan.plan_execute.build_llm')
 def test_planner_markdown_chain_rewrite_includes_answers_and_prior_draft(mock_llm: MagicMock) -> None:
     mock_llm.return_value = MagicMock()
     chain = _planner_markdown_chain(
@@ -685,11 +685,11 @@ def test_plan_confirm_sse_payload_includes_build_plan_path() -> None:
         session,
         steps=['A', 'B'],
         build_plan_id='plan-abc',
-        build_plan_path='.clara/build-plans/plan-abc.md',
+        build_plan_path='.valkade/build-plans/plan-abc.md',
     )
     payload = plan_confirm_sse_payload(pending)
     assert payload['planId'] == 'plan-abc'
-    assert payload['buildPlanPath'] == '.clara/build-plans/plan-abc.md'
+    assert payload['buildPlanPath'] == '.valkade/build-plans/plan-abc.md'
 
 
 def _sample_plan_md() -> str:
@@ -711,9 +711,9 @@ async def _fake_stream_planner_md(*_args: Any, **kwargs: Any):
     yield f'data: {json.dumps(payload, ensure_ascii=False)}\n\n'
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_stream_plan_execute_aborts_when_plan_not_confirmed(
     mock_pause: AsyncMock,
@@ -750,7 +750,7 @@ async def test_stream_plan_execute_aborts_when_plan_not_confirmed(
     mock_pause.side_effect = _pause_and_cancel
 
     session = SessionState(workspace_path=str(tmp_path))
-    from clara_coder_backend.session.state import sessions
+    from valkade_backend.session.state import sessions
 
     sessions['sess-plan-cancel'] = session
     outcome = LangGraphWorkerOutcome()
@@ -775,9 +775,9 @@ async def test_stream_plan_execute_aborts_when_plan_not_confirmed(
     assert exec_apply_modes == [False]
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_stream_plan_execute_single_executor_after_confirm(
     mock_pause: AsyncMock,
@@ -860,10 +860,10 @@ def _sample_rewritten_plan_md() -> str:
     )
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_asks_open_questions_then_rewrites(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -949,7 +949,7 @@ def test_stream_plan_execute_asks_open_questions_then_rewrites(
     rewritten_idx = next(i for i, line in enumerate(lines) if 'Implement REST handler' in line)
     assert stub_idx < rewritten_idx
     assert outcome.state == AgentLoopOutcome.COMPLETED
-    plan_files = list((tmp_path / '.clara' / 'build-plans').glob('plan-*.md'))
+    plan_files = list((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md'))
     assert plan_files
     disk = plan_files[0].read_text(encoding='utf-8')
     assert 'REST' in disk
@@ -957,10 +957,10 @@ def test_stream_plan_execute_asks_open_questions_then_rewrites(
     assert 'Implement REST handler' in disk
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_looks_up_typed_answers_before_rewriting(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1045,10 +1045,10 @@ def _typed_answer_planner(planner_calls: list[dict[str, Any]], *, abort_on_rewri
 _TYPED_ANSWER = [{'question_id': 'q-1', 'option_id': None, 'other_text': 'gRPC, through the client in src/grpc'}]
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_failed_answer_lookup_adds_no_findings(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1086,10 +1086,10 @@ def test_stream_plan_execute_failed_answer_lookup_adds_no_findings(
     assert outcome.state == AgentLoopOutcome.COMPLETED
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_stop_during_rewrite_cancels_the_plan(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1112,13 +1112,13 @@ def test_stream_plan_execute_stop_during_rewrite_cancels_the_plan(
     assert len(planner_calls) == 2
     assert outcome.state == AgentLoopOutcome.ABORTED
     assert not any('"type": "plan_confirm"' in line for line in lines)
-    assert list((tmp_path / '.clara' / 'build-plans').glob('plan-*.md')) == []
+    assert list((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md')) == []
     assert session.plans.active_build_plan_id == ''
 
 
 @pytest.mark.parametrize('stops_mid_stream', [True, False])
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
 def test_stream_plan_execute_stop_during_draft_cancels_the_plan(
     mock_planner: AsyncMock,
     mock_exec: AsyncMock,
@@ -1126,7 +1126,7 @@ def test_stream_plan_execute_stop_during_draft_cancels_the_plan(
     tmp_path: Path,
 ) -> None:
     """Half a draft is not a plan: a stop while it is written must not leave it as the session's plan."""
-    plan_dir = tmp_path / '.clara' / 'build-plans'
+    plan_dir = tmp_path / '.valkade' / 'build-plans'
     drafts_seen: list[int] = []
 
     async def _fake_planner_md(*_args: Any, **kwargs: Any):
@@ -1152,9 +1152,9 @@ def test_stream_plan_execute_stop_during_draft_cancels_the_plan(
 
 
 @pytest.mark.parametrize('config_error', [False, True])
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
 def test_stream_plan_execute_failed_discovery_stops_before_planning(
     mock_pause: AsyncMock,
     mock_planner: AsyncMock,
@@ -1185,7 +1185,7 @@ def test_stream_plan_execute_failed_discovery_stops_before_planning(
     assert runs == ['plan_discover']
     assert mock_planner.call_count == 0
     assert not any('"type": "build_plan_open"' in line for line in lines)
-    assert list((tmp_path / '.clara' / 'build-plans').glob('plan-*.md')) == []
+    assert list((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md')) == []
     assert session.plans.active_build_plan_id == ''
     if config_error:
         assert outcome.state == AgentLoopOutcome.FAILED_CONFIGURATION
@@ -1196,10 +1196,10 @@ def test_stream_plan_execute_failed_discovery_stops_before_planning(
 
 
 def test_build_build_plan_executor_prompt_keeps_the_answer_lookup_after_long_findings() -> None:
-    from clara_coder_backend.plan.plan_execute import EXECUTOR_DISCOVERY_INLINE_CHARS
+    from valkade_backend.plan.plan_execute import EXECUTOR_DISCOVERY_INLINE_CHARS
 
     prompt = build_build_plan_executor_prompt(
-        '.clara/build-plans/plan-abc.md',
+        '.valkade/build-plans/plan-abc.md',
         discovery_summary='Relevant files: src/app.ts (request handler). ' + 'x' * (EXECUTOR_DISCOVERY_INLINE_CHARS * 2),
         answer_lookup='Relevant files: src/grpc/client.ts (shared gRPC client).',
     )
@@ -1209,7 +1209,7 @@ def test_build_build_plan_executor_prompt_keeps_the_answer_lookup_after_long_fin
 
 
 def test_format_typed_answers_keeps_only_other_text() -> None:
-    from clara_coder_backend.plan.plan_execute import _format_typed_answers
+    from valkade_backend.plan.plan_execute import _format_typed_answers
 
     questions = [
         OpenQuestion(id='q-1', prompt='Use REST or gRPC?', options=['REST', 'gRPC']),
@@ -1224,16 +1224,16 @@ def test_format_typed_answers_keeps_only_other_text() -> None:
 
 
 def test_answer_lookup_thread_is_cleared_with_the_plan_phases() -> None:
-    from clara_coder_backend.plan.plan_execute import ANSWER_LOOKUP_THREAD_KIND
-    from clara_coder_backend.session.checkpointing import PLAN_PHASE_THREAD_KINDS
+    from valkade_backend.plan.plan_execute import ANSWER_LOOKUP_THREAD_KIND
+    from valkade_backend.session.checkpointing import PLAN_PHASE_THREAD_KINDS
 
     assert ANSWER_LOOKUP_THREAD_KIND in PLAN_PHASE_THREAD_KINDS
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_clear_removes_every_thread_a_plan_turn_opens(
     mock_question_pause: AsyncMock,
@@ -1249,14 +1249,14 @@ async def test_clear_removes_every_thread_a_plan_turn_opens(
     from langchain_core.language_models.fake_chat_models import FakeListChatModel
     from langchain_core.messages import HumanMessage
 
-    from clara_coder_backend.routes.session import clear_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import clear_session
+    from valkade_backend.session.checkpointing import (
         get_graph_checkpointer,
         init_graph_checkpointing,
         outer_agent_thread_id,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import ClearRequest
+    from valkade_backend.session.schemas import ClearRequest
 
     plans = [_sample_plan_with_open_questions_md(), _sample_rewritten_plan_md()]
 
@@ -1312,10 +1312,10 @@ async def test_clear_removes_every_thread_a_plan_turn_opens(
         await shutdown_graph_checkpointing()
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 @pytest.mark.asyncio(loop_scope='function')
 async def test_stream_plan_execute_question_cancel_aborts(
     mock_question_pause: AsyncMock,
@@ -1347,7 +1347,7 @@ async def test_stream_plan_execute_question_cancel_aborts(
     mock_question_pause.side_effect = _cancel_questions
 
     session = SessionState(workspace_path=str(tmp_path))
-    from clara_coder_backend.session.state import sessions
+    from valkade_backend.session.state import sessions
 
     sessions['sess-plan-q-cancel'] = session
     outcome = LangGraphWorkerOutcome()
@@ -1402,10 +1402,10 @@ def test_bind_answers_into_prior_plan_strips_questions_and_adds_assumptions() ->
     assert 'REST' in md
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_binds_answers_when_rewrite_has_no_steps(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1458,7 +1458,7 @@ def test_stream_plan_execute_binds_answers_when_rewrite_has_no_steps(
     assert any('Could not rewrite the plan from your answers' in line for line in lines)
     assert planner_calls['n'] == 2
     assert outcome.state == AgentLoopOutcome.COMPLETED
-    plan_files = list((tmp_path / '.clara' / 'build-plans').glob('plan-*.md'))
+    plan_files = list((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md'))
     assert plan_files
     disk = plan_files[0].read_text(encoding='utf-8')
     assert 'Feature plan' in disk
@@ -1469,7 +1469,7 @@ def test_stream_plan_execute_binds_answers_when_rewrite_has_no_steps(
 
 def test_build_build_plan_executor_prompt_inlines_plan_and_findings() -> None:
     prompt = build_build_plan_executor_prompt(
-        '.clara/build-plans/plan-abc.md',
+        '.valkade/build-plans/plan-abc.md',
         plan_md='# Build Plan: Feature\n\n- [ ] Implement change',
         discovery_summary='Relevant files: src/app.ts (request handler).',
     )
@@ -1480,7 +1480,7 @@ def test_build_build_plan_executor_prompt_inlines_plan_and_findings() -> None:
 
 
 def test_build_build_plan_executor_prompt_omits_empty_blocks() -> None:
-    prompt = build_build_plan_executor_prompt('.clara/build-plans/plan-abc.md')
+    prompt = build_build_plan_executor_prompt('.valkade/build-plans/plan-abc.md')
     assert 'Approved plan' not in prompt
     assert 'Discovery findings' not in prompt
     assert 'spawn_subagent' not in prompt
@@ -1493,7 +1493,7 @@ def test_build_build_plan_executor_prompt_lists_open_delegated_steps() -> None:
         '<!-- step-id: step-2 -->\n- [ ] Engine sounds\n  - **Sub-agent:** plane-audio\n'
         '<!-- step-id: step-3 -->\n- [x] Old delegated step\n  - **Sub-agent:** done-already\n'
     )
-    prompt = build_build_plan_executor_prompt('.clara/build-plans/plan-abc.md', plan_md=plan_md)
+    prompt = build_build_plan_executor_prompt('.valkade/build-plans/plan-abc.md', plan_md=plan_md)
     assert '`step-2` → sub-agent `plane-audio`: Engine sounds' in prompt
     assert 'done-already' not in prompt.split('Steps assigned to sub-agents:')[1].split('Start these')[0]
     assert 'spawn_subagent' in prompt and 'background=true' in prompt
@@ -1508,7 +1508,7 @@ def test_plan_execute_tools_bind_subagent_tools_on_request() -> None:
 
 
 def test_plan_graph_builders_allow_subagents() -> None:
-    from clara_coder_backend.plan import plan_execute as pe
+    from valkade_backend.plan import plan_execute as pe
 
     with patch.object(pe, 'build_clara_single_outer_graph') as build:
         pe._plan_discovery_outer_graph_builder(object(), SessionState(), False, None)
@@ -1560,7 +1560,7 @@ def _planner_md_for(path: str):
 
 
 def _run_plan(session: SessionState, session_id: str, outcome: LangGraphWorkerOutcome) -> list[str]:
-    from clara_coder_backend.session.state import sessions
+    from valkade_backend.session.state import sessions
 
     sessions[session_id] = session
     return asyncio.run(
@@ -1570,10 +1570,10 @@ def _run_plan(session: SessionState, session_id: str, outcome: LangGraphWorkerOu
     )
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_takes_planned_paths_as_written(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1602,10 +1602,10 @@ def test_stream_plan_execute_takes_planned_paths_as_written(
     assert outcome.state == AgentLoopOutcome.COMPLETED
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_skips_rewrite_when_no_question_is_answered(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1632,13 +1632,13 @@ def test_stream_plan_execute_skips_rewrite_when_no_question_is_answered(
     assert not any('Rewriting plan' in line for line in lines)
     assert any('"type": "plan_confirm"' in line for line in lines)
     assert outcome.state == AgentLoopOutcome.COMPLETED
-    disk = next((tmp_path / '.clara' / 'build-plans').glob('plan-*.md')).read_text(encoding='utf-8')
+    disk = next((tmp_path / '.valkade' / 'build-plans').glob('plan-*.md')).read_text(encoding='utf-8')
     assert '## Open Questions' not in disk
     assert 'Implement change' in disk
 
 
 def test_triage_drops_duplicate_questions_and_caps_the_rest() -> None:
-    from clara_coder_backend.plan.plan_execute import MAX_OPEN_QUESTIONS, _triage_planner_questions
+    from valkade_backend.plan.plan_execute import MAX_OPEN_QUESTIONS, _triage_planner_questions
 
     design = [
         OpenQuestion(id=f'q-{i}', prompt=f'Design choice {i}?', options=[f'A{i}', f'B{i}'])
@@ -1661,7 +1661,7 @@ def test_triage_drops_duplicate_questions_and_caps_the_rest() -> None:
 
 
 def test_triage_records_an_over_limit_question_without_options_as_not_asked() -> None:
-    from clara_coder_backend.plan.plan_execute import MAX_OPEN_QUESTIONS, _triage_planner_questions
+    from valkade_backend.plan.plan_execute import MAX_OPEN_QUESTIONS, _triage_planner_questions
 
     plan = BuildPlanModel(
         title='T',
@@ -1704,10 +1704,10 @@ def _exec_with_discovery(summary: str, prompts: list[str]):
     return _fake_exec
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_asks_discovery_unknowns_the_planner_left_out(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1744,10 +1744,10 @@ def test_stream_plan_execute_asks_discovery_unknowns_the_planner_left_out(
     assert outcome.state == AgentLoopOutcome.COMPLETED
 
 
-@patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent')
-@patch('clara_coder_backend.plan.plan_execute._stream_planner_md')
-@patch('clara_coder_backend.plan.plan_execute.await_diff_review_note')
-@patch('clara_coder_backend.plan.plan_execute.await_question_answers')
+@patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent')
+@patch('valkade_backend.plan.plan_execute._stream_planner_md')
+@patch('valkade_backend.plan.plan_execute.await_diff_review_note')
+@patch('valkade_backend.plan.plan_execute.await_question_answers')
 def test_stream_plan_execute_keeps_the_planner_questions_over_discovery_unknowns(
     mock_question_pause: AsyncMock,
     mock_pause: AsyncMock,
@@ -1775,7 +1775,7 @@ def test_stream_plan_execute_keeps_the_planner_questions_over_discovery_unknowns
 
 
 def test_planner_guidelines_forbid_file_existence_questions() -> None:
-    from clara_coder_backend.plan.plan_execute import PLAN_AUTHORING_GUIDELINES
+    from valkade_backend.plan.plan_execute import PLAN_AUTHORING_GUIDELINES
 
     assert 'never ask the user whether a file exists' in PLAN_AUTHORING_GUIDELINES
     assert 'no backticks' in PLAN_AUTHORING_GUIDELINES

@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from clara_coder_backend.composer import conversation_connection, stream_agent_reply
-from clara_coder_backend.domain import RuntimeConnection, SessionState
-from clara_coder_backend.session import state
-from clara_coder_backend.session.schemas import ChatRequest
+from valkade_backend.composer import conversation_connection, stream_agent_reply
+from valkade_backend.domain import RuntimeConnection, SessionState
+from valkade_backend.session import state
+from valkade_backend.session.schemas import ChatRequest
 
 
 @pytest.fixture()
@@ -63,9 +63,9 @@ def test_the_conversations_settings_replace_the_sources_on_a_copy(main_source: R
 
 
 @pytest.mark.asyncio
-@patch('clara_coder_backend.composer.delete_outer_thread', new_callable=AsyncMock)
-@patch('clara_coder_backend.composer.build_llm')
-@patch('clara_coder_backend.composer.stream_single_agent_langgraph')
+@patch('valkade_backend.composer.delete_outer_thread', new_callable=AsyncMock)
+@patch('valkade_backend.composer.build_llm')
+@patch('valkade_backend.composer.stream_single_agent_langgraph')
 async def test_a_turn_runs_with_its_conversations_thinking_and_leaves_none_behind(
     mock_stream: MagicMock,
     mock_build_llm: MagicMock,

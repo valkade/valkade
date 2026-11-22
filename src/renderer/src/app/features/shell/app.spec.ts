@@ -67,7 +67,7 @@ function stubElectronApi(
     currentWorkspaceId: null as string | null,
     lastActiveConversationByWorkspaceId: {} as Record<string, string>,
     workspaces: [] as { id: string; name: string; path: string }[],
-    themeId: 'clara-dark',
+    themeId: 'valkade-dark',
     activeLlmModelId: 'default-lmstudio',
     llmProviders: [
       {
@@ -147,7 +147,7 @@ function stubElectronApi(
       {
         ...conversationMetas[index],
         messages: fixture.messages ?? [],
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
         ...(fixture.contextTokens ? { contextTokens: fixture.contextTokens } : {}),
         ...(fixture.composer ? { composer: fixture.composer } : {}),
       },
@@ -156,7 +156,7 @@ function stubElectronApi(
   const fallbackConv = {
     ...conversationMetas[0],
     messages: conversationFixtures[0]?.messages ?? [],
-    themeId: 'clara-dark',
+    themeId: 'valkade-dark',
   };
   const loadedConfig = { ...defaultConfig, ...configOverrides };
   refs.loadedConfig = loadedConfig;
@@ -499,7 +499,7 @@ describe('App', () => {
       await vi.waitFor(() => expect(answer).toHaveBeenCalledWith(true));
       expect(open.mock.calls[0]![0]).toMatchObject({
         title: 'Agent still running',
-        message: 'An agent is still working. Close Clara Coder and stop it?',
+        message: 'An agent is still working. Close ValkAde and stop it?',
         confirmText: 'Close and stop',
       });
     });
@@ -1043,14 +1043,14 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the Clara Coder app icon in the window chrome', async () => {
+  it('should render the ValkAde app icon in the window chrome', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     const icon = compiled.querySelector('.chrome-title-icon') as HTMLImageElement | null;
     expect(icon).toBeTruthy();
     expect(icon?.getAttribute('src')).toBe('app-icon.png');
-    expect(icon?.getAttribute('alt')).toBe('Clara Coder');
+    expect(icon?.getAttribute('alt')).toBe('ValkAde');
   });
 
   it('hides workspace-specific chrome when no workspace is open', async () => {

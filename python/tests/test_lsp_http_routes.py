@@ -8,10 +8,10 @@ from types import SimpleNamespace
 import pytest
 from starlette.testclient import TestClient
 
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.lsp.manager import get_lsp_dashboard_status, get_session_lsp_manager, shutdown_all_lsp_managers
-from clara_coder_backend.runtime.deps.providers import gdls
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.lsp.manager import get_lsp_dashboard_status, get_session_lsp_manager, shutdown_all_lsp_managers
+from valkade_backend.runtime.deps.providers import gdls
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
 
 
 class _FakeLspClient:
@@ -154,9 +154,9 @@ def lsp_http_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         kwargs.setdefault('client_factory', factory)
         return real_get(*args, **kwargs)
 
-    monkeypatch.setattr('clara_coder_backend.routes.lsp.get_session_lsp_manager', _inject)
+    monkeypatch.setattr('valkade_backend.routes.lsp.get_session_lsp_manager', _inject)
 
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     yield SimpleNamespace(app=app, session_id=session_id, sample_path='pkg/mod.py', fake_clients=fake_clients)
 
@@ -467,8 +467,8 @@ def test_get_lsp_dashboard_status_uses_cached_ts_root_only(lsp_http_env, tmp_pat
 
 
 def test_lsp_shutdown_all_http_route(lsp_http_env) -> None:
-    from clara_coder_backend.lsp import manager as lsp_manager
-    from clara_coder_backend.lsp.manager import SessionWorkspaceLspManager
+    from valkade_backend.lsp import manager as lsp_manager
+    from valkade_backend.lsp.manager import SessionWorkspaceLspManager
 
     session = get_session(lsp_http_env.session_id)
     mgr = SessionWorkspaceLspManager(

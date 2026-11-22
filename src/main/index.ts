@@ -10,7 +10,8 @@ import { getSidecarStartupState, setSidecarStartupState } from './python/sidecar
 import { registerNemoTtsStreamProtocol } from './protocol/nemo-tts';
 import { registerNemoAssetProtocol } from './protocol/nemo-asset';
 import { registerClaraThemeAssetProtocol } from './protocol/clara-theme-asset';
-import { loadConfigSync } from './config/load-save';
+import { loadConfigSync, updateConfig } from './config/load-save';
+import { currentAppVersion } from './updater/app-updater';
 import { reconcileLostWorkspacesOnStartup } from './ipc/handlers/config-workspaces';
 import { setHealthMetricsEnabled, syncPythonLogLevel } from './ipc/handlers/health';
 import { getLlamaManagedRuntimeOverrides, reapOrphanManagedLlamaServers, stopAllManagedLlamaServers } from './llama-server-manager';
@@ -18,6 +19,7 @@ import { syncRuntimeConfigToPython } from './python/workspace-sync';
 import { applyResolvedUserPath } from './runtime/user-path';
 import { clearWorkspaceWatcher, refreshWorkspaceWatcherForCurrentConfig } from './workspace/watcher';
 import { createMainWindow } from './windows/main-window';
+import { runPreBootMigrationPrompt } from './windows/migration-window';
 import { registerAllIpc } from './ipc/register-ipc';
 import { killAllWorkspacePtySessions } from './ipc/handlers/workspace-pty';
 import { envClara } from './env-clara';
@@ -59,11 +61,13 @@ function applyLinuxDisplayWorkarounds(): void {
 applyLinuxDisplayWorkarounds();
 
 // Match the binary / .desktop StartupWMClass on Linux so the window manager
-// associates our windows with the `clara-coder` launcher entry (and its icon).
+// associates our windows with the `valkade` launcher entry (and its icon).
 // macOS keeps the display name for the menu bar; userData is pinned to
-// `clara-coder` separately in configureAppDataDir().
-app.setName(process.platform === 'darwin' ? 'Clara Coder' : 'clara-coder');
-// Pin userData to ``clara-coder`` (and migrate ``nemo-wrapper``) before IPC/SQLite/config.
+// `valkade` separately in configureAppDataDir().
+app.setName(process.platform === 'darwin' ? 'ValkAde' : 'valkade');
+// Pin userData to ``valkade`` (or ``valkade-dev`` in dev) before IPC/SQLite/config.
+// Legacy Clara Coder folders are never migrated automatically; when one is found,
+// `runPreBootMigrationPrompt()` prompts the user before config, SQLite, or the sidecar open.
 configureAppDataDir();
 
 function extraUserPathFromDisk(): string {
@@ -74,22 +78,44 @@ function extraUserPathFromDisk(): string {
   }
 }
 
-// Overlap login-shell PATH probe with app ready / window create so the sidecar
-// still inherits the reconstructed PATH without delaying the first paint.
-const userPathReady = applyResolvedUserPath({ extraUserPath: extraUserPathFromDisk() }).catch(
-  (err) => {
-    console.error('[Main] User PATH recovery failed:', err);
-  },
-);
+let preBootMigrationHandoff = false;
+let ipcRegistered = false;
+
+function ensureIpcRegistered(): void {
+  if (ipcRegistered) {
+    return;
+  }
+  ipcRegistered = true;
+  // Dev-only (`npm run dev:bridge`): must see the ipcMain handlers as they register.
+  captureIpcForBrowserBridge();
+  registerAllIpc();
+}
 
 registerPrivilegedSchemes();
-// Dev-only (`npm run dev:bridge`): must see the ipcMain handlers as they register.
-captureIpcForBrowserBridge();
-registerAllIpc();
 
 app
   .whenReady()
   .then(async () => {
+    // Run explicit opt-in migration before touching config.json, SQLite (`openConversationsDb`
+    // inside `registerAllIpc`), or the Python sidecar so Windows never holds open file handles
+    // and accepted migrations boot directly with zero restart.
+    preBootMigrationHandoff = true;
+    const migrationOutcome = await runPreBootMigrationPrompt();
+    if (migrationOutcome === 'cancelled') {
+      preBootMigrationHandoff = false;
+      app.quit();
+      return;
+    }
+
+    ensureIpcRegistered();
+
+    // Overlap login-shell PATH probe with window creation now that config.json reflects any migration.
+    const userPathReady = applyResolvedUserPath({ extraUserPath: extraUserPathFromDisk() }).catch(
+      (err) => {
+        console.error('[Main] User PATH recovery failed:', err);
+      },
+    );
+
     startScreenshotMaintenance();
     // Show UI immediately — packaged Linux launches used to sit dark for up to ~60s
     // while waitForPython polled a sidecar that had already crashed (missing venv deps).
@@ -97,6 +123,7 @@ app
     registerNemoAssetProtocol();
     registerClaraThemeAssetProtocol();
     createMainWindow();
+    preBootMigrationHandoff = false;
     void startBrowserBridge().catch((err) => {
       console.error('[Main] Browser bridge failed to start:', err);
     });
@@ -116,7 +143,15 @@ app
       setSidecarStartupState('failed');
     }
     const config = await reconcileLostWorkspacesOnStartup();
-    // Ensure the Model Manager library root exists (default: ~/ClaraCoder/models).
+    const runningVersion = currentAppVersion();
+    if (runningVersion && config.lastAppVersion !== runningVersion) {
+      void updateConfig((cfg) => {
+        cfg.lastAppVersion = runningVersion;
+      }).catch((err) => {
+        console.error('[Main] Failed to stamp lastAppVersion:', err);
+      });
+    }
+    // Ensure the Model Manager library root exists (default: ~/ValkAde/models; ~/ClaraCoder/models when it exists).
     const modelsDir = config.modelManager?.customModelsDir?.trim();
     if (modelsDir) {
       process.env.CLARA_CUSTOM_MODELS_DIR = modelsDir;
@@ -144,7 +179,9 @@ app
     startSubagentEventPump();
   })
   .catch((err) => {
+    preBootMigrationHandoff = false;
     console.error(err);
+    ensureIpcRegistered();
     createMainWindow();
     // Startup stopped part-way: don't leave the window waiting on a state nothing will settle.
     if (getSidecarStartupState() === 'starting') {
@@ -157,12 +194,18 @@ app
   });
 
 app.on('activate', () => {
+  if (preBootMigrationHandoff) {
+    return;
+  }
   if (BrowserWindow.getAllWindows().length === 0) {
     createMainWindow();
   }
 });
 
 app.on('window-all-closed', () => {
+  if (preBootMigrationHandoff) {
+    return;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }

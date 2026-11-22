@@ -12,16 +12,16 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 from llama_index.core.vector_stores.types import VectorStoreQuery
 
-from clara_coder_backend.config import CLARA_LLAMA_INDEX_MAX_FILES
-from clara_coder_backend.workspace_index import index_build as ib
-from clara_coder_backend.workspace_index.index_build import (
+from valkade_backend.config import CLARA_LLAMA_INDEX_MAX_FILES
+from valkade_backend.workspace_index import index_build as ib
+from valkade_backend.workspace_index.index_build import (
     load_or_rebuild_workspace_index,
     write_workspace_manifest,
 )
-from clara_coder_backend.workspace_index.fingerprint import fingerprint_for_entries, workspace_file_entries
-from clara_coder_backend.workspace_index.lifecycle import invalidate_workspace_index_disk
-from clara_coder_backend.workspace_index.paths import workspace_index_persist_dir
-from clara_coder_backend.workspace_index.vector_store import NumpyVectorStore, persist_path_for
+from valkade_backend.workspace_index.fingerprint import fingerprint_for_entries, workspace_file_entries
+from valkade_backend.workspace_index.lifecycle import invalidate_workspace_index_disk
+from valkade_backend.workspace_index.paths import workspace_index_persist_dir
+from valkade_backend.workspace_index.vector_store import NumpyVectorStore, persist_path_for
 
 
 class _KeywordEmb(BaseEmbedding):
@@ -221,7 +221,7 @@ def test_cached_index_reused_across_calls(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_sqlite_docstore_commits_on_persist_and_rolls_back_on_close(tmp_path: Path) -> None:
-    from clara_coder_backend.workspace_index.docstore import close_docstore, create_docstore, open_docstore
+    from valkade_backend.workspace_index.docstore import close_docstore, create_docstore, open_docstore
 
     store = create_docstore(tmp_path)
     store.add_documents([TextNode(id_='kept', text='kept text')])

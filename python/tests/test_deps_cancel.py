@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps import cancel, download, registry
-from clara_coder_backend.runtime.deps.cancel import InstallCancelled
-from clara_coder_backend.runtime.deps.progress import PROGRESS
+from valkade_backend.runtime.deps import cancel, download, registry
+from valkade_backend.runtime.deps.cancel import InstallCancelled
+from valkade_backend.runtime.deps.progress import PROGRESS
 
 
 class _FakeResponse(io.BytesIO):
@@ -160,7 +160,7 @@ def test_cancel_install_only_targets_running_installs(monkeypatch) -> None:
 
 
 def test_llama_cleanup_partial_removes_download_artifacts(monkeypatch, tmp_path: Path) -> None:
-    from clara_coder_backend.runtime.deps.providers import llama_server
+    from valkade_backend.runtime.deps.providers import llama_server
 
     downloads = tmp_path / 'downloads'
     (downloads / 'llama-extract-b1-vulkan').mkdir(parents=True)

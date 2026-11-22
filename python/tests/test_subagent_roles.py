@@ -11,23 +11,23 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage
 
-from clara_coder_backend.domain import (
+from valkade_backend.domain import (
     SUBAGENT_TOOL_GROUPS,
     RuntimeConnection,
     RuntimeSubagentRole,
     RuntimeSubagentsConfig,
     SessionState,
 )
-from clara_coder_backend.hitl.tool_registry import subagent_tool_group, worker_tools_and_map
-from clara_coder_backend.lang_agent.subagents import (
+from valkade_backend.hitl.tool_registry import subagent_tool_group, worker_tools_and_map
+from valkade_backend.lang_agent.subagents import (
     bind_subagent_role,
     parent_subagent_semaphore,
 )
-from clara_coder_backend.llm.messages import build_system_prompt
-from clara_coder_backend.routes.runtime import _runtime_subagents_config
-from clara_coder_backend.session import state
-from clara_coder_backend.session.schemas import RuntimeSubagentsRequest
-from clara_coder_backend.tools.spawn_subagent import bound_spawn_subagent_tool, spawn_subagent_tool
+from valkade_backend.llm.messages import build_system_prompt
+from valkade_backend.routes.runtime import _runtime_subagents_config
+from valkade_backend.session import state
+from valkade_backend.session.schemas import RuntimeSubagentsRequest
+from valkade_backend.tools.spawn_subagent import bound_spawn_subagent_tool, spawn_subagent_tool
 from test_subagents import (  # noqa: F401 (``checkpoints``, ``parent_session``, ``bus`` and ``use_model`` are fixtures)
     ScriptedChatModel,
     _run_turn,
@@ -146,7 +146,7 @@ async def test_a_roles_thinking_level_replaces_the_sources_effort(sources) -> No
 
 
 async def test_a_thinking_level_reaches_the_model_client(sources) -> None:
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     sources.connections[0] = _connection('main', provider='lmstudio', base_url='http://127.0.0.1:1234/v1')
     pinned = bind_subagent_role(_role(thinking_level='low')).connection
@@ -167,7 +167,7 @@ async def test_thinking_still_applies_when_a_role_falls_back_to_the_main_source(
 
 
 async def test_thinking_off_builds_the_client_with_thinking_pinned_off(sources) -> None:
-    from clara_coder_backend.llm.factory import build_llm
+    from valkade_backend.llm.factory import build_llm
 
     sources.connections[0] = _connection('main', provider='lmstudio', base_url='http://127.0.0.1:1234/v1')
     pinned = bind_subagent_role(_role(thinking='off')).connection

@@ -14,7 +14,7 @@
     },
     "chat.assistant-bubble": {
       "label": "Assistant bubble",
-      "description": "Clara's replies, including rendered markdown and code blocks.",
+      "description": "ValkAde's replies, including rendered markdown and code blocks.",
       "tokens": ["--t-assistant-bg", "--t-assistant-fg", "--t-assistant-border", "--t-tui-clara-frame", "--t-code-bg", "--t-code-inline-bg", "--t-code-text"]
     },
     "chat.composer": {

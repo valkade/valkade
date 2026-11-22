@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.workspace.search_backend import SearchLineMatch
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.session.state import runtime_config
-from clara_coder_backend.workspace.workspace_ignore import (
+from valkade_backend.workspace.search_backend import SearchLineMatch
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.session.state import runtime_config
+from valkade_backend.workspace.workspace_ignore import (
     get_workspace_ignore_rules_cached,
     is_log_related_file,
     is_node_modules_bulk_listing_path,
@@ -21,7 +21,7 @@ from clara_coder_backend.workspace.workspace_ignore import (
     matches_ignore_rule,
     should_ignore_workspace_entry,
 )
-from clara_coder_backend.tools.workspace import list_workspace_directory, search_workspace
+from valkade_backend.tools.workspace import list_workspace_directory, search_workspace
 
 
 # --- TestMatchesIgnoreRule ---
@@ -152,10 +152,10 @@ def test_search_workspace_uses_grep_when_available(workspace_session: Path, monk
 
     # Prefer the candidate/line-search path (recursive rg/grep is covered elsewhere).
     monkeypatch.setattr(
-        'clara_coder_backend.tools.workspace.run_grep_workspace_recursive',
+        'valkade_backend.tools.workspace.run_grep_workspace_recursive',
         lambda *a, **k: None,
     )
-    monkeypatch.setattr('clara_coder_backend.tools.workspace.run_grep_line_search', _fake_run_grep_line_search)
+    monkeypatch.setattr('valkade_backend.tools.workspace.run_grep_line_search', _fake_run_grep_line_search)
 
     out = search_workspace.invoke({'query': 'needle', 'max_matches': 20})
 
@@ -187,7 +187,7 @@ def test_iter_workspace_search_files_prunes(workspace_session: Path) -> None:
 
 
 def test_gitignore_cache_evicts_oldest_when_over_max(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import clara_coder_backend.workspace.workspace_ignore as wi
+    import valkade_backend.workspace.workspace_ignore as wi
 
     monkeypatch.setattr(wi, '_MAX_GITIGNORE_CACHE_ENTRIES', 2)
     wi._gitignore_cache.clear()
@@ -225,7 +225,7 @@ def test_search_workspace_falls_back_when_grep_returns_none(workspace_session: P
     root = workspace_session
     (root / 'keep.py').write_text('needle here\n', encoding='utf-8')
 
-    monkeypatch.setattr('clara_coder_backend.tools.workspace.run_grep_line_search', lambda *a, **k: None)
+    monkeypatch.setattr('valkade_backend.tools.workspace.run_grep_line_search', lambda *a, **k: None)
 
     out = search_workspace.invoke({'query': 'needle', 'max_matches': 20})
     assert 'keep.py' in out

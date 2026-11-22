@@ -9,18 +9,18 @@ from unittest.mock import patch
 import pytest
 from langchain_core.messages import ToolMessage
 
-from clara_coder_backend.hitl.accept_command import execute_pending_accept_command_decision
-from clara_coder_backend.lang_agent.langgraph_sse import (
+from valkade_backend.hitl.accept_command import execute_pending_accept_command_decision
+from valkade_backend.lang_agent.langgraph_sse import (
     GraphStreamState,
     approval_answer_sse_lines,
     sse_lines_for_graph_event,
 )
-from clara_coder_backend.session.pause import pause_for_tool_review, timed_approved_run
-from clara_coder_backend.session.state import get_session
-from clara_coder_backend.tools.deferred_hitl import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
+from valkade_backend.session.pause import pause_for_tool_review, timed_approved_run
+from valkade_backend.session.state import get_session
+from valkade_backend.tools.deferred_hitl import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
 
 PENDING = 'Pending user confirmation for `fetch_url`. The UI will ask the user to confirm before this command runs.'
-CLOCK = 'clara_coder_backend.lang_agent.langgraph_sse.time.monotonic'
+CLOCK = 'valkade_backend.lang_agent.langgraph_sse.time.monotonic'
 
 
 def _run(ev: dict, state: GraphStreamState) -> list[str]:
@@ -119,7 +119,7 @@ async def test_pause_reports_only_the_approved_run_time() -> None:
     async def answer() -> None:
         assert await session.hitl_sse_queue.get() == ('accept_command',)
         await asyncio.sleep(0.05)  # The user reads the card.
-        with patch('clara_coder_backend.session.pause.time.monotonic', side_effect=[50.0, 50.125]):
+        with patch('valkade_backend.session.pause.time.monotonic', side_effect=[50.0, 50.125]):
             with timed_approved_run(session):
                 pass
         session.agent_pause_note = 'Fetched https://example.com'
@@ -158,7 +158,7 @@ async def test_approved_deferred_tool_times_its_run() -> None:
     session = get_session('approval-duration-run')
     session.agent_pause_run_ms = None
     session.pending_accept_command_request = _deferred_fetch()
-    with patch('clara_coder_backend.hitl.deferred_tool_hitl._resolve_deferred_tool', return_value=_FakeFetch()):
+    with patch('valkade_backend.hitl.deferred_tool_hitl._resolve_deferred_tool', return_value=_FakeFetch()):
         out = await execute_pending_accept_command_decision(session, confirm=True, request_id='req-fetch')
     assert out == 'Fetched https://example.com'
     assert session.agent_pause_run_ms is not None and session.agent_pause_run_ms >= 15

@@ -163,14 +163,14 @@
       @if (card.toolUse === false) {
         <p class='lms-note lms-note--warn'>
           <lucide-icon name='triangle-alert' [size]='13' />
-          Clara's agent relies on tool calls, so this model may struggle with coding tasks.
+          ValkAde's agent relies on tool calls, so this model may struggle with coding tasks.
         </p>
       }
     }
     @if (connected() && !canManage()) {
       <p class='lms-muted lms-note'>Loading and unloading need LM Studio 0.4 or newer. This server can only list models.</p>
     }
-    <p class='lms-muted lms-note'>Embeddings use Clara's built-in CPU model, not LM Studio.</p>
+    <p class='lms-muted lms-note'>Embeddings use ValkAde's built-in CPU model, not LM Studio.</p>
   </section>
 
   <app-lm-studio-controls>

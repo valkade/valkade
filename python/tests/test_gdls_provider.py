@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps import paths as deps_paths
-from clara_coder_backend.runtime.deps import registry
-from clara_coder_backend.runtime.deps.providers import gdls
+from valkade_backend.runtime.deps import paths as deps_paths
+from valkade_backend.runtime.deps import registry
+from valkade_backend.runtime.deps.providers import gdls
 
 TAG = gdls.DEFAULT_TAG
 

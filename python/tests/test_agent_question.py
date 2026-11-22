@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from clara_coder_backend.lang_agent.question import (
+from valkade_backend.lang_agent.question import (
     agent_question_sse_payload,
     execute_pending_question_decision,
     stage_question_request,
 )
-from clara_coder_backend.domain import SessionState
+from valkade_backend.domain import SessionState
 
 
 def _questions() -> list[dict]:
@@ -31,13 +31,13 @@ def test_stage_question_request_shapes_questions_with_allow_other() -> None:
 
 def test_agent_question_sse_payload_camelcases_fields() -> None:
     session = SessionState()
-    pending = stage_question_request(session, questions=_questions(), build_plan_id='plan-1', build_plan_path='.clara/build-plans/plan-1.md')
+    pending = stage_question_request(session, questions=_questions(), build_plan_id='plan-1', build_plan_path='.valkade/build-plans/plan-1.md')
     payload = agent_question_sse_payload(pending)
     assert payload['version'] == 1
     assert payload['requestId'] == pending['request_id']
     assert payload['submitLabel'] == 'Submit answers'
     assert payload['planId'] == 'plan-1'
-    assert payload['buildPlanPath'] == '.clara/build-plans/plan-1.md'
+    assert payload['buildPlanPath'] == '.valkade/build-plans/plan-1.md'
     assert len(payload['questions']) == 2
     assert payload['questions'][0]['allowOther'] is True
 

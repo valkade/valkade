@@ -139,8 +139,9 @@ let token = '';
 let endpoint = '';
 let busy = false;
 
+/** Broker wiring for the sidecar, keyed by env suffix (``server.ts`` adds the ``VALKADE_`` prefix). */
 export function screenshotBrokerEnvironment(): Record<string, string> {
-  return { CLARA_SCREENSHOT_URL: endpoint, CLARA_SCREENSHOT_TOKEN: token };
+  return { SCREENSHOT_URL: endpoint, SCREENSHOT_TOKEN: token };
 }
 
 function reply(response: ServerResponse, status: number, value: object): void {

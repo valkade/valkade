@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeMcpServer, SessionState
-from clara_coder_backend.mcp.names import bound_mcp_tool_name, is_mcp_tool_name, sanitize_mcp_token
-from clara_coder_backend.mcp.tools import execute_mcp_tool_decision, stage_mcp_tool_approval
-from clara_coder_backend.mcp.trust import denial_message, set_server_trust, set_tool_decision, trust_decision
-from clara_coder_backend.session.state import runtime_config
+from valkade_backend.domain import RuntimeMcpServer, SessionState
+from valkade_backend.mcp.names import bound_mcp_tool_name, is_mcp_tool_name, sanitize_mcp_token
+from valkade_backend.mcp.tools import execute_mcp_tool_decision, stage_mcp_tool_approval
+from valkade_backend.mcp.trust import denial_message, set_server_trust, set_tool_decision, trust_decision
+from valkade_backend.session.state import runtime_config
 
 
 def test_bound_names_are_prefixed_and_bounded() -> None:
@@ -50,7 +50,7 @@ async def test_mcp_decision_remember_allow_deny_and_allow_all(monkeypatch: pytes
         calls.append((server_id, tool_name, arguments))
         return 'ran'
 
-    monkeypatch.setattr('clara_coder_backend.mcp.manager.mcp_manager.call_tool', _fake_call)
+    monkeypatch.setattr('valkade_backend.mcp.manager.mcp_manager.call_tool', _fake_call)
     try:
         session = SessionState()
         pending_message = stage_mcp_tool_approval(

@@ -2,7 +2,7 @@
 
 import pytest
 
-from clara_coder_backend.llm.gemma_output import (
+from valkade_backend.llm.gemma_output import (
     GEMMA_CHANNEL_LOOP_STOP,
     gemma_reply_is_empty,
     GemmaStreamSplitter,
@@ -13,7 +13,7 @@ from clara_coder_backend.llm.gemma_output import (
     strip_gemma_channel_markup,
     strip_gemma_native_tool_call_blocks,
 )
-from clara_coder_backend.llm.messages import text_uses_pseudo_tool_markup
+from valkade_backend.llm.messages import text_uses_pseudo_tool_markup
 
 
 def test_split_thought_then_answer() -> None:
@@ -416,7 +416,7 @@ def test_normalize_gemma_tool_args_prefers_relative_path() -> None:
 
 def test_normalize_gemma_tool_args_matches_each_edit_tools_real_signature() -> None:
     """A body name the tool does not declare fails validation, so a Gemma write could never land."""
-    from clara_coder_backend.tools.edit import replace_workspace_lines, write_workspace_file
+    from valkade_backend.tools.edit import replace_workspace_lines, write_workspace_file
 
     for tool, sent, wanted in (
         (write_workspace_file, 'new_content', 'content'),

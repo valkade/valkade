@@ -20,13 +20,13 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
-from clara_coder_backend.composer import stream_agent_reply
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
-from clara_coder_backend.lang_agent import graph as graph_module
-from clara_coder_backend.lang_agent import subagents
-from clara_coder_backend.lang_agent.subagent_bus import SUBAGENT_BUS
-from clara_coder_backend.lang_agent.subagents import (
+from valkade_backend.composer import stream_agent_reply
+from valkade_backend.domain import SessionState
+from valkade_backend.hitl.tool_registry import worker_tools_and_map
+from valkade_backend.lang_agent import graph as graph_module
+from valkade_backend.lang_agent import subagents
+from valkade_backend.lang_agent.subagent_bus import SUBAGENT_BUS
+from valkade_backend.lang_agent.subagents import (
     NO_NEW_REPORTS_TEXT,
     REPORTS_ARRIVED_HEADER,
     SubagentReport,
@@ -35,9 +35,9 @@ from clara_coder_backend.lang_agent.subagents import (
     fork_subagent_session,
     is_subagent_session_id,
 )
-from clara_coder_backend.llm.messages import build_system_prompt
-from clara_coder_backend.session import state
-from clara_coder_backend.session.schemas import AgentContinueRequest, SessionAutoApplyRequest
+from valkade_backend.llm.messages import build_system_prompt
+from valkade_backend.session import state
+from valkade_backend.session.schemas import AgentContinueRequest, SessionAutoApplyRequest
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
@@ -168,7 +168,7 @@ class BusTap:
 @pytest_asyncio.fixture(loop_scope='function')
 async def checkpoints(monkeypatch: pytest.MonkeyPatch, tmp_path):
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'subagents.sqlite'))
-    from clara_coder_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
+    from valkade_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
 
     await init_graph_checkpointing()
     yield
@@ -204,8 +204,8 @@ def use_model(monkeypatch: pytest.MonkeyPatch) -> Callable[[ScriptedChatModel], 
     """Patch the model for the whole test: sub-agents may outlive the turn that started them."""
 
     def install(model: ScriptedChatModel) -> ScriptedChatModel:
-        monkeypatch.setattr('clara_coder_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
-        monkeypatch.setattr('clara_coder_backend.composer.build_llm', lambda *a, **k: model)
+        monkeypatch.setattr('valkade_backend.lang_agent.graph.build_llm', lambda *a, **k: model)
+        monkeypatch.setattr('valkade_backend.composer.build_llm', lambda *a, **k: model)
         return model
 
     return install
@@ -286,7 +286,7 @@ async def test_spawn_follows_the_spawning_streams_mode_not_the_composer_toggle(
     parent_session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Plan discovery streams read-only and plan execution as Editor, whatever the toolbar says."""
-    from clara_coder_backend.tools import spawn_subagent as spawn_module
+    from valkade_backend.tools import spawn_subagent as spawn_module
 
     sid, parent = parent_session
     started: list[subagents.SubagentRun] = []
@@ -315,7 +315,7 @@ async def test_spawn_from_a_read_only_stream_stays_read_only_while_an_editor_str
     parent_session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``worker_apply_mode`` is session-wide; the spawning stream's own mode wins."""
-    from clara_coder_backend.tools import spawn_subagent as spawn_module
+    from valkade_backend.tools import spawn_subagent as spawn_module
 
     sid, parent = parent_session
     started: list[subagents.SubagentRun] = []
@@ -343,7 +343,7 @@ async def test_spawn_from_a_read_only_stream_stays_read_only_while_an_editor_str
 async def test_plan_discovery_subagents_are_read_only_and_report_into_the_summary(
     checkpoints, parent_session, bus, use_model
 ) -> None:
-    from clara_coder_backend.plan.plan_execute import _stream_plan_discovery_phase
+    from valkade_backend.plan.plan_execute import _stream_plan_discovery_phase
 
     sid, parent = parent_session
     parent.last_stream_apply_mode = True  # Editor on in the toolbar: discovery must still be read-only
@@ -415,7 +415,7 @@ async def test_names_are_unique_among_live_subagents_and_waiting_reports() -> No
 
 
 async def test_preamble_lists_running_subagents() -> None:
-    from clara_coder_backend.llm.messages import outer_turn_authority_preamble
+    from valkade_backend.llm.messages import outer_turn_authority_preamble
 
     parent = SessionState()
     assert 'Sub-agents still running' not in outer_turn_authority_preamble(parent, True)
@@ -427,8 +427,8 @@ async def test_preamble_lists_running_subagents() -> None:
 
 
 async def test_watchdog_stays_quiet_while_subagents_run() -> None:
-    from clara_coder_backend.lang_agent.graph import _stream_is_genuinely_stalled
-    from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState
+    from valkade_backend.lang_agent.graph import _stream_is_genuinely_stalled
+    from valkade_backend.lang_agent.langgraph_sse import GraphStreamState
 
     parent = SessionState()
     assert _stream_is_genuinely_stalled(parent, GraphStreamState())
@@ -442,7 +442,7 @@ async def test_watchdog_stays_quiet_while_subagents_run() -> None:
 
 
 async def test_bus_buffers_until_subscribed_and_fans_out_to_every_subscriber() -> None:
-    from clara_coder_backend.lang_agent.subagent_bus import SubagentEventBus
+    from valkade_backend.lang_agent.subagent_bus import SubagentEventBus
 
     bus = SubagentEventBus(buffer_max=3)
     for n in range(5):
@@ -477,7 +477,7 @@ async def test_bus_buffers_until_subscribed_and_fans_out_to_every_subscriber() -
 
 
 async def test_events_route_streams_subscribed_buffered_events_and_keepalives(monkeypatch) -> None:
-    from clara_coder_backend.routes import subagents as route
+    from valkade_backend.routes import subagents as route
 
     monkeypatch.setattr(route, 'KEEPALIVE_SEC', 0.05)
     SUBAGENT_BUS.publish({'type': 'subagent_finished', 'conversation_id': 'c1', 'outcome': 'completed'})
@@ -503,7 +503,7 @@ async def test_events_route_unsubscribes_when_the_client_disconnects() -> None:
     """Starlette never closes the body iterator; the response itself must unsubscribe."""
     from starlette.requests import ClientDisconnect
 
-    from clara_coder_backend.routes.subagents import subagent_events
+    from valkade_backend.routes.subagents import subagent_events
 
     response = await subagent_events()
     sent: list[dict[str, Any]] = []
@@ -525,7 +525,7 @@ async def test_events_route_unsubscribes_when_the_client_disconnects() -> None:
 
 
 async def test_events_route_requires_the_sidecar_token(monkeypatch) -> None:
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     monkeypatch.setenv('CLARA_SIDECAR_TOKEN', 'tok')
     monkeypatch.delenv('CLARA_SIDECAR_AUTH_OPTIONAL', raising=False)
@@ -771,8 +771,8 @@ async def test_turn_waits_for_running_subagents_then_continues_with_their_report
 async def test_stopping_the_turn_during_the_wait_leaves_subagents_running_then_results_ready_and_continue(
     checkpoints, parent_session, bus, use_model
 ) -> None:
-    from clara_coder_backend.routes.chat import chat_abort
-    from clara_coder_backend.session.schemas import AbortRequest
+    from valkade_backend.routes.chat import chat_abort
+    from valkade_backend.session.schemas import AbortRequest
 
     sid, parent = parent_session
     child_gate = asyncio.Event()
@@ -817,7 +817,7 @@ async def test_stopping_the_turn_during_the_wait_leaves_subagents_running_then_r
 async def test_cancelled_foreground_spawn_detaches_the_child_and_the_next_turn_gets_its_report(
     checkpoints, parent_session, bus, use_model
 ) -> None:
-    from clara_coder_backend.session.turns import _abort_session_turn
+    from valkade_backend.session.turns import _abort_session_turn
 
     sid, parent = parent_session
     child_gate = asyncio.Event()
@@ -902,8 +902,8 @@ async def test_wait_for_subagents_returns_their_reports(checkpoints, parent_sess
 
 
 async def test_wait_for_subagents_tool_timeout_unknown_names_and_waiting_reports() -> None:
-    from clara_coder_backend.session.state import current_session_id
-    from clara_coder_backend.tools.subagent_control import wait_for_subagents_tool
+    from valkade_backend.session.state import current_session_id
+    from valkade_backend.tools.subagent_control import wait_for_subagents_tool
 
     parent = state.get_session('wait-parent')
     run = _fake_run('wait-parent', parent, 'c-slow', 'slow')
@@ -1007,8 +1007,8 @@ async def test_report_of_a_harness_stop_quotes_its_notice_and_not_the_answer_bef
 
 async def test_disposing_a_subagent_conversation_drops_its_report(checkpoints, parent_session, bus, use_model) -> None:
     """A restore deletes the sub-agents of the turns it removed: their rolled-back work must not come back."""
-    from clara_coder_backend.routes.session import dispose_session
-    from clara_coder_backend.session.schemas import ClearRequest
+    from valkade_backend.routes.session import dispose_session
+    from valkade_backend.session.schemas import ClearRequest
 
     sid, parent = parent_session
     model = use_model(
@@ -1064,7 +1064,7 @@ async def test_stopping_one_subagent_from_its_card_gives_the_waiting_call_its_pa
 
 
 async def test_child_approval_card_is_answered_with_the_child_id(checkpoints, parent_session, bus, use_model) -> None:
-    from clara_coder_backend.routes.chat import agent_continue
+    from valkade_backend.routes.chat import agent_continue
 
     sid, parent = parent_session
     command = _call('c1', 'run_command', command='echo hi')
@@ -1116,7 +1116,7 @@ async def test_child_approval_card_is_answered_with_the_child_id(checkpoints, pa
 
 
 async def test_results_ready_only_when_no_parent_turn_is_live(bus) -> None:
-    from clara_coder_backend.session.turns import TurnHandle, _turns_for
+    from valkade_backend.session.turns import TurnHandle, _turns_for
 
     parent = state.get_session('rr-parent')
     try:
@@ -1150,8 +1150,8 @@ async def test_continue_turn_builds_its_input_from_the_waiting_reports(monkeypat
         kwargs['outcome'].mark_completed(final_text='ok', partial_text='ok')
         yield 'data: {"type":"chunk","delta":"ok"}\n\n'
 
-    monkeypatch.setattr('clara_coder_backend.composer.build_llm', MagicMock())
-    monkeypatch.setattr('clara_coder_backend.composer.stream_single_agent_langgraph', fake_stream)
+    monkeypatch.setattr('valkade_backend.composer.build_llm', MagicMock())
+    monkeypatch.setattr('valkade_backend.composer.stream_single_agent_langgraph', fake_stream)
     try:
         parent.subagent_pending_reports['c1'] = SubagentReport('c1', 'scout', 'Sub-agent `scout` finished. X', 'completed')
         await _run_turn(sid, 'ignored', continue_with_subagent_results=True)
@@ -1168,8 +1168,8 @@ async def test_continue_turn_builds_its_input_from_the_waiting_reports(monkeypat
             kwargs['outcome'].mark_failed_runtime('boom')
             yield 'data: {"type":"chunk","delta":"x"}\n\n'
 
-        monkeypatch.setattr('clara_coder_backend.composer.stream_single_agent_langgraph', failing)
-        monkeypatch.setattr('clara_coder_backend.composer.delete_outer_thread', AsyncMock())
+        monkeypatch.setattr('valkade_backend.composer.stream_single_agent_langgraph', failing)
+        monkeypatch.setattr('valkade_backend.composer.delete_outer_thread', AsyncMock())
         parent.subagent_pending_reports['c2'] = SubagentReport('c2', 'b', 'B', 'completed')
         await _run_turn(sid, 'ignored', continue_with_subagent_results=True)
         assert list(parent.subagent_pending_reports) == ['c2'] and not bus.ready()
@@ -1194,10 +1194,10 @@ async def test_reports_a_dropped_turn_took_are_put_back(monkeypatch, bus) -> Non
         kwargs['outcome'].mark_aborted()
         yield 'data: {"type":"chunk","delta":"x"}\n\n'
 
-    monkeypatch.setattr('clara_coder_backend.composer.build_llm', MagicMock())
-    monkeypatch.setattr('clara_coder_backend.composer.stream_single_agent_langgraph', failing)
-    monkeypatch.setattr('clara_coder_backend.composer.stream_plan_execute_langgraph', stopped_plan)
-    monkeypatch.setattr('clara_coder_backend.composer.delete_outer_thread', AsyncMock())
+    monkeypatch.setattr('valkade_backend.composer.build_llm', MagicMock())
+    monkeypatch.setattr('valkade_backend.composer.stream_single_agent_langgraph', failing)
+    monkeypatch.setattr('valkade_backend.composer.stream_plan_execute_langgraph', stopped_plan)
+    monkeypatch.setattr('valkade_backend.composer.delete_outer_thread', AsyncMock())
     try:
         parent.subagent_pending_reports['c1'] = SubagentReport('c1', 'a', 'A', 'completed')
         await _run_turn(sid, 'go')
@@ -1215,7 +1215,7 @@ async def test_reports_a_dropped_turn_took_are_put_back(monkeypatch, bus) -> Non
 async def test_chat_request_accepts_an_empty_continue_turn() -> None:
     from pydantic import ValidationError
 
-    from clara_coder_backend.session.schemas import ChatRequest
+    from valkade_backend.session.schemas import ChatRequest
 
     request = ChatRequest(session_id='p', message='', continue_with_subagent_results=True)
     assert request.continue_with_subagent_results is True
@@ -1226,12 +1226,12 @@ async def test_chat_request_accepts_an_empty_continue_turn() -> None:
 async def test_load_keeps_running_subagents_and_their_reports(bus, monkeypatch) -> None:
     from unittest.mock import AsyncMock
 
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.schemas import LoadRequest
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.schemas import LoadRequest
 
     # Returns None: no checkpoint kept, so the stashed spawn results go.
     monkeypatch.setattr(
-        'clara_coder_backend.routes.session.delete_outer_threads_for_session', AsyncMock(return_value=None)
+        'valkade_backend.routes.session.delete_outer_threads_for_session', AsyncMock(return_value=None)
     )
     parent = state.get_session('load-parent')
     child = fork_subagent_session('load-parent', parent, 'load-child', 'scout')
@@ -1255,10 +1255,10 @@ async def test_load_keeps_running_subagents_and_their_reports(bus, monkeypatch) 
 async def test_clear_stops_subagents_and_drops_their_reports(monkeypatch, bus) -> None:
     from unittest.mock import AsyncMock
 
-    from clara_coder_backend.routes.session import clear_session
-    from clara_coder_backend.session.schemas import ClearRequest
+    from valkade_backend.routes.session import clear_session
+    from valkade_backend.session.schemas import ClearRequest
 
-    monkeypatch.setattr('clara_coder_backend.routes.session.teardown_session', AsyncMock())
+    monkeypatch.setattr('valkade_backend.routes.session.teardown_session', AsyncMock())
     parent = state.get_session('clr-parent')
     child = fork_subagent_session('clr-parent', parent, 'clr-child', 'scout')
     run = _fake_run('clr-parent', parent, 'clr-child', 'scout')
@@ -1283,7 +1283,7 @@ async def test_clear_stops_subagents_and_drops_their_reports(monkeypatch, bus) -
 
 
 async def test_answer_sent_with_parent_id_reaches_the_waiting_child() -> None:
-    from clara_coder_backend.routes.chat import _session_waiting_on
+    from valkade_backend.routes.chat import _session_waiting_on
 
     parent = SessionState()
     try:
@@ -1301,8 +1301,8 @@ async def test_answer_sent_with_parent_id_reaches_the_waiting_child() -> None:
 async def test_retired_subagent_ids_are_rejected_not_recreated() -> None:
     from fastapi import HTTPException
 
-    from clara_coder_backend.routes.chat import agent_continue, chat_stream
-    from clara_coder_backend.session.schemas import ChatRequest
+    from valkade_backend.routes.chat import agent_continue, chat_stream
+    from valkade_backend.session.schemas import ChatRequest
 
     subagents.schedule_subagent_teardown('gone-child-1')
     await asyncio.sleep(0)
@@ -1321,7 +1321,7 @@ async def test_retired_subagent_ids_are_rejected_not_recreated() -> None:
 
 
 async def test_lsp_managers_of_a_subagent_are_keyed_by_its_parent(tmp_path) -> None:
-    from clara_coder_backend.lsp.manager import _resolve_session_and_root, lsp_owner_session_id
+    from valkade_backend.lsp.manager import _resolve_session_and_root, lsp_owner_session_id
 
     parent = state.get_session('lsp-parent')
     parent.workspace_path = str(tmp_path)
@@ -1337,7 +1337,7 @@ async def test_lsp_managers_of_a_subagent_are_keyed_by_its_parent(tmp_path) -> N
 
 
 async def test_auto_apply_toggle_reaches_running_subagents() -> None:
-    from clara_coder_backend.routes.session import session_auto_apply
+    from valkade_backend.routes.session import session_auto_apply
 
     parent = state.get_session('aa-parent')
     try:
@@ -1351,7 +1351,7 @@ async def test_auto_apply_toggle_reaches_running_subagents() -> None:
 
 
 async def test_touched_paths_record_every_mutation_even_when_parent_journaled_first() -> None:
-    from clara_coder_backend.session.file_journal import emit_edit_journal
+    from valkade_backend.session.file_journal import emit_edit_journal
 
     parent = SessionState()
     parent.current_user_message_id = 'turn-1'
@@ -1372,7 +1372,7 @@ async def test_touched_paths_record_every_mutation_even_when_parent_journaled_fi
 
 async def test_background_child_and_newer_parent_turn_do_not_rejournal_each_others_paths() -> None:
     """A background sub-agent journals under the turn that started it while the parent is on a newer one."""
-    from clara_coder_backend.session.file_journal import emit_edit_journal
+    from valkade_backend.session.file_journal import emit_edit_journal
 
     parent = SessionState()
     parent.current_user_message_id = 'turn-1'

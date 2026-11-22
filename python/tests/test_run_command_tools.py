@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
-from clara_coder_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.hitl.tool_registry import hitl_accept_command_pause_tools
-from clara_coder_backend.tools.run_command import (
+from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
+from valkade_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.hitl.tool_registry import hitl_accept_command_pause_tools
+from valkade_backend.tools.run_command import (
     RUN_COMMAND_NAME,
     STATUS_RUNNING,
     background_command_jobs,
@@ -241,7 +241,7 @@ async def test_granted_session_skips_elevate_hitl_and_runs(command_session, monk
     command_session.auto_apply_mode = True
     command_session.admin_elevation_granted = True
     monkeypatch.setattr(
-        'clara_coder_backend.tools.run_command.is_currently_privileged',
+        'valkade_backend.tools.run_command.is_currently_privileged',
         lambda: True,
     )
     try:
@@ -300,7 +300,7 @@ async def test_exit_is_reported_when_a_grandchild_keeps_the_pipe_open(command_se
 
 
 def test_output_buffer_trims_oldest_chunks(monkeypatch) -> None:
-    from clara_coder_backend.tools import run_command as rc
+    from valkade_backend.tools import run_command as rc
 
     monkeypatch.setattr(rc, '_MAX_CAPTURE_CHARS', 10)
     job = rc.CommandJob(
@@ -317,7 +317,7 @@ def test_output_buffer_trims_oldest_chunks(monkeypatch) -> None:
 
 
 def test_finished_unreported_jobs_are_evicted() -> None:
-    from clara_coder_backend.tools import run_command as rc
+    from valkade_backend.tools import run_command as rc
 
     job = rc.CommandJob(job_id='old', session_id='s', command_text='x', cwd_label='.', proc=None, started_at=0.0)
     job.status = rc.STATUS_EXITED

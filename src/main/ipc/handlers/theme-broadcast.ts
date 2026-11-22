@@ -5,7 +5,7 @@
  */
 import type { BrowserWindow } from 'electron';
 import { mainState } from '../../state';
-import type { ClaraThemeDocument } from '../../../shared/theme/theme-document';
+import type { ValkAdeThemeDocument } from '../../../shared/theme/theme-document';
 import { THEME_IPC } from '../../../shared/theme/theme-ipc';
 
 export function allAppWindows(): BrowserWindow[] {
@@ -25,6 +25,6 @@ export function broadcastToAppWindows(channel: string, payload: unknown): void {
 }
 
 /** Paint `theme` in every window without persisting; `null` returns to the saved theme. */
-export function broadcastThemePreview(theme: ClaraThemeDocument | null): void {
+export function broadcastThemePreview(theme: ValkAdeThemeDocument | null): void {
   broadcastToAppWindows(THEME_IPC.previewChanged, theme);
 }

@@ -8,21 +8,21 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeGdscriptLspConfig
-from clara_coder_backend.lsp.editor_features import run_editor_feature, workspace_symbols
-from clara_coder_backend.lsp.editor_monaco import serialize_locations_payload
-from clara_coder_backend.lsp.godot_project_root import resolve_godot_project_root
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.domain import RuntimeGdscriptLspConfig
+from valkade_backend.lsp.editor_features import run_editor_feature, workspace_symbols
+from valkade_backend.lsp.editor_monaco import serialize_locations_payload
+from valkade_backend.lsp.godot_project_root import resolve_godot_project_root
+from valkade_backend.lsp.manager import (
     SessionWorkspaceLspManager,
     _deep_merge,
     _workspace_capabilities,
     shutdown_all_lsp_managers,
 )
-from clara_coder_backend.lsp.plugins.gdscript_plugin import GdscriptLspPlugin, GdscriptPluginState
-from clara_coder_backend.lsp.server_plugin import LspServerNotInstalledError
-from clara_coder_backend.runtime.deps.providers import gdls
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.workspace.trust import trusted_workspace_keys
+from valkade_backend.lsp.plugins.gdscript_plugin import GdscriptLspPlugin, GdscriptPluginState
+from valkade_backend.lsp.server_plugin import LspServerNotInstalledError
+from valkade_backend.runtime.deps.providers import gdls
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.workspace.trust import trusted_workspace_keys
 
 
 def _project(path: Path) -> Path:
@@ -419,7 +419,7 @@ def test_prepare_rename_shapes(tmp_path: Path, manager_for) -> None:  # noqa: AN
 def test_stopping_one_server_everywhere_leaves_the_others_running(tmp_path, manager_for) -> None:  # noqa: ANN001
     """What the gdls install relies on: every session's server stops, nothing else does."""
 
-    from clara_coder_backend.lsp.manager import _MANAGERS_LOCK, _SESSION_MANAGERS, shutdown_lsp_server_for_all_sessions
+    from valkade_backend.lsp.manager import _MANAGERS_LOCK, _SESSION_MANAGERS, shutdown_lsp_server_for_all_sessions
 
     godot_a = manager_for(_FakeClient({}))
     godot_b = manager_for(_FakeClient({}))

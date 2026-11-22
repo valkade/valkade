@@ -7,7 +7,7 @@
  * each group, merges optional `*.theme.json` manifests, and writes:
  *
  *   src/shared/theme/theme-registry.generated.ts   (typed registry for main + renderer)
- *   python/clara_coder_backend/theme/registry.json (groups + token catalog for the agent tool)
+ *   python/valkade_backend/theme/registry.json (groups + token catalog for the agent tool)
  *
  * Inference per group:
  *   id                  the attribute value
@@ -53,7 +53,7 @@ const projectRoot = path.join(__dirname, '..');
 const rendererAppRoot = path.join(projectRoot, 'src', 'renderer', 'src', 'app');
 const tokensSource = path.join(projectRoot, 'src', 'shared', 'theme', 'theme-tokens.ts');
 const tsOutput = path.join(projectRoot, 'src', 'shared', 'theme', 'theme-registry.generated.ts');
-const jsonOutput = path.join(projectRoot, 'python', 'clara_coder_backend', 'theme', 'registry.json');
+const jsonOutput = path.join(projectRoot, 'python', 'valkade_backend', 'theme', 'registry.json');
 
 const SCAN_ROOTS = ['features', 'shared'];
 const GROUP_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;

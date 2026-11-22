@@ -8,8 +8,8 @@ import pytest
 from langchain_core.messages import AIMessage
 from starlette.testclient import TestClient
 
-from clara_coder_backend.chat.conversation_title_cadence import should_refresh_auto_title
-from clara_coder_backend.routes.conversation_title import history_transcript_for_title, sanitize_suggested_title
+from valkade_backend.chat.conversation_title_cadence import should_refresh_auto_title
+from valkade_backend.routes.conversation_title import history_transcript_for_title, sanitize_suggested_title
 
 
 @pytest.mark.parametrize(
@@ -42,8 +42,8 @@ def test_history_transcript_for_title_skips_non_chat_roles() -> None:
 
 
 def test_suggest_title_uses_mock_llm(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.session import state
-    from clara_coder_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.main import app
 
     sid = 'title-test-session'
     sess = state.get_session(sid)
@@ -62,7 +62,7 @@ def test_suggest_title_uses_mock_llm(monkeypatch: pytest.MonkeyPatch) -> None:
         captured.update(kwargs)
         return _FakeLlm()
 
-    monkeypatch.setattr('clara_coder_backend.routes.conversation_title.build_llm', _fake_build_llm)
+    monkeypatch.setattr('valkade_backend.routes.conversation_title.build_llm', _fake_build_llm)
 
     try:
         with TestClient(app) as client:
@@ -94,8 +94,8 @@ def test_sanitize_suggested_title(raw: Any, expected: str) -> None:
 
 
 def test_suggest_title_strips_gemma_thought_channel(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.session import state
-    from clara_coder_backend.main import app
+    from valkade_backend.session import state
+    from valkade_backend.main import app
 
     sid = 'title-gemma-session'
     sess = state.get_session(sid)
@@ -109,7 +109,7 @@ def test_suggest_title_strips_gemma_thought_channel(monkeypatch: pytest.MonkeyPa
             return AIMessage(content='<|channel>thought\nNaming this\n<channel|>Python list sorting')
 
     monkeypatch.setattr(
-        'clara_coder_backend.routes.conversation_title.build_llm',
+        'valkade_backend.routes.conversation_title.build_llm',
         lambda **_kwargs: _FakeLlm(),
     )
 

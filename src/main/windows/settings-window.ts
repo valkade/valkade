@@ -134,7 +134,7 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
     fullscreenable: false,
     show: false,
     backgroundColor: '#0a0a0a',
-    title: 'Clara Coder — Settings',
+    title: 'ValkAde — Settings',
     ...(icon ? { icon } : {}),
     webPreferences: secureWebPreferences(preloadPath()),
   });

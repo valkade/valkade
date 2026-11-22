@@ -6,10 +6,10 @@ import asyncio
 
 import pytest
 
-from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
-from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.theme import (
+from valkade_backend.hitl.tool_registry import worker_tools_and_map
+from valkade_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.theme import (
     PROPOSE_THEME_NAME,
     load_theme_registry,
     propose_theme_tool,
@@ -59,7 +59,7 @@ def test_validate_drops_unknown_tokens_groups_and_unsafe_values() -> None:
     bg = doc['groups']['chat.transcript']['background']
     assert bg == {'enabled': False, 'asset': '', 'opacity': 0.4, 'fit': 'tile'}
     assert 'assets' not in doc
-    assert doc['author'] == 'Clara'
+    assert doc['author'] == 'ValkAde'
     joined = '\n'.join(warnings)
     assert 'tokens.--t-nope' in joined
     assert 'tokens.--t-bg' in joined

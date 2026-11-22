@@ -52,7 +52,7 @@ export function createMainWindow(): void {
     ...framelessWindowShapeOptions(),
     show: false,
     backgroundColor: '#0a0a0a',
-    title: 'Clara Coder',
+    title: 'ValkAde',
     ...(icon ? { icon } : {}),
     webPreferences: secureWebPreferences(preload),
   });

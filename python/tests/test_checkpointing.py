@@ -12,7 +12,7 @@ from starlette.testclient import TestClient
 
 
 def test_outer_agent_thread_id_modes() -> None:
-    from clara_coder_backend.session.checkpointing import outer_agent_thread_id
+    from valkade_backend.session.checkpointing import outer_agent_thread_id
 
     assert outer_agent_thread_id('conv-1', 'single', apply_mode=True) == 'conv-1:single:apply'
     assert outer_agent_thread_id('conv-1', 'single', apply_mode=False) == 'conv-1:single:read'
@@ -21,7 +21,7 @@ def test_outer_agent_thread_id_modes() -> None:
 @pytest.mark.asyncio(loop_scope='function')
 async def test_delete_outer_threads_clears_stable_thread(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp.sqlite'))
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session.checkpointing import (
         delete_outer_threads_for_session,
         get_graph_checkpointer,
         init_graph_checkpointing,
@@ -52,7 +52,7 @@ async def test_second_turn_uses_delta_input_no_duplicate_users(
 ) -> None:
     """Stable thread + delta-only second invoke should not replay first user message."""
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp2.sqlite'))
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session.checkpointing import (
         get_graph_checkpointer,
         init_graph_checkpointing,
         outer_agent_thread_id,
@@ -76,8 +76,8 @@ async def test_second_turn_uses_delta_input_no_duplicate_users(
         await shutdown_graph_checkpointing()
 
 
-@patch('clara_coder_backend.routes.checkpoint.build_clara_single_outer_graph')
-@patch('clara_coder_backend.routes.checkpoint.build_llm')
+@patch('valkade_backend.routes.checkpoint.build_clara_single_outer_graph')
+@patch('valkade_backend.routes.checkpoint.build_llm')
 def test_checkpoint_history_endpoint_returns_entries(
     mock_build_llm: MagicMock,
     mock_build_graph: MagicMock,
@@ -98,7 +98,7 @@ def test_checkpoint_history_endpoint_returns_entries(
     mock_graph.aget_state_history = _hist
     mock_build_graph.return_value = mock_graph
 
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     with TestClient(app) as client:
         r = client.get('/checkpoint/history', params={'session_id': 'hist-s', 'apply_mode': 'true'})
@@ -111,7 +111,7 @@ def test_checkpoint_history_endpoint_returns_entries(
 
 
 @patch(
-    'clara_coder_backend.routes.session.delete_outer_threads_for_session',
+    'valkade_backend.routes.session.delete_outer_threads_for_session',
     new_callable=AsyncMock,
     return_value=None,
 )
@@ -119,9 +119,9 @@ def test_load_session_deletes_checkpoint_threads(
     mock_delete: AsyncMock, monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp4.sqlite'))
-    from clara_coder_backend.domain import SessionState
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.domain import SessionState
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     state.sessions['ld'] = SessionState()
     state.sessions['ld'].pending_delete_request = {'request_id': 'x'}
@@ -135,12 +135,12 @@ def test_load_session_deletes_checkpoint_threads(
     assert state.sessions['ld'].pending_delete_request is None
 
 
-@patch('clara_coder_backend.session.lifecycle.delete_outer_threads_for_session', new_callable=AsyncMock)
+@patch('valkade_backend.session.lifecycle.delete_outer_threads_for_session', new_callable=AsyncMock)
 def test_clear_session_deletes_checkpoint_threads(
     mock_delete: AsyncMock, monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp5.sqlite'))
-    from clara_coder_backend.main import app
+    from valkade_backend.main import app
 
     with TestClient(app) as client:
         r = client.post('/clear', json={'session_id': 'cl'})
@@ -148,14 +148,14 @@ def test_clear_session_deletes_checkpoint_threads(
     mock_delete.assert_awaited_once()
 
 
-@patch('clara_coder_backend.session.lifecycle.delete_outer_threads_for_session', new_callable=AsyncMock)
+@patch('valkade_backend.session.lifecycle.delete_outer_threads_for_session', new_callable=AsyncMock)
 def test_dispose_session_pops_and_deletes_checkpoints(
     mock_delete: AsyncMock, monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp6.sqlite'))
-    from clara_coder_backend.domain import SessionState
-    from clara_coder_backend.main import app
-    from clara_coder_backend.session import state
+    from valkade_backend.domain import SessionState
+    from valkade_backend.main import app
+    from valkade_backend.session import state
 
     state.sessions['disp'] = SessionState()
     with TestClient(app) as client:
@@ -168,15 +168,15 @@ def test_dispose_session_pops_and_deletes_checkpoints(
 @pytest.mark.asyncio(loop_scope='function')
 async def test_load_clears_seeded_checkpoint_messages(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'cp7.sqlite'))
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.checkpointing import (
         get_graph_checkpointer,
         init_graph_checkpointing,
         outer_agent_thread_id,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import LoadRequest
-    from clara_coder_backend.session import state
+    from valkade_backend.session.schemas import LoadRequest
+    from valkade_backend.session import state
 
     await init_graph_checkpointing()
     try:
@@ -203,7 +203,7 @@ def _agent_with_usage(replies: list[str], input_tokens: int):
     from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
     from langchain_core.messages import AIMessage
 
-    from clara_coder_backend.session.checkpointing import get_graph_checkpointer
+    from valkade_backend.session.checkpointing import get_graph_checkpointer
 
     llm = GenericFakeChatModel(
         messages=iter(
@@ -226,9 +226,9 @@ def _history(*turns: str) -> list[dict]:
 
 def test_history_fingerprint_matches_load_shaped_rows() -> None:
     """Composer history and ``/load``-normalized rows of the same turns fingerprint the same."""
-    from clara_coder_backend.routes.session import _load_message_content
-    from clara_coder_backend.session.chat_input import effective_user_message_content
-    from clara_coder_backend.session.checkpointing import history_fingerprint
+    from valkade_backend.routes.session import _load_message_content
+    from valkade_backend.session.chat_input import effective_user_message_content
+    from valkade_backend.session.checkpointing import history_fingerprint
 
     blocks = [{'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AA=='}}]
     live = [
@@ -253,14 +253,14 @@ def test_history_fingerprint_matches_load_shaped_rows() -> None:
 @pytest.mark.asyncio(loop_scope='function')
 async def test_load_keeps_a_settled_checkpoint_that_matches(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'keep.sqlite'))
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.checkpointing import (
         init_graph_checkpointing,
         outer_agent_thread_id,
         settle_outer_thread,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import LoadRequest
+    from valkade_backend.session.schemas import LoadRequest
 
     await init_graph_checkpointing()
     try:
@@ -295,15 +295,15 @@ async def test_load_keeps_a_settled_checkpoint_that_matches(monkeypatch: pytest.
 async def test_load_drops_a_thread_whose_turn_never_settled(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """A turn that started but never settled (the app quit mid-turn) leaves no row to match."""
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'unsettled.sqlite'))
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.checkpointing import (
         forget_outer_thread_sync,
         init_graph_checkpointing,
         outer_agent_thread_id,
         settle_outer_thread,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import LoadRequest
+    from valkade_backend.session.schemas import LoadRequest
 
     await init_graph_checkpointing()
     try:
@@ -327,14 +327,14 @@ async def test_load_drops_a_thread_whose_turn_never_settled(monkeypatch: pytest.
 async def test_load_without_keep_flag_still_deletes(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """A timeline restore resyncs without the flag: even a matching checkpoint goes."""
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'nokeep.sqlite'))
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.checkpointing import (
         init_graph_checkpointing,
         outer_agent_thread_id,
         settle_outer_thread,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import LoadRequest
+    from valkade_backend.session.schemas import LoadRequest
 
     await init_graph_checkpointing()
     try:
@@ -359,7 +359,7 @@ def _plan_phase_thread_ids(session_id: str) -> list[str]:
 
 
 async def _seed_threads(thread_ids: list[str]) -> None:
-    from clara_coder_backend.session.checkpointing import get_graph_checkpointer
+    from valkade_backend.session.checkpointing import get_graph_checkpointer
 
     llm = FakeListChatModel(responses=['ok'])
     g = create_agent(llm, [], system_prompt='sys', name='t', checkpointer=get_graph_checkpointer())
@@ -368,7 +368,7 @@ async def _seed_threads(thread_ids: list[str]) -> None:
 
 
 async def _existing_threads(thread_ids: list[str]) -> list[str]:
-    from clara_coder_backend.session.checkpointing import get_graph_checkpointer
+    from valkade_backend.session.checkpointing import get_graph_checkpointer
 
     saver = get_graph_checkpointer()
     return [tid for tid in thread_ids if await saver.aget_tuple({'configurable': {'thread_id': tid}})]
@@ -377,9 +377,9 @@ async def _existing_threads(thread_ids: list[str]) -> list[str]:
 @pytest.mark.asyncio(loop_scope='function')
 async def test_clear_removes_plan_phase_threads(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'plan-clear.sqlite'))
-    from clara_coder_backend.routes.session import clear_session
-    from clara_coder_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
-    from clara_coder_backend.session.schemas import ClearRequest
+    from valkade_backend.routes.session import clear_session
+    from valkade_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
+    from valkade_backend.session.schemas import ClearRequest
 
     await init_graph_checkpointing()
     try:
@@ -401,14 +401,14 @@ async def test_load_drops_plan_phase_threads_and_keeps_a_matching_agent_thread(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'plan-load.sqlite'))
-    from clara_coder_backend.routes.session import load_session
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.routes.session import load_session
+    from valkade_backend.session.checkpointing import (
         init_graph_checkpointing,
         outer_agent_thread_id,
         settle_outer_thread,
         shutdown_graph_checkpointing,
     )
-    from clara_coder_backend.session.schemas import LoadRequest
+    from valkade_backend.session.schemas import LoadRequest
 
     await init_graph_checkpointing()
     try:
@@ -433,7 +433,7 @@ async def test_load_drops_plan_phase_threads_and_keeps_a_matching_agent_thread(
 async def test_deleting_one_kind_leaves_plan_phase_threads(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """After a plan turn the composer drops the ``single`` threads; the plan's own threads are not part of that."""
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'plan-kind.sqlite'))
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session.checkpointing import (
         delete_outer_threads_for_session,
         init_graph_checkpointing,
         shutdown_graph_checkpointing,
@@ -457,8 +457,8 @@ async def test_settle_prunes_old_checkpoints_and_drops_other_mode(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'settle.sqlite'))
-    from clara_coder_backend.session import checkpointing
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session import checkpointing
+    from valkade_backend.session.checkpointing import (
         init_graph_checkpointing,
         outer_agent_thread_id,
         settle_outer_thread,
@@ -495,8 +495,8 @@ async def test_settle_prunes_old_checkpoints_and_drops_other_mode(
 @pytest.mark.asyncio(loop_scope='function')
 async def test_compact_checkpoint_db_keeps_latest_per_thread(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'compact.sqlite'))
-    from clara_coder_backend.session import checkpointing
-    from clara_coder_backend.session.checkpointing import (
+    from valkade_backend.session import checkpointing
+    from valkade_backend.session.checkpointing import (
         compact_checkpoint_db,
         init_graph_checkpointing,
         shutdown_graph_checkpointing,
@@ -528,8 +528,8 @@ async def test_compact_checkpoint_db_keeps_latest_per_thread(monkeypatch: pytest
 async def test_vacuum_runs_while_another_write_is_uncommitted(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """The startup VACUUM shares the connection with turns: an open write must not make it fail."""
     monkeypatch.setenv('CLARA_CHECKPOINT_DB', str(tmp_path / 'vacuum.sqlite'))
-    from clara_coder_backend.session import checkpointing
-    from clara_coder_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
+    from valkade_backend.session import checkpointing
+    from valkade_backend.session.checkpointing import init_graph_checkpointing, shutdown_graph_checkpointing
 
     await init_graph_checkpointing()
     try:

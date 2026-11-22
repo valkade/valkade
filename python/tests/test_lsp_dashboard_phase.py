@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from clara_coder_backend.lsp import manager as lsp_manager
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.lsp import manager as lsp_manager
+from valkade_backend.lsp.manager import (
     SessionWorkspaceLspManager,
     get_lsp_dashboard_status,
     shutdown_all_lsp_managers,
 )
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.session.state import current_session_id, get_session
 
 
 def _manager(

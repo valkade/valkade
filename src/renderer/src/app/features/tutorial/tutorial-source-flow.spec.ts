@@ -38,7 +38,7 @@ function initialConfig(): AppConfig {
   return {
     currentWorkspaceId: null,
     workspaces: [],
-    themeId: 'clara-dark',
+    themeId: 'valkade-dark',
     activeLlmModelId: 'local-model-id',
     llmProviders: [{
       id: LOCAL_ID,

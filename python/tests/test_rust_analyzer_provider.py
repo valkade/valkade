@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps import registry
-from clara_coder_backend.runtime.deps.providers import rust_analyzer
+from valkade_backend.runtime.deps import registry
+from valkade_backend.runtime.deps.providers import rust_analyzer
 
 TAG = rust_analyzer.DEFAULT_TAG
 WINDOWS_ASSET = 'rust-analyzer-x86_64-pc-windows-msvc.zip'
@@ -127,7 +127,7 @@ def test_checksum_mismatch_installs_nothing(runtime, monkeypatch, tmp_path) -> N
 
 def test_a_platform_without_an_asset_says_so(runtime, monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(rust_analyzer, 'release_asset_name', lambda: None)
-    with pytest.raises(RuntimeError, match='CLARA_RUST_LSP_COMMAND'):
+    with pytest.raises(RuntimeError, match='VALKADE_RUST_LSP_COMMAND'):
         rust_analyzer.install()
 
 

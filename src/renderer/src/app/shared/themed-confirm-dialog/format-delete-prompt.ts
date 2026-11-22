@@ -42,8 +42,8 @@ export function customModelDeletePrompt(args: {
 export function workspaceRemovePrompt(name: string): ThemedConfirmOpenOptions {
   return {
     title: 'Remove workspace?',
-    message: `Remove "${name}" from Clara?`,
-    detail: 'Its chats and Clara app data will be deleted. The folder and its files on disk are not touched.',
+    message: `Remove "${name}" from ValkAde?`,
+    detail: 'Its chats and ValkAde app data will be deleted. The folder and its files on disk are not touched.',
     cancelText: 'Cancel',
     confirmText: 'Remove',
     variant: 'warning',

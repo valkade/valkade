@@ -721,7 +721,7 @@ export function registerModelManagerIpc(): void {
         const token = String(payload?.token || '').trim();
         const headers: Record<string, string> = {
           Accept: 'application/json',
-          'User-Agent': 'ClaraCoder-ModelManager',
+          'User-Agent': 'ValkAde-ModelManager',
         };
         if (token) {
           headers.Authorization = `Bearer ${token}`;
@@ -833,7 +833,7 @@ export function registerModelManagerIpc(): void {
         const token = String(payload?.token || '').trim();
         const headers: Record<string, string> = {
           Accept: 'application/json',
-          'User-Agent': 'ClaraCoder-ModelManager',
+          'User-Agent': 'ValkAde-ModelManager',
         };
         if (token) {
           headers.Authorization = `Bearer ${token}`;

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimePythonLspConfig, SessionState
-from clara_coder_backend.lsp.python_init_options import (
+from valkade_backend.domain import RuntimePythonLspConfig, SessionState
+from valkade_backend.lsp.python_init_options import (
     build_python_initialization_options,
     deduce_venv_root_from_interpreter,
     python_environment_path_for_workspace,
@@ -122,7 +122,7 @@ def test_build_python_initialization_options_applies_settings(tmp_path: Path) ->
 def test_build_python_initialization_options_reads_runtime_settings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from clara_coder_backend.session.state import runtime_config
+    from valkade_backend.session.state import runtime_config
 
     monkeypatch.setattr(runtime_config.lsp, 'python', RuntimePythonLspConfig(type_checking_mode='all'))
     analysis = build_python_initialization_options(SessionState(), tmp_path)['basedpyright']['analysis']

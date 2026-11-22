@@ -1,8 +1,8 @@
-"""Tests for :mod:`clara_coder_backend.runtime.http_url_normalize`."""
+"""Tests for :mod:`valkade_backend.runtime.http_url_normalize`."""
 
 from __future__ import annotations
 
-from clara_coder_backend.runtime.http_url_normalize import normalize_bind_all_host_url, normalize_openai_api_base
+from valkade_backend.runtime.http_url_normalize import normalize_bind_all_host_url, normalize_openai_api_base
 
 
 def test_normalize_bind_all_ipv4() -> None:

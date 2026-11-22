@@ -8,16 +8,16 @@ import pytest
 from fastapi import HTTPException
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
-from clara_coder_backend.domain import RuntimeConnection
-from clara_coder_backend.lang_agent.streaming import aimessage_chunk_reasoning_delta
-from clara_coder_backend.llm.anthropic_llm import (
+from valkade_backend.domain import RuntimeConnection
+from valkade_backend.lang_agent.streaming import aimessage_chunk_reasoning_delta
+from valkade_backend.llm.anthropic_llm import (
     THINKING_BINDING_BETA,
     ClaraChatAnthropic,
     build_anthropic_llm,
     resolve_anthropic_effort,
 )
-from clara_coder_backend.llm.http_transport import _is_llm_generation_request
-from clara_coder_backend.llm.messages import final_assistant_text, reasoning_sidecar_text, stringify_content
+from valkade_backend.llm.http_transport import _is_llm_generation_request
+from valkade_backend.llm.messages import final_assistant_text, reasoning_sidecar_text, stringify_content
 
 OPUS_CAPS = {
     'enableThinking': False,
@@ -149,12 +149,12 @@ def test_messages_endpoint_counts_as_generation_for_stop() -> None:
 async def test_stop_closes_a_live_claude_stream() -> None:
     import httpx2
 
-    from clara_coder_backend.llm.http_transport import (
+    from valkade_backend.llm.http_transport import (
         abort_in_flight_llm_requests,
         acquire_anthropic_http_clients,
         reset_llm_http_clients,
     )
-    from clara_coder_backend.session.state import current_session_id
+    from valkade_backend.session.state import current_session_id
 
     async def endless_sse():
         while True:

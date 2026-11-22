@@ -1,6 +1,6 @@
 # `stream-payload.ts`
 
-Canonical parser for the agent SSE/stream wire protocol used by Clara Coder.
+Canonical parser for the agent SSE/stream wire protocol used by ValkAde.
 
 The backend (Python) emits streaming events as JSON lines. The renderer (and any
 other TypeScript consumer) needs a single, well-typed entry point that turns

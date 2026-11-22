@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage
 
-from clara_coder_backend.domain import RuntimeConnection
-from clara_coder_backend.llm.messages import assistant_visible_answer, reasoning_sidecar_text
+from valkade_backend.domain import RuntimeConnection
+from valkade_backend.llm.messages import assistant_visible_answer, reasoning_sidecar_text
 
 
 def _gemma_conn() -> RuntimeConnection:
@@ -24,21 +24,21 @@ def _gemma_conn() -> RuntimeConnection:
     )
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_assistant_visible_answer_strips_gemma_thought_channel(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_conn()
     msg = AIMessage(content="<|channel>thought\nhidden<channel|>visible")
     assert assistant_visible_answer(msg) == 'visible'
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_reasoning_sidecar_from_gemma_channel(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_conn()
     msg = AIMessage(content="<|channel>thought\nhidden<channel|>visible")
     assert reasoning_sidecar_text(msg) == 'hidden'
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_assistant_visible_answer_orphan_channel_close(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_conn()
     msg = AIMessage(content="Need the file next.\n<channel|>visible")
@@ -46,7 +46,7 @@ def test_assistant_visible_answer_orphan_channel_close(mock_conn: MagicMock) -> 
     assert reasoning_sidecar_text(msg) == 'Need the file next.'
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_reasoning_sidecar_strips_nested_channel_tags(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _gemma_conn()
     msg = AIMessage(content='visible')

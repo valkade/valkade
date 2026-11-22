@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeMcpServer
-from clara_coder_backend.mcp.manager import mcp_manager
-from clara_coder_backend.session.state import runtime_config
+from valkade_backend.domain import RuntimeMcpServer
+from valkade_backend.mcp.manager import mcp_manager
+from valkade_backend.session.state import runtime_config
 
 _FIXTURE = Path(__file__).with_name('mcp_stdio_fixture.py')
 
@@ -37,7 +37,7 @@ async def test_stdio_fixture_lists_and_calls_ping(tmp_path: Path) -> None:
         row = next(item for item in status['servers'] if item['id'] == 'fixture')
         assert row['connected'], row['error']
         assert row['toolCount'] == 1
-        from clara_coder_backend.mcp.tools import bound_mcp_tools
+        from valkade_backend.mcp.tools import bound_mcp_tools
 
         bound = bound_mcp_tools()
         assert len(bound) == 1

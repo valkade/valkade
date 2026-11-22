@@ -220,7 +220,7 @@ describe('token readers', () => {
 });
 
 describe('analyzeLlamaRunCommand', () => {
-  it('reports a healthy command as used, with the port managed by Clara', () => {
+  it('reports a healthy command as used, with the port managed by ValkAde', () => {
     const result = analyzeLlamaRunCommand(`${BASE} -c 4096`, options);
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
@@ -254,7 +254,7 @@ describe('analyzeLlamaRunCommand', () => {
     expect(offline.entries.find((e) => e.flag === '--bogus')?.status).toBe('used');
   });
 
-  it('shows sampling flags as fallbacks when Clara sends them per request', () => {
+  it('shows sampling flags as fallbacks when ValkAde sends them per request', () => {
     const opts: LlamaAnalyzeOptions = {
       ...options,
       requestOverrides: [{ names: ['--temp'], label: 'Temperature' }],
@@ -265,7 +265,7 @@ describe('analyzeLlamaRunCommand', () => {
     expect(entry(`${BASE} --top-k 5`, '--top-k', opts)?.status).toBe('used');
   });
 
-  it('explains -ngl 99, which Clara starts as auto', () => {
+  it('explains -ngl 99, which ValkAde starts as auto', () => {
     expect(entry(`${BASE} -ngl 99`, '-ngl')?.status).toBe('rewritten');
     expect(entry(`${BASE} -ngl 12`, '-ngl')?.status).toBe('used');
   });
@@ -278,7 +278,7 @@ describe('analyzeLlamaRunCommand', () => {
     expect(entry(`${BASE} --spec-type draft-mtp --spec-draft-n-max 4`, '--spec-draft-n-max')?.status).toBe('used');
   });
 
-  it('lists what Clara appends at start, and marks a flag that loses to it', () => {
+  it('lists what ValkAde appends at start, and marks a flag that loses to it', () => {
     const bare = 'llama-server --port {{PORT}} -m /m/a.gguf';
     const result = analyzeLlamaRunCommand(bare, options);
     expect(result.addedAtStart.map((f) => f.flag)).toEqual(['--jinja', '--no-webui', '-np', '--fit-ctx']);
@@ -422,7 +422,7 @@ describe('buildManagedChatStartCommand', () => {
       },
     );
 
-    it('is listed with the flags Clara adds, and the preview is what spawns', () => {
+    it('is listed with the flags ValkAde adds, and the preview is what spawns', () => {
       const analysis = analyzeLlamaRunCommand(bare, { platform: 'posix' });
       const added = analysis.addedAtStart.find((f) => f.flag === '--fit-ctx');
       expect(added?.value).toBe('16384');

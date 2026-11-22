@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from clara_coder_backend.tools.run_command import (
+from valkade_backend.tools.run_command import (
     _MAX_COMMAND_CHARS,
     validate_run_command_text,
 )

@@ -2,9 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '@shared/index';
-import { CLARA_DARK_THEME, CLARA_LIGHT_THEME, DEFAULT_THEME, type ClaraThemeDocument } from '@shared/theme';
+import { VALKADE_DARK_THEME, VALKADE_LIGHT_THEME, DEFAULT_THEME, type ValkAdeThemeDocument } from '@shared/theme';
 import { ElectronService } from '../electron.service';
 import {
+  LEGACY_THEME_MODE_STORAGE_KEY,
   THEME_GROUPS_STYLE_ID,
   THEME_MODE_STORAGE_KEY,
   THEME_TOKENS_STYLE_ID,
@@ -16,7 +17,7 @@ import {
 } from './theme-dom';
 import { ThemeEngineService } from './theme-engine.service';
 
-const neon: ClaraThemeDocument = {
+const neon: ValkAdeThemeDocument = {
   version: 1,
   id: 'neon',
   name: 'Neon',
@@ -46,7 +47,7 @@ function groupsCss(): string {
 describe('theme-dom', () => {
   it('applyBuiltInThemeSync paints the dark built-in before bootstrap', () => {
     applyBuiltInThemeSync(document);
-    expect(document.documentElement.getAttribute('data-theme-id')).toBe('clara-dark');
+    expect(document.documentElement.getAttribute('data-theme-id')).toBe('valkade-dark');
     expect(document.documentElement.getAttribute('data-theme-mode')).toBe('dark');
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     expect(tokensCss()).toContain(`--t-bg: ${DEFAULT_THEME.tokens['--t-bg']};`);
@@ -60,7 +61,7 @@ describe('theme-dom', () => {
   });
 
   it('rendererThemeAssetUrl only passes through strict data: images and safe file names', () => {
-    expect(rendererThemeAssetUrl('neon', 'wall', 'wall.png')).toBe('clara-theme://asset/neon/wall.png');
+    expect(rendererThemeAssetUrl('neon', 'wall', 'wall.png')).toBe('valkade-theme://asset/neon/wall.png');
     expect(rendererThemeAssetUrl('neon', 'wall', 'data:image/png;base64,AAAA')).toBe('data:image/png;base64,AAAA');
     expect(rendererThemeAssetUrl('neon', 'wall', 'data:image/png;base64,AAAA\n); }')).toBeNull();
     expect(rendererThemeAssetUrl('neon', 'wall', '../theme.json')).toBeNull();
@@ -85,19 +86,28 @@ describe('theme-dom', () => {
     expect(() => writeCachedThemeMode(broken, 'light')).not.toThrow();
     expect(readCachedThemeMode(null)).toBe('dark');
   });
+
+  it('falls back to the pre-rename mode key only when the current one is unset', () => {
+    const store = new Map<string, string>([[LEGACY_THEME_MODE_STORAGE_KEY, 'light']]);
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+    expect(readCachedThemeMode(storage)).toBe('light');
+    writeCachedThemeMode(storage, 'dark');
+    expect(store.get(THEME_MODE_STORAGE_KEY)).toBe('dark');
+    expect(readCachedThemeMode(storage)).toBe('dark');
+  });
 });
 
 describe('ThemeEngineService', () => {
   let configSubject: Subject<AppConfig>;
-  let librarySubject: Subject<ClaraThemeDocument[]>;
-  let previewSubject: Subject<ClaraThemeDocument | null>;
+  let librarySubject: Subject<ValkAdeThemeDocument[]>;
+  let previewSubject: Subject<ValkAdeThemeDocument | null>;
   let listThemes: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localStorage.removeItem(THEME_MODE_STORAGE_KEY);
     configSubject = new Subject<AppConfig>();
-    librarySubject = new Subject<ClaraThemeDocument[]>();
-    previewSubject = new Subject<ClaraThemeDocument | null>();
+    librarySubject = new Subject<ValkAdeThemeDocument[]>();
+    previewSubject = new Subject<ValkAdeThemeDocument | null>();
     listThemes = vi.fn(async () => [neon]);
     TestBed.configureTestingModule({
       providers: [
@@ -118,7 +128,7 @@ describe('ThemeEngineService', () => {
   it('paints the default theme on construction and stamps a revision', () => {
     const engine = TestBed.inject(ThemeEngineService);
     TestBed.tick();
-    expect(engine.applied().id).toBe('clara-dark');
+    expect(engine.applied().id).toBe('valkade-dark');
     expect(engine.revision()).toBeGreaterThan(0);
     expect(document.documentElement.getAttribute('data-theme-revision')).toBe(String(engine.revision()));
     expect(tokensCss()).toContain(':root {');
@@ -131,22 +141,22 @@ describe('ThemeEngineService', () => {
     await Promise.resolve();
     await Promise.resolve();
     TestBed.tick();
-    // `woodland` from the mocked loadConfig → clara-dark.
-    expect(engine.activeThemeId()).toBe('clara-dark');
+    // `woodland` from the mocked loadConfig → valkade-dark.
+    expect(engine.activeThemeId()).toBe('valkade-dark');
     expect(listThemes).toHaveBeenCalled();
     expect(engine.library().map((t) => t.id)).toEqual([
-      'clara-dark',
-      'clara-dark-cadmium-lantern',
-      'clara-dark-cadmium-orange',
-      'clara-light',
-      'clara-light-iris',
-      'clara-light-ochre',
+      'valkade-dark',
+      'valkade-dark-cadmium-lantern',
+      'valkade-dark-cadmium-orange',
+      'valkade-light',
+      'valkade-light-iris',
+      'valkade-light-ochre',
       'neon',
     ]);
 
     configSubject.next({ themeId: 'classical' } as AppConfig);
     TestBed.tick();
-    expect(engine.applied().id).toBe(CLARA_LIGHT_THEME.id);
+    expect(engine.applied().id).toBe(VALKADE_LIGHT_THEME.id);
     expect(document.documentElement.getAttribute('data-theme-mode')).toBe('light');
     expect(engine.monacoTheme()?.base).toBe('vs');
 
@@ -156,9 +166,9 @@ describe('ThemeEngineService', () => {
     const css = tokensCss();
     expect(css).toContain('--t-primary: #ff00ff;');
     // Unset tokens inherit from the light built-in for this mode.
-    expect(css).toContain(`--t-fg: ${CLARA_LIGHT_THEME.tokens['--t-fg']};`);
+    expect(css).toContain(`--t-fg: ${VALKADE_LIGHT_THEME.tokens['--t-fg']};`);
     expect(css).toContain('[data-theme-group="chat.transcript"] {\n  --t-bg: #101010;\n}');
-    expect(css).toContain('background-image: url("clara-theme://asset/neon/wall.png");');
+    expect(css).toContain('background-image: url("valkade-theme://asset/neon/wall.png");');
     expect(css).toContain('[data-theme-group="chat.transcript"] .chat-box {\n  background-color: transparent !important;');
     expect(groupsCss()).toContain(
       '@scope ([data-theme-group="chat.transcript"]) {\n:scope .msg-bubble { border-radius: 0; }\n}',
@@ -167,7 +177,7 @@ describe('ThemeEngineService', () => {
     expect(engine.monacoTheme()?.colors['editor.background']).toBe('#00000000');
 
     const previewRevision = engine.revision();
-    previewSubject.next({ ...CLARA_DARK_THEME, id: 'draft', name: 'Draft', builtIn: undefined });
+    previewSubject.next({ ...VALKADE_DARK_THEME, id: 'draft', name: 'Draft', builtIn: undefined });
     TestBed.tick();
     expect(engine.isPreviewing()).toBe(true);
     expect(engine.applied().id).toBe('draft');
@@ -182,7 +192,7 @@ describe('ThemeEngineService', () => {
     // so the window never flips dark↔light while waiting for the library or after a deletion.
     configSubject.next({ themeId: 'missing-theme' } as AppConfig);
     TestBed.tick();
-    expect(engine.applied().id).toBe(CLARA_LIGHT_THEME.id);
+    expect(engine.applied().id).toBe(VALKADE_LIGHT_THEME.id);
     expect(engine.fallbackMode()).toBe('light');
     // Real applies (not previews) persist the mode for the next pre-bootstrap paint.
     expect(localStorage.getItem(THEME_MODE_STORAGE_KEY)).toBe('light');
@@ -192,20 +202,20 @@ describe('ThemeEngineService', () => {
     localStorage.setItem(THEME_MODE_STORAGE_KEY, 'light');
     const engine = TestBed.inject(ThemeEngineService);
     TestBed.tick();
-    expect(engine.applied().id).toBe(CLARA_LIGHT_THEME.id);
+    expect(engine.applied().id).toBe(VALKADE_LIGHT_THEME.id);
     expect(document.documentElement.getAttribute('data-theme-mode')).toBe('light');
   });
 
   it('setLibrary keeps built-ins first and de-duplicates them', () => {
     const engine = TestBed.inject(ThemeEngineService);
-    engine.setLibrary([neon, { ...CLARA_DARK_THEME }]);
+    engine.setLibrary([neon, { ...VALKADE_DARK_THEME }]);
     expect(engine.library().map((t) => t.id)).toEqual([
-      'clara-dark',
-      'clara-dark-cadmium-lantern',
-      'clara-dark-cadmium-orange',
-      'clara-light',
-      'clara-light-iris',
-      'clara-light-ochre',
+      'valkade-dark',
+      'valkade-dark-cadmium-lantern',
+      'valkade-dark-cadmium-orange',
+      'valkade-light',
+      'valkade-light-iris',
+      'valkade-light-ochre',
       'neon',
     ]);
     expect(engine.findTheme('neon')?.name).toBe('Neon');

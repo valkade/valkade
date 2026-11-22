@@ -13,18 +13,18 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from clara_coder_backend.domain import RuntimeToolsConfig
-from clara_coder_backend.hitl.accept_command import execute_pending_accept_command_decision
-from clara_coder_backend.hitl.tool_registry import (
+from valkade_backend.domain import RuntimeToolsConfig
+from valkade_backend.hitl.accept_command import execute_pending_accept_command_decision
+from valkade_backend.hitl.tool_registry import (
     format_tools_catalog,
     hitl_accept_command_pause_tools,
     worker_tools_and_map,
 )
-from clara_coder_backend.llm.messages import _web_access_operational_bullet
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.tools import screenshot_webpage as screenshot
-from clara_coder_backend.tools.deferred_hitl import DEFERRED_HITL_TOOL_NAMES, deferred_tool_hitl_bypass
-from clara_coder_backend.tools.http_guards import assert_public_http_url
+from valkade_backend.llm.messages import _web_access_operational_bullet
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.tools import screenshot_webpage as screenshot
+from valkade_backend.tools.deferred_hitl import DEFERRED_HITL_TOOL_NAMES, deferred_tool_hitl_bypass
+from valkade_backend.tools.http_guards import assert_public_http_url
 
 _ASSET_URL = 'nemo-asset://capture/0123456789abcdef0123456789abcdef.png'
 _TARGET = 'https://example.com/page'

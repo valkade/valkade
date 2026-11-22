@@ -2,13 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CLARA_DARK_THEME, type ClaraThemeDocument } from '@shared/theme';
+import { VALKADE_DARK_THEME, type ValkAdeThemeDocument } from '@shared/theme';
 import { ElectronService } from '../../../core/electron.service';
 import { ThemeEngineService } from '../../../core/theme/theme-engine.service';
 import { ThemedPromptDialogService } from '../../../shared/themed-prompt-dialog/themed-prompt-dialog.service';
 import { SettingsThemesStore } from './settings-themes-store';
 
-const neon: ClaraThemeDocument = {
+const neon: ValkAdeThemeDocument = {
   version: 1,
   id: 'neon',
   name: 'Neon',
@@ -21,8 +21,8 @@ const neon: ClaraThemeDocument = {
 describe('SettingsThemesStore', () => {
   let electron: {
     config$: Subject<unknown>;
-    themeLibrary$: Subject<ClaraThemeDocument[]>;
-    themePreview$: Subject<ClaraThemeDocument | null>;
+    themeLibrary$: Subject<ValkAdeThemeDocument[]>;
+    themePreview$: Subject<ValkAdeThemeDocument | null>;
     previewTheme: ReturnType<typeof vi.fn>;
     saveTheme: ReturnType<typeof vi.fn>;
     createTheme: ReturnType<typeof vi.fn>;
@@ -42,10 +42,10 @@ describe('SettingsThemesStore', () => {
       themeLibrary$: new Subject(),
       themePreview$: new Subject(),
       previewTheme: vi.fn(async () => undefined),
-      saveTheme: vi.fn(async (doc: ClaraThemeDocument) => ({ ok: true, theme: { ...doc, assets: { wall: 'wall.png' } } })),
+      saveTheme: vi.fn(async (doc: ValkAdeThemeDocument) => ({ ok: true, theme: { ...doc, assets: { wall: 'wall.png' } } })),
       createTheme: vi.fn(async (p: { name: string }) => ({ ok: true, theme: { ...neon, id: 'neon-2', name: p.name } })),
       pickThemeAsset: vi.fn(async () => ({ ok: true, asset: 'wall', fileName: 'wall.png' })),
-      loadConfig: vi.fn(async () => ({ themeId: 'clara-dark' })),
+      loadConfig: vi.fn(async () => ({ themeId: 'valkade-dark' })),
       listThemes: vi.fn(async () => [neon]),
     };
     TestBed.configureTestingModule({
@@ -54,7 +54,7 @@ describe('SettingsThemesStore', () => {
     engine = TestBed.inject(ThemeEngineService);
     engine.setLibrary([neon]);
     store = TestBed.inject(SettingsThemesStore);
-    themeId = signal('clara-dark');
+    themeId = signal('valkade-dark');
     markDirty = vi.fn<() => void>();
     store.attach({ themeId, markDirty });
   });
@@ -132,7 +132,7 @@ describe('SettingsThemesStore', () => {
   });
 
   it('switching themes while a save is in flight does not clobber the new selection', async () => {
-    const other: ClaraThemeDocument = { ...neon, id: 'other', name: 'Other' };
+    const other: ValkAdeThemeDocument = { ...neon, id: 'other', name: 'Other' };
     engine.setLibrary([neon, other]);
     let resolveSave: (v: unknown) => void = () => undefined;
     electron.saveTheme.mockImplementationOnce(() => new Promise((res) => (resolveSave = res)));
@@ -181,16 +181,16 @@ describe('SettingsThemesStore', () => {
   it('syncSelectionFromHost persists a dirty draft before following an external selection', () => {
     store.select('neon');
     store.setToken('--t-bg', '#000000');
-    themeId.set('clara-dark');
+    themeId.set('valkade-dark');
     store.syncSelectionFromHost();
     expect(electron.saveTheme).toHaveBeenCalledWith(expect.objectContaining({ id: 'neon' }));
-    expect(store.selectedId()).toBe('clara-dark');
+    expect(store.selectedId()).toBe('valkade-dark');
     expect(store.draft()).toBeNull();
   });
 
   it('applyJson replaces the draft but keeps the id; cancelPreview clears the broadcast', () => {
     store.select('neon');
-    const result = store.applyJson(JSON.stringify({ ...CLARA_DARK_THEME, id: 'something-else', name: 'Imported' }));
+    const result = store.applyJson(JSON.stringify({ ...VALKADE_DARK_THEME, id: 'something-else', name: 'Imported' }));
     expect(result.ok).toBe(true);
     expect(store.draft()?.id).toBe('neon');
     expect(store.draft()?.name).toBe('Imported');
@@ -206,7 +206,7 @@ describe('SettingsThemesStore', () => {
     expect(prompt.active()).not.toBeNull();
     prompt.close('Neon Two');
     await pending;
-    expect(electron.createTheme).toHaveBeenCalledWith({ name: 'Neon Two', mode: 'dark', fromThemeId: 'clara-dark' });
+    expect(electron.createTheme).toHaveBeenCalledWith({ name: 'Neon Two', mode: 'dark', fromThemeId: 'valkade-dark' });
     expect(store.selectedId()).toBe('neon-2');
     expect(themeId()).toBe('neon-2');
     expect(engine.findTheme('neon-2')?.name).toBe('Neon Two');

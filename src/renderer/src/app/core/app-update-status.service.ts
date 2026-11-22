@@ -3,7 +3,7 @@ import { findAvailableAppUpdate, type AppReleaseSummary } from '@shared/app-upda
 import { ElectronService } from './electron.service';
 
 /**
- * Tracks whether a newer installable Clara release exists, so the title-bar version label can
+ * Tracks whether a newer installable ValkAde release exists, so the title-bar version label can
  * flag it. Checks on {@link start} and then every 10 minutes. A failed check keeps the last known
  * state.
  */

@@ -9,9 +9,9 @@ agent loop into a one-line-at-a-time read loop until it hit the recursion limit.
 
 from __future__ import annotations
 
-from clara_coder_backend.session.state import current_session_id, get_session
-from clara_coder_backend.tools.tool_conventions import clamp_line_window
-from clara_coder_backend.tools.workspace import read_workspace_file
+from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.tool_conventions import clamp_line_window
+from valkade_backend.tools.workspace import read_workspace_file
 
 
 def test_clamp_line_window_normal_range_is_unchanged() -> None:

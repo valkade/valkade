@@ -10,10 +10,10 @@ from unittest.mock import patch
 
 import pytest
 
-from clara_coder_backend.tools.metasearch.aggregate import metasearch, normalize_url
-from clara_coder_backend.tools.metasearch.cache import clear_cache, get_cached, put_cached
-from clara_coder_backend.tools.metasearch.dom import find_all, find_first, parse_html, text_of
-from clara_coder_backend.tools.metasearch.engines import ENGINE_NAMES, RawResult, run_engine
+from valkade_backend.tools.metasearch.aggregate import metasearch, normalize_url
+from valkade_backend.tools.metasearch.cache import clear_cache, get_cached, put_cached
+from valkade_backend.tools.metasearch.dom import find_all, find_first, parse_html, text_of
+from valkade_backend.tools.metasearch.engines import ENGINE_NAMES, RawResult, run_engine
 
 _DDG_HTML = """
 <div class="result results_links results_links_deep web-result">
@@ -81,7 +81,7 @@ def test_normalize_url_rejects_non_http() -> None:
 
 
 def test_duckduckgo_parser_unwraps_redirect() -> None:
-    with patch('clara_coder_backend.tools.metasearch.engines._http_get', return_value=_DDG_HTML):
+    with patch('valkade_backend.tools.metasearch.engines._http_get', return_value=_DDG_HTML):
         rows = run_engine('duckduckgo', 'docs', 5)
     assert len(rows) == 1
     assert rows[0].url == 'https://example.com/docs'
@@ -90,7 +90,7 @@ def test_duckduckgo_parser_unwraps_redirect() -> None:
 
 
 def test_bing_parser() -> None:
-    with patch('clara_coder_backend.tools.metasearch.engines._http_get', return_value=_BING_HTML):
+    with patch('valkade_backend.tools.metasearch.engines._http_get', return_value=_BING_HTML):
         rows = run_engine('bing', 'hit', 5)
     assert len(rows) == 1
     assert rows[0].url == 'https://example.com/bing'
@@ -105,14 +105,14 @@ def test_bing_parser_unwraps_click_tracking() -> None:
         f'<a href="https://www.bing.com/ck/a?!&amp;&amp;p=abc&amp;u=a1{encoded}">Real</a>'
         '</h2></li>'
     )
-    with patch('clara_coder_backend.tools.metasearch.engines._http_get', return_value=html):
+    with patch('valkade_backend.tools.metasearch.engines._http_get', return_value=html):
         rows = run_engine('bing', 'real', 5)
     assert len(rows) == 1
     assert rows[0].url == target
 
 
 def test_mojeek_parser() -> None:
-    with patch('clara_coder_backend.tools.metasearch.engines._http_get', return_value=_MOJEEK_HTML):
+    with patch('valkade_backend.tools.metasearch.engines._http_get', return_value=_MOJEEK_HTML):
         rows = run_engine('mojeek', 'hit', 5)
     assert len(rows) == 1
     assert rows[0].url == 'https://example.com/mojeek'
@@ -120,7 +120,7 @@ def test_mojeek_parser() -> None:
 
 
 def test_wikipedia_parser_strips_markup() -> None:
-    with patch('clara_coder_backend.tools.metasearch.engines._http_get', return_value=_WIKIPEDIA_JSON):
+    with patch('valkade_backend.tools.metasearch.engines._http_get', return_value=_WIKIPEDIA_JSON):
         rows = run_engine('wikipedia', 'langgraph', 5)
     assert len(rows) == 1
     assert rows[0].url == 'https://en.wikipedia.org/?curid=123'
@@ -145,7 +145,7 @@ def test_metasearch_dedupes_and_ranks_by_agreement() -> None:
             RawResult('Z', 'https://third.com/z', 'z snippet'),
         ]
 
-    with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+    with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
         outcome = metasearch('test query', limit=5, engines=('a', 'b'))
 
     assert [row['url'] for row in outcome.rows][0] == 'https://other.com/y'
@@ -163,7 +163,7 @@ def test_metasearch_isolates_engine_failure() -> None:
             raise RuntimeError('HTTP 503')
         return [RawResult('Good', 'https://good.example/page', 'ok')]
 
-    with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+    with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
         outcome = metasearch('q', limit=5, engines=('bad', 'good'))
 
     assert outcome.engines_failed == {'bad': 'HTTP 503'}
@@ -176,7 +176,7 @@ def test_metasearch_respects_limit() -> None:
         del name, query, limit, user_agent
         return [RawResult(f'T{i}', f'https://example.com/{i}', '') for i in range(10)]
 
-    with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+    with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
         outcome = metasearch('q', limit=3, engines=('a',))
 
     assert len(outcome.rows) == 3
@@ -220,10 +220,10 @@ class _FakeResponse:
 def test_engine_blocked_on_rate_limit() -> None:
     import urllib.error
 
-    from clara_coder_backend.tools.metasearch.engines import EngineBlocked
+    from valkade_backend.tools.metasearch.engines import EngineBlocked
 
     err = urllib.error.HTTPError('https://x', 429, 'Too Many Requests', {'Retry-After': '120'}, None)
-    with patch('clara_coder_backend.tools.metasearch.engines._OPENER.open', side_effect=err):
+    with patch('valkade_backend.tools.metasearch.engines._OPENER.open', side_effect=err):
         with pytest.raises(EngineBlocked) as excinfo:
             run_engine('bing', 'q', 5)
     assert excinfo.value.retry_after == 120.0
@@ -231,11 +231,11 @@ def test_engine_blocked_on_rate_limit() -> None:
 
 
 def test_engine_blocked_on_challenge_page() -> None:
-    from clara_coder_backend.tools.metasearch.engines import EngineBlocked
+    from valkade_backend.tools.metasearch.engines import EngineBlocked
 
     body = b'<html><body><div class="anomaly-modal">Are you a robot?</div></body></html>'
     with patch(
-        'clara_coder_backend.tools.metasearch.engines._OPENER.open',
+        'valkade_backend.tools.metasearch.engines._OPENER.open',
         return_value=_FakeResponse(body),
     ):
         with pytest.raises(EngineBlocked) as excinfo:
@@ -244,7 +244,7 @@ def test_engine_blocked_on_challenge_page() -> None:
 
 
 def test_cooldown_marks_and_clears() -> None:
-    from clara_coder_backend.tools.metasearch import cooldown
+    from valkade_backend.tools.metasearch import cooldown
 
     cooldown.clear_cooldowns()
     assert cooldown.cooldown_remaining('bing') == 0.0
@@ -257,7 +257,7 @@ def test_cooldown_marks_and_clears() -> None:
 
 
 def test_cooldown_never_reports_more_than_it_parked(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.tools.metasearch import cooldown
+    from valkade_backend.tools.metasearch import cooldown
 
     # At this clock value ``(t + 60) - t`` rounds to 60.00000000000364 (it made CI flaky).
     t = 32728.185951439325
@@ -271,7 +271,7 @@ def test_cooldown_never_reports_more_than_it_parked(monkeypatch: pytest.MonkeyPa
 
 
 def test_metasearch_skips_cooling_engines() -> None:
-    from clara_coder_backend.tools.metasearch import cooldown
+    from valkade_backend.tools.metasearch import cooldown
 
     cooldown.clear_cooldowns()
     cooldown.mark_blocked('bing', seconds=60, reason='HTTP 429')
@@ -283,7 +283,7 @@ def test_metasearch_skips_cooling_engines() -> None:
         return [RawResult('T', f'https://example.com/{name}', '')]
 
     try:
-        with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+        with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
             outcome = metasearch('q', limit=5, engines=('bing', 'mojeek'))
     finally:
         cooldown.clear_cooldowns()
@@ -294,8 +294,8 @@ def test_metasearch_skips_cooling_engines() -> None:
 
 
 def test_metasearch_marks_cooldown_on_blocker() -> None:
-    from clara_coder_backend.tools.metasearch import cooldown
-    from clara_coder_backend.tools.metasearch.engines import EngineBlocked
+    from valkade_backend.tools.metasearch import cooldown
+    from valkade_backend.tools.metasearch.engines import EngineBlocked
 
     cooldown.clear_cooldowns()
 
@@ -306,7 +306,7 @@ def test_metasearch_marks_cooldown_on_blocker() -> None:
         return [RawResult('T', 'https://example.com/ok', '')]
 
     try:
-        with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+        with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
             outcome = metasearch('q', limit=5, engines=('bing', 'mojeek'), cooldown_seconds=300.0)
         assert outcome.engines_failed == {'bing': 'HTTP 429'}
         assert cooldown.is_cooling('bing')
@@ -316,7 +316,7 @@ def test_metasearch_marks_cooldown_on_blocker() -> None:
 
 
 def test_metasearch_retries_when_every_engine_is_cooling() -> None:
-    from clara_coder_backend.tools.metasearch import cooldown
+    from valkade_backend.tools.metasearch import cooldown
 
     cooldown.clear_cooldowns()
     cooldown.mark_blocked('bing', seconds=60)
@@ -327,7 +327,7 @@ def test_metasearch_retries_when_every_engine_is_cooling() -> None:
         return [RawResult('T', f'https://example.com/{name}', '')]
 
     try:
-        with patch('clara_coder_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
+        with patch('valkade_backend.tools.metasearch.aggregate.run_engine', side_effect=fake_engine):
             outcome = metasearch('q', limit=5, engines=('bing', 'mojeek'))
     finally:
         cooldown.clear_cooldowns()

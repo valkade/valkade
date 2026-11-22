@@ -9,22 +9,26 @@ app-clara-badge .clara-badge {
   height: 16px;
 }
 
-app-clara-badge .clara-badge__arc {
-  stroke: currentColor;
-  stroke-width: 1.7;
+app-clara-badge .clara-badge__stem {
+  fill: currentColor;
 }
 
-app-clara-badge .clara-badge__dot {
+app-clara-badge .clara-badge__wing {
   fill: var(--t-secondary, currentColor);
   transform-box: fill-box;
-  transform-origin: center;
+  /* The wing hinges where it meets the stem, at the foot of the V. */
+  transform-origin: 0% 100%;
 }
 
-app-clara-badge .clara-badge--live .clara-badge__dot {
-  animation: clara-badge-breathe 1.2s ease-in-out infinite;
+app-clara-badge .clara-badge__tip {
+  opacity: 0.7;
 }
 
-@keyframes clara-badge-breathe {
+app-clara-badge .clara-badge--live .clara-badge__wing {
+  animation: clara-badge-beat 1.2s ease-in-out infinite;
+}
+
+@keyframes clara-badge-beat {
   0%,
   100% {
     transform: scale(1);
@@ -32,13 +36,13 @@ app-clara-badge .clara-badge--live .clara-badge__dot {
   }
 
   50% {
-    transform: scale(0.55);
-    opacity: 0.5;
+    transform: scale(0.8);
+    opacity: 0.55;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  app-clara-badge .clara-badge--live .clara-badge__dot {
+  app-clara-badge .clara-badge--live .clara-badge__wing {
     animation: none;
   }
 }

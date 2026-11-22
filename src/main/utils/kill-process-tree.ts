@@ -4,7 +4,7 @@
  * Node ``ChildProcess.kill()`` only signals that PID. On Windows that is
  * ``TerminateProcess`` (no tree). On POSIX it is ``SIGTERM``/``SIGKILL`` to one
  * PID. LSP servers, ``run_command`` jobs (``start_new_session=True``), and
- * ``llama-server`` helpers then leak — which is what keeps RAM high after Clara
+ * ``llama-server`` helpers then leak — which is what keeps RAM high after ValkAde
  * Coder is closed.
  */
 import { spawnSync, type ChildProcess } from 'child_process';

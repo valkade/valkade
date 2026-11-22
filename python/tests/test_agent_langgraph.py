@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from clara_coder_backend.lang_agent.graph import (
+from valkade_backend.lang_agent.graph import (
     _stream_is_genuinely_stalled,
     stream_single_agent_langgraph,
 )
-from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState
+from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+from valkade_backend.domain import SessionState
+from valkade_backend.lang_agent.langgraph_sse import GraphStreamState
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
@@ -60,8 +60,8 @@ async def test_stream_is_genuinely_stalled_false_while_a_compaction_notes_call_r
 
 
 async def test_hitl_pause_lock_serializes_concurrent_waiters() -> None:
-    from clara_coder_backend.session.pause import await_diff_review_note
-    from clara_coder_backend.session.state import current_session_id, get_session, sessions
+    from valkade_backend.session.pause import await_diff_review_note
+    from valkade_backend.session.state import current_session_id, get_session, sessions
 
     sid = 'hitl-pause-lock-test'
     sessions.pop(sid, None)
@@ -94,9 +94,9 @@ async def test_hitl_pause_lock_serializes_concurrent_waiters() -> None:
         sessions.pop(sid, None)
 
 
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_single_agent_langgraph_aborts_while_waiting_for_events(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,
@@ -137,9 +137,9 @@ async def test_stream_single_agent_langgraph_aborts_while_waiting_for_events(
     assert outcome.state == AgentLoopOutcome.ABORTED
 
 
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_single_agent_langgraph_allocates_nested_events_queue(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,
@@ -182,10 +182,10 @@ async def test_stream_single_agent_langgraph_allocates_nested_events_queue(
     assert outcome.state == AgentLoopOutcome.ABORTED
 
 
-@patch('clara_coder_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_watchdog_ends_stalled_stream(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,
@@ -225,10 +225,10 @@ async def test_stream_watchdog_ends_stalled_stream(
     assert any('error' in line for line in lines)
 
 
-@patch('clara_coder_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_watchdog_does_not_fire_while_tool_running(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,
@@ -282,7 +282,7 @@ async def _forever() -> None:
 
 async def test_stop_llm_pump_cancels_the_pump_even_when_closing_the_response_is_cancelled() -> None:
     """A cancellation landing on the HTTP close must not leave ``astream_events`` running."""
-    from clara_coder_backend.lang_agent.graph import _stop_llm_pump
+    from valkade_backend.lang_agent.graph import _stop_llm_pump
 
     pump = asyncio.create_task(_forever())
     await asyncio.sleep(0)
@@ -290,14 +290,14 @@ async def test_stop_llm_pump_cancels_the_pump_even_when_closing_the_response_is_
     async def _cancelled_close(_sid: str) -> None:
         raise asyncio.CancelledError
 
-    with patch('clara_coder_backend.lang_agent.graph.abort_in_flight_llm_requests', side_effect=_cancelled_close):
+    with patch('valkade_backend.lang_agent.graph.abort_in_flight_llm_requests', side_effect=_cancelled_close):
         with pytest.raises(asyncio.CancelledError):
             await _stop_llm_pump(pump, 'sess-stop')
     assert pump.cancelled()
 
 
 async def test_stop_llm_pump_closes_the_response_after_cancelling() -> None:
-    from clara_coder_backend.lang_agent.graph import _stop_llm_pump
+    from valkade_backend.lang_agent.graph import _stop_llm_pump
 
     order: list[str] = []
     pump = asyncio.create_task(_forever())
@@ -313,14 +313,14 @@ async def test_stop_llm_pump_closes_the_response_after_cancelling() -> None:
     async def _close(_sid: str) -> None:
         order.append('close response')
 
-    with patch('clara_coder_backend.lang_agent.graph.abort_in_flight_llm_requests', side_effect=_close):
+    with patch('valkade_backend.lang_agent.graph.abort_in_flight_llm_requests', side_effect=_close):
         await _stop_llm_pump(pump, 'sess-stop')
     assert order == ['cancel pump', 'close response'] and pump.cancelled()
 
 
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_abort_mid_step_reports_uncommitted_text_and_uses_sync_durability(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,
@@ -363,9 +363,9 @@ async def test_abort_mid_step_reports_uncommitted_text_and_uses_sync_durability(
     assert mock_build_graph.call_args.kwargs.get('allow_subagents') is True
 
 
-@patch('clara_coder_backend.lang_agent.graph.build_clara_single_outer_graph')
-@patch('clara_coder_backend.lang_agent.graph.build_llm')
-@patch('clara_coder_backend.lang_agent.graph.get_graph_checkpointer')
+@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_llm')
+@patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_open_tool_calls_of_a_stopped_turn_are_answered_before_the_new_input(
     mock_get_cp: MagicMock,
     mock_build_llm: MagicMock,

@@ -19,7 +19,7 @@ function componentStyles(): string {
 beforeEach(() => TestBed.resetTestingModule());
 
 describe('TutorialMascotComponent', () => {
-  it('is decorative, pointer-transparent, and shows only the local Clara mark', () => {
+  it('is decorative, pointer-transparent, and shows only the local ValkAde mark', () => {
     const fixture = createMascot();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;

@@ -10,22 +10,22 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.domain import RuntimeRustLspConfig
-from clara_coder_backend.lsp import manager as lsp_manager_module
-from clara_coder_backend.lsp.file_policy import lsp_server_for_path, requires_code_review
-from clara_coder_backend.lsp.manager import (
+from valkade_backend.domain import RuntimeRustLspConfig
+from valkade_backend.lsp import manager as lsp_manager_module
+from valkade_backend.lsp.file_policy import lsp_server_for_path, requires_code_review
+from valkade_backend.lsp.manager import (
     DOC_ORIGIN_EDITOR,
     SessionWorkspaceLspManager,
     shutdown_all_lsp_managers,
 )
-from clara_coder_backend.lsp.plugins import rust_plugin
-from clara_coder_backend.lsp.plugins.rust_plugin import RustLspPlugin, RustPluginState, build_rust_init_options
-from clara_coder_backend.lsp.registry import workspace_trust_lsp_server_ids
-from clara_coder_backend.lsp.rust_project_root import find_rust_project
-from clara_coder_backend.lsp.server_plugin import LspServerNotInstalledError
-from clara_coder_backend.runtime.deps.providers import rust_analyzer
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config, runtime_config_received
-from clara_coder_backend.workspace.trust import trusted_workspace_keys, workspace_is_trusted, workspace_trust_key
+from valkade_backend.lsp.plugins import rust_plugin
+from valkade_backend.lsp.plugins.rust_plugin import RustLspPlugin, RustPluginState, build_rust_init_options
+from valkade_backend.lsp.registry import workspace_trust_lsp_server_ids
+from valkade_backend.lsp.rust_project_root import find_rust_project
+from valkade_backend.lsp.server_plugin import LspServerNotInstalledError
+from valkade_backend.runtime.deps.providers import rust_analyzer
+from valkade_backend.session.state import current_session_id, get_session, runtime_config, runtime_config_received
+from valkade_backend.workspace.trust import trusted_workspace_keys, workspace_is_trusted, workspace_trust_key
 
 
 def _crate(path: Path, manifest: str = '[package]\nname = "x"\nversion = "0.1.0"\n') -> Path:
@@ -420,7 +420,7 @@ def test_text_already_on_disk_is_reported_as_saved_so_cargo_check_runs(manager_f
 
 
 def test_other_servers_get_no_save_notification_from_a_sync() -> None:
-    from clara_coder_backend.lsp.registry import get_lsp_server_plugin, iter_registered_lsp_server_ids
+    from valkade_backend.lsp.registry import get_lsp_server_plugin, iter_registered_lsp_server_ids
 
     assert [sid for sid in iter_registered_lsp_server_ids() if get_lsp_server_plugin(sid).checks_on_save] == ['rust']
 

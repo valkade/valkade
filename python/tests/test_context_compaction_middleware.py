@@ -26,16 +26,16 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.types import Command
 
-from clara_coder_backend.composer import stream_agent_reply
-from clara_coder_backend.config import CLARA_SUBAGENT_MAX_CONCURRENCY
-from clara_coder_backend.domain import (
+from valkade_backend.composer import stream_agent_reply
+from valkade_backend.config import CLARA_SUBAGENT_MAX_CONCURRENCY
+from valkade_backend.domain import (
     RuntimeConnection,
     RuntimeContextCompressionConfig,
     RuntimeToolsConfig,
     SessionState,
 )
-from clara_coder_backend.lang_agent import graph as graph_module
-from clara_coder_backend.lang_agent.context_compaction import (
+from valkade_backend.lang_agent import graph as graph_module
+from valkade_backend.lang_agent.context_compaction import (
     BLOCK_HEADER,
     PIN_LEAD,
     SUMMARY_REQUEST,
@@ -43,11 +43,11 @@ from clara_coder_backend.lang_agent.context_compaction import (
     prompt_overhead_chars,
     thinking_budget_tokens,
 )
-from clara_coder_backend.lang_agent.graph import build_clara_single_outer_graph
-from clara_coder_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
-from clara_coder_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
-from clara_coder_backend.lang_agent.subagent_bus import SUBAGENT_BUS
-from clara_coder_backend.lang_agent.subagents import (
+from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+from valkade_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
+from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
+from valkade_backend.lang_agent.subagent_bus import SUBAGENT_BUS
+from valkade_backend.lang_agent.subagents import (
     REPORTS_ARRIVED_HEADER,
     SubagentReport,
     SubagentRun,
@@ -57,10 +57,10 @@ from clara_coder_backend.lang_agent.subagents import (
     start_subagent,
     stop_all_subagents,
 )
-from clara_coder_backend.llm import http_transport as ht
-from clara_coder_backend.llm.messages import USER_TURN_KEY, build_system_prompt, compose_outer_turn_human_content
-from clara_coder_backend.middleware import context_compaction_middleware as compaction_middleware
-from clara_coder_backend.middleware.context_compaction_middleware import (
+from valkade_backend.llm import http_transport as ht
+from valkade_backend.llm.messages import USER_TURN_KEY, build_system_prompt, compose_outer_turn_human_content
+from valkade_backend.middleware import context_compaction_middleware as compaction_middleware
+from valkade_backend.middleware.context_compaction_middleware import (
     COMPACT_PILL_LABEL,
     _EMPTY_REPLY_STOP_TEXT,
     _FUTILE_STOP_TEXT,
@@ -69,16 +69,16 @@ from clara_coder_backend.middleware.context_compaction_middleware import (
     ContextCompactionMiddleware,
     _capped_result,
 )
-from clara_coder_backend.plan import plan_execute as pe
-from clara_coder_backend.plan.build_plan_store import _load_index
-from clara_coder_backend.plan.plan_execute import ActionStep, BuildPlanModel, FileChangeEntry, render_build_plan_md
-from clara_coder_backend.routes.chat import chat_abort
-from clara_coder_backend.session import checkpointing as ck
-from clara_coder_backend.session.schemas import AbortRequest
-from clara_coder_backend.session.pause import stage_hitl_request
-from clara_coder_backend.session.state import current_session_id, get_session, runtime_config
-from clara_coder_backend.session.user_events import queue_user_event_note
-from clara_coder_backend.tools.spawn_subagent import spawn_subagent_tool
+from valkade_backend.plan import plan_execute as pe
+from valkade_backend.plan.build_plan_store import _load_index
+from valkade_backend.plan.plan_execute import ActionStep, BuildPlanModel, FileChangeEntry, render_build_plan_md
+from valkade_backend.routes.chat import chat_abort
+from valkade_backend.session import checkpointing as ck
+from valkade_backend.session.schemas import AbortRequest
+from valkade_backend.session.pause import stage_hitl_request
+from valkade_backend.session.state import current_session_id, get_session, runtime_config
+from valkade_backend.session.user_events import queue_user_event_note
+from valkade_backend.tools.spawn_subagent import spawn_subagent_tool
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
@@ -513,9 +513,9 @@ def turns_on(server: MockServer, tools_provider: Callable[..., Any] = fake_tools
         )
 
     with (
-        patch('clara_coder_backend.composer.build_llm', return_value=llm),
-        patch('clara_coder_backend.lang_agent.graph.build_llm', return_value=llm),
-        patch('clara_coder_backend.lang_agent.graph._chat_outer_graph_builder', builder),
+        patch('valkade_backend.composer.build_llm', return_value=llm),
+        patch('valkade_backend.lang_agent.graph.build_llm', return_value=llm),
+        patch('valkade_backend.lang_agent.graph._chat_outer_graph_builder', builder),
     ):
         yield
 
@@ -1439,7 +1439,7 @@ def real_graph(server: MockServer, sess: SessionState) -> Any:
 
 
 def real_overhead(sess: SessionState) -> int:
-    from clara_coder_backend.hitl.tool_registry import worker_tools_and_map
+    from valkade_backend.hitl.tool_registry import worker_tools_and_map
 
     tools, _ = worker_tools_and_map(True, session=sess)
     return prompt_overhead_chars(SystemMessage(content=build_system_prompt(sess, True)), tools) // _CHARS_PER_TOKEN
@@ -1472,7 +1472,7 @@ async def test_empty_gemma_reply_is_drawn_again_without_touching_the_conversatio
 ) -> None:
     """A thought and no answer, as when the channel-loop stop ends a reply, is a sampling accident: sample again."""
     monkeypatch.setattr(
-        'clara_coder_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
+        'valkade_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
     )
     server = MockServer([text_reply('<|channel>thought\n'), text_reply('<|channel>thought\n<channel|>the answer')])
     graph = fake_graph(server, session)
@@ -1490,7 +1490,7 @@ async def test_empty_gemma_replies_that_keep_coming_stop_the_turn(
     session: SessionState, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        'clara_coder_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
+        'valkade_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
     )
     server = MockServer([text_reply('<|channel>thought\n') for _ in range(12)])
     graph = fake_graph(server, session)
@@ -1512,7 +1512,7 @@ async def test_empty_reply_is_not_retried_for_other_presets_or_native_tool_calls
     assert not session.harness_final_text
 
     monkeypatch.setattr(
-        'clara_coder_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
+        'valkade_backend.middleware.context_compaction_middleware.gemma_optimize_profile_active', lambda _c: True
     )
     native = '<|channel>thought\n<channel|><|tool_call>call:read_thing{path:<|"|>a<|"|>}<tool_call|>'
     server = MockServer([text_reply(native), text_reply('done')])
@@ -2766,7 +2766,7 @@ async def test_promoted_xml_call_after_a_cut_runs(session: SessionState) -> None
 
 
 async def test_a_turn_counts_as_new_with_notes_after_the_request() -> None:
-    from clara_coder_backend.middleware.context_compaction_middleware import _turn_just_started
+    from valkade_backend.middleware.context_compaction_middleware import _turn_just_started
 
     report = HumanMessage(content='A report arrived.')
     assert _turn_just_started([AIMessage(content='old answer'), user_turn(), report])
@@ -2965,7 +2965,7 @@ async def test_thinking_bound_on_every_normal_call_on_llamacpp(session: SessionS
 
 
 def _first_estimate(sess: SessionState) -> int:
-    from clara_coder_backend.lang_agent.context_compaction import CHARS_PER_TOKEN, message_chars
+    from valkade_backend.lang_agent.context_compaction import CHARS_PER_TOKEN, message_chars
 
     system = SystemMessage(content=build_system_prompt(sess, True))
     overhead = prompt_overhead_chars(system, _FAKE_TOOLS)
@@ -3163,7 +3163,7 @@ async def _planner_md(*_args: Any, **kwargs: Any):
 
 @pytest.mark.parametrize(('marked', 'status'), [(['step-1'], 'active'), (['step-1', 'step-2'], 'complete')])
 async def test_plan_completes_only_with_no_step_pending(tmp_path: Path, marked: list[str], status: str) -> None:
-    from clara_coder_backend.plan.build_plan_store import get_active_plan, mark_steps_complete
+    from valkade_backend.plan.build_plan_store import get_active_plan, mark_steps_complete
 
     plan_session = SessionState(workspace_path=str(tmp_path))
     (tmp_path / 'src').mkdir()
@@ -3180,9 +3180,9 @@ async def test_plan_completes_only_with_no_step_pending(tmp_path: Path, marked: 
         yield 'data: {"type":"chunk"}\n\n'
 
     with (
-        patch('clara_coder_backend.plan.plan_execute._stream_langgraph_tool_agent', side_effect=fake_exec),
-        patch('clara_coder_backend.plan.plan_execute._stream_planner_md', side_effect=_planner_md),
-        patch('clara_coder_backend.plan.plan_execute.await_diff_review_note', new=AsyncMock(return_value=None)),
+        patch('valkade_backend.plan.plan_execute._stream_langgraph_tool_agent', side_effect=fake_exec),
+        patch('valkade_backend.plan.plan_execute._stream_planner_md', side_effect=_planner_md),
+        patch('valkade_backend.plan.plan_execute.await_diff_review_note', new=AsyncMock(return_value=None)),
     ):
         outcome = LangGraphWorkerOutcome()
 

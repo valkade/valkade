@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   BUILTIN_THEMES,
   CLARA_DARK_THEME,
-  CLARA_LIGHT_THEME,
+  LEGACY_THEME_ID_MAP,
+  isBuiltInThemeId,
+  VALKADE_DARK_THEME,
+  VALKADE_LIGHT_THEME,
   DEFAULT_THEME,
   DEFAULT_THEME_ID,
   builtInThemeForMode,
@@ -20,14 +23,14 @@ import { THEME_TOKENS } from './theme-tokens';
 import { scopeThemeCss } from './theme-css-scope';
 
 describe('validateThemeDocument', () => {
-  it('ships the Clara Dark Royal Ocean and Cadmium Lantern, and Clara Light Mint, Iris and Ochre built-ins', () => {
+  it('ships the ValkAde Dark Royal Ocean and Cadmium Lantern, and ValkAde Light Mint, Iris and Ochre built-ins', () => {
     expect(BUILTIN_THEMES.map((t) => [t.id, t.name, t.mode])).toEqual([
-      ['clara-dark', 'Clara Dark Royal Ocean', 'dark'],
-      ['clara-dark-cadmium-lantern', 'Clara Dark Cadmium Lantern', 'dark'],
-      ['clara-dark-cadmium-orange', 'Clara Dark Cadmium Orange', 'dark'],
-      ['clara-light', 'Clara Light Mint', 'light'],
-      ['clara-light-iris', 'Clara Light Iris', 'light'],
-      ['clara-light-ochre', 'Clara Light Ochre', 'light'],
+      ['valkade-dark', 'ValkAde Dark Royal Ocean', 'dark'],
+      ['valkade-dark-cadmium-lantern', 'ValkAde Dark Cadmium Lantern', 'dark'],
+      ['valkade-dark-cadmium-orange', 'ValkAde Dark Cadmium Orange', 'dark'],
+      ['valkade-light', 'ValkAde Light Mint', 'light'],
+      ['valkade-light-iris', 'ValkAde Light Iris', 'light'],
+      ['valkade-light-ochre', 'ValkAde Light Ochre', 'light'],
     ]);
   });
 
@@ -59,15 +62,35 @@ describe('validateThemeDocument', () => {
     }
   });
 
-  it('makes Clara Dark Royal Ocean the default and dark base, keeping Clara Light for light mode', () => {
-    expect(DEFAULT_THEME_ID).toBe('clara-dark');
-    expect(DEFAULT_THEME).toBe(CLARA_DARK_THEME);
+  it('makes ValkAde Dark Royal Ocean the default and dark base, keeping ValkAde Light for light mode', () => {
+    expect(DEFAULT_THEME_ID).toBe('valkade-dark');
+    expect(DEFAULT_THEME).toBe(VALKADE_DARK_THEME);
     expect(DEFAULT_THEME.mode).toBe('dark');
-    expect(builtInThemeForMode('dark').id).toBe('clara-dark');
-    expect(builtInThemeForMode('light').id).toBe(CLARA_LIGHT_THEME.id);
-    expect(resolveLegacyThemeId('default')).toBe('clara-dark');
-    expect(resolveLegacyThemeId('woodland')).toBe(CLARA_DARK_THEME.id);
-    expect(resolveLegacyThemeId('')).toBe('clara-dark');
+    expect(builtInThemeForMode('dark').id).toBe('valkade-dark');
+    expect(builtInThemeForMode('light').id).toBe(VALKADE_LIGHT_THEME.id);
+    expect(resolveLegacyThemeId('default')).toBe('valkade-dark');
+    expect(resolveLegacyThemeId('woodland')).toBe(VALKADE_DARK_THEME.id);
+    expect(resolveLegacyThemeId('')).toBe('valkade-dark');
+  });
+
+  it('maps every pre-rename Clara id straight to its ValkAde built-in, and leaves look-alikes alone', () => {
+    for (const [oldId, newId] of [
+      ['clara-dark', 'valkade-dark'],
+      ['clara-dark-cadmium-lantern', 'valkade-dark-cadmium-lantern'],
+      ['clara-dark-cadmium-orange', 'valkade-dark-cadmium-orange'],
+      ['clara-light', 'valkade-light'],
+      ['clara-light-iris', 'valkade-light-iris'],
+      ['clara-light-ochre', 'valkade-light-ochre'],
+      ['classical', 'valkade-light'],
+    ]) {
+      expect(resolveLegacyThemeId(oldId)).toBe(newId);
+    }
+    // No chains: every target is a built-in.
+    for (const target of Object.values(LEGACY_THEME_ID_MAP)) {
+      expect(isBuiltInThemeId(target), target).toBe(true);
+    }
+    expect(resolveLegacyThemeId('clara-dark-copy')).toBe('clara-dark-copy');
+    expect(CLARA_DARK_THEME).toBe(VALKADE_DARK_THEME);
   });
 
   it('rejects non-objects and bad versions', () => {

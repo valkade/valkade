@@ -23,7 +23,7 @@ describe('looksLikeHubRepoLayout', () => {
     );
   });
 
-  it('matches Clara downloads after a rename drops models--', () => {
+  it('matches ValkAde downloads after a rename drops models--', () => {
     expect(looksLikeHubRepoLayout('my-qwen', claraDownload)).toBe(true);
   });
 

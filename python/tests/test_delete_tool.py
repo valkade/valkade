@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from clara_coder_backend.session import file_journal
-from clara_coder_backend.tools.delete import (
+from valkade_backend.session import file_journal
+from valkade_backend.tools.delete import (
     _reject_reason,
     delete_confirm_sse_payload,
     delete_workspace_entries,

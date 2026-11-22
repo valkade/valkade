@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.runtime.deps.paths import venv_python, venv_unusable_reason
-from clara_coder_backend.runtime.deps.providers import python_runtime as pr
+from valkade_backend.runtime.deps.paths import venv_python, venv_unusable_reason
+from valkade_backend.runtime.deps.providers import python_runtime as pr
 
 
 @pytest.fixture(autouse=True)
@@ -497,14 +497,14 @@ def test_expected_requirements_hash_uses_manifest_when_bundled(
 
 
 def test_registry_does_not_list_the_python_runtime() -> None:
-    from clara_coder_backend.runtime.deps import registry
+    from valkade_backend.runtime.deps import registry
 
     assert 'python-runtime' not in registry.DEPENDENCY_IDS
     assert set(registry._providers()) == set(registry.DEPENDENCY_IDS)
 
 
 def test_registry_attaches_components_to_status(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.runtime.deps import registry
+    from valkade_backend.runtime.deps import registry
 
     class FakeProvider:
         DEP_ID = 'kokoro'
@@ -532,7 +532,7 @@ def test_registry_attaches_components_to_status(monkeypatch: pytest.MonkeyPatch)
 
 
 def _capture_progress(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
-    from clara_coder_backend.runtime.deps.progress import PROGRESS
+    from valkade_backend.runtime.deps.progress import PROGRESS
 
     events: list[dict] = []
     # Replace (not append to) the listener list so the test sees only its own events
@@ -542,7 +542,7 @@ def _capture_progress(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
 
 
 def test_run_streaming_forwards_each_output_line_to_progress(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.runtime.deps.download import run_streaming
+    from valkade_backend.runtime.deps.download import run_streaming
 
     events = _capture_progress(monkeypatch)
     script = (
@@ -572,7 +572,7 @@ def test_run_streaming_forwards_each_output_line_to_progress(monkeypatch: pytest
 
 
 def test_run_streaming_raises_with_output_tail_on_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.runtime.deps.download import run_streaming
+    from valkade_backend.runtime.deps.download import run_streaming
 
     events = _capture_progress(monkeypatch)
     script = 'import sys; print("ERROR: No matching distribution"); sys.exit(3)'
@@ -584,7 +584,7 @@ def test_run_streaming_raises_with_output_tail_on_failure(monkeypatch: pytest.Mo
 
 
 def test_run_streaming_check_false_returns_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    from clara_coder_backend.runtime.deps.download import run_streaming
+    from valkade_backend.runtime.deps.download import run_streaming
 
     _capture_progress(monkeypatch)
     result = run_streaming(

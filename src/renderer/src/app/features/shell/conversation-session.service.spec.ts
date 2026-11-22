@@ -130,7 +130,7 @@ function mockElectron(overrides: Partial<{
               reviewStatus: 'pending',
             },
           ],
-          themeId: 'clara-dark',
+          themeId: 'valkade-dark',
         }) satisfies Conversation),
     newConversation:
       overrides.newConversation ??
@@ -138,12 +138,12 @@ function mockElectron(overrides: Partial<{
         ...convMeta,
         id: 'conv-b',
         messages: [],
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
       }) satisfies Conversation),
     loadConfig: async () => ({
       currentWorkspaceId: 'ws-1',
       workspaces: [],
-      themeId: 'clara-dark',
+      themeId: 'valkade-dark',
       activeLlmModelId: 'default',
       llmProviders: [],
       lastActiveConversationByWorkspaceId: {},
@@ -153,7 +153,7 @@ function mockElectron(overrides: Partial<{
     updateConversationComposer,
     readConversationFromDisk:
       overrides.readConversationFromDisk ??
-      (async () => ({ ...convMeta, messages: [], themeId: 'clara-dark' })),
+      (async () => ({ ...convMeta, messages: [], themeId: 'valkade-dark' })),
     getConversations: overrides.getConversations ?? (async () => [convMeta]),
     maybeAutoTitleConversation: async () => ({ ok: false as const, reason: 'not_due' as const }),
     abortMessage,
@@ -267,7 +267,7 @@ describe('ConversationSessionService', () => {
       updatedAt: '2026-10-20T00:00:00.000Z',
       workspaceId: 'ws-1',
       customTitle: false,
-      themeId: 'clara-dark',
+      themeId: 'valkade-dark',
       messages: [
         { role: 'user' as const, text: 'remodel the shovel', id: 'turn-1' },
         {
@@ -311,7 +311,7 @@ describe('ConversationSessionService', () => {
         updatedAt: '2026-10-20T00:00:00.000Z',
         workspaceId: 'ws-1',
         customTitle: false,
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
         messages: [
           { role: 'user' as const, text: 'go', id: 'turn-1' },
           { role: 'accept_command' as const, payload: waitingCard, reviewStatus: 'pending' as const },
@@ -435,13 +435,13 @@ describe('ConversationSessionService', () => {
         id: 'conv-b',
         title: 'B',
         messages: [],
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
       }),
       readConversationFromDisk: async (id) => ({
         ...convAMeta,
         id,
         messages: [],
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
       }),
       getConversations: async () => [
         convAMeta,
@@ -485,7 +485,7 @@ describe('ConversationSessionService', () => {
       id: 'conv-b',
       title: 'B',
       messages: [],
-      themeId: 'clara-dark',
+      themeId: 'valkade-dark',
     };
     let releaseNew!: (value: Conversation) => void;
     const newConversation = vi.fn(
@@ -818,7 +818,7 @@ describe('ConversationSessionService', () => {
         createdAt: 'b',
         updatedAt: 'b',
         workspaceId: 'ws-2',
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
         customTitle: true,
         parentConversationId: 'test-conv',
         messages: [{ role: 'user', id: 'child-turn-5', text: 'Do it', fromAgent: true }],
@@ -901,14 +901,14 @@ describe('ConversationSessionService', () => {
       const newConversation = vi.fn(async (_ws: string | null, composer?: ConversationComposerState) => ({
         ...meta('conv-new'),
         messages: [],
-        themeId: 'clara-dark',
+        themeId: 'valkade-dark',
         ...(composer ? { composer } : {}),
       }));
       const ctx = setup({
         loadConversation: async (id: string) => ({
           ...meta(id),
           messages: [],
-          themeId: 'clara-dark',
+          themeId: 'valkade-dark',
           ...(stored[id] ? { composer: stored[id] } : {}),
         }),
         newConversation: newConversation as unknown as ElectronService['newConversation'],

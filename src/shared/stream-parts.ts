@@ -352,7 +352,7 @@ function asClaraOuterBriefPart(part: StreamPart): StreamPart {
   return {
     ...part,
     streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
-    label: part.label || 'Clara',
+    label: part.label || 'ValkAde',
   };
 }
 

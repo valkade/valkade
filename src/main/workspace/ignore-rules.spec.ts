@@ -17,6 +17,7 @@ describe('isAtomicWriteTempPath', () => {
   it('matches sidecar atomic-write temp files only', () => {
     expect(isAtomicWriteTempPath('src\\.app.ts.0f3a9c1b2d4e.clara.tmp')).toBe(true);
     expect(isAtomicWriteTempPath('.README.md.0f3a9c1b2d4e.clara.tmp')).toBe(true);
+    expect(isAtomicWriteTempPath('src/.app.ts.0f3a9c1b2d4e.valkade.tmp')).toBe(true);
     expect(isAtomicWriteTempPath('src/app.ts')).toBe(false);
     expect(isAtomicWriteTempPath('build/output.tmp')).toBe(false);
   });
@@ -102,12 +103,13 @@ describe('shouldIgnoreWorkspaceEntry (denylist wins, negation, exposeAll)', () =
     expect(shouldIgnoreWorkspaceEntry('.env', '.env', [], true)).toBe(true);
   });
 
-  it('ignores Clara pack artifact directories by builtin name', () => {
+  it('ignores ValkAde pack artifact directories by builtin name', () => {
     expect(shouldIgnoreWorkspaceEntry('runtime-bundle', 'runtime-bundle', [])).toBe(true);
     expect(shouldIgnoreWorkspaceEntry('vtsls-bundle', 'vtsls-bundle', [])).toBe(true);
   });
 
-  it('ignores the .clara metadata directory and leftover .nemo folders', () => {
+  it('ignores the .valkade metadata directory and leftover .clara / .nemo folders', () => {
+    expect(shouldIgnoreWorkspaceEntry('.valkade', '.valkade', [])).toBe(true);
     expect(shouldIgnoreWorkspaceEntry('.clara', '.clara', [])).toBe(true);
     expect(shouldIgnoreWorkspaceEntry('.nemo', '.nemo', [])).toBe(true);
   });

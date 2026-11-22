@@ -69,7 +69,7 @@ import type {
   EnsureWorkspaceSystemPromptResult,
 } from '../../shared/index';
 import type {
-  ClaraThemeDocument,
+  ValkAdeThemeDocument,
   ThemeAssetPickResult,
   ThemeExportResult,
   ThemeImportResult,
@@ -526,17 +526,17 @@ declare global {
     getCurrentWorkspace: () => Promise<Workspace | null>;
     setConversationTheme: (id: string, themeId: string) => Promise<void>;
     setTheme: (themeId: string) => Promise<AppConfig>;
-    listThemes: () => Promise<ClaraThemeDocument[]>;
-    saveTheme: (theme: ClaraThemeDocument) => Promise<ThemeSaveResult>;
+    listThemes: () => Promise<ValkAdeThemeDocument[]>;
+    saveTheme: (theme: ValkAdeThemeDocument) => Promise<ThemeSaveResult>;
     createTheme: (payload: { name: string; mode: ThemeMode; fromThemeId?: string }) => Promise<ThemeSaveResult>;
     duplicateTheme: (themeId: string, name: string) => Promise<ThemeSaveResult>;
     deleteTheme: (themeId: string) => Promise<ThemeMutationResult>;
     importThemeFile: () => Promise<ThemeImportResult>;
     exportTheme: (themeId: string) => Promise<ThemeExportResult>;
     pickThemeAsset: (themeId: string) => Promise<ThemeAssetPickResult>;
-    previewTheme: (theme: ClaraThemeDocument | null) => Promise<void>;
-    onThemeLibraryUpdated: (callback: (event: unknown, themes: ClaraThemeDocument[]) => void) => void;
-    onThemePreview: (callback: (event: unknown, theme: ClaraThemeDocument | null) => void) => void;
+    previewTheme: (theme: ValkAdeThemeDocument | null) => Promise<void>;
+    onThemeLibraryUpdated: (callback: (event: unknown, themes: ValkAdeThemeDocument[]) => void) => void;
+    onThemePreview: (callback: (event: unknown, theme: ValkAdeThemeDocument | null) => void) => void;
     getActiveConversationId: () => Promise<string | null>;
     onConfigUpdated: (callback: (event: unknown, config: AppConfig) => void) => void;
     onSettingsWindowVisibilityChanged: (callback: (event: unknown, isOpen: boolean) => void) => void;

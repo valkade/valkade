@@ -235,7 +235,7 @@ export interface LlmModelProfile {
   maxOutputTokens: number;
   /** Managed ``llama-server`` launch profile (``llamacpp`` provider). */
   llamaCppManaged?: LlamaCppManaged;
-  /** How Clara loads this model on an ``lmstudio`` source. */
+  /** How ValkAde loads this model on an ``lmstudio`` source. */
   lmStudio?: LmStudioSettings;
   /** What the server accepts, on an ``openai-compatible`` source. */
   openAiCompat?: OpenAiCompatSettings;
@@ -253,7 +253,7 @@ export interface LlmProviderConfig {
   /**
    * ``llamacpp`` targets llama.cpp’s OpenAI-compatible HTTP server (``llama-server``). ``openrouter`` is OpenRouter’s chat API.
    * ``anthropic`` is the Claude API; its key lives in main's keychain store, never in ``apiKey``.
-   * ``openai-compatible`` is any other server with that API; Clara assumes nothing about it beyond
+   * ``openai-compatible`` is any other server with that API; ValkAde assumes nothing about it beyond
    * ``openAiCompat``, unlike ``llamacpp``, which gets llama-server's own request fields.
    */
   provider: 'openai' | 'lmstudio' | 'llamacpp' | 'openai-compatible' | 'openrouter' | 'anthropic' | 'python-t2i';
@@ -652,7 +652,7 @@ export interface HealthMonitorConfig {
 export interface ModelManagerConfig {
   /**
    * Absolute directory for local / downloaded models (hub folders + GGUF).
-   * Default is ``~/ClaraCoder/models`` (outside app install and userData).
+   * Default is ``~/ValkAde/models`` for new installs, ``~/ClaraCoder/models`` when that exists (outside app install and userData).
    */
   customModelsDir: string;
   /** Shared Hugging Face token for model search and managed llama `-hf` pulls. */
@@ -729,7 +729,7 @@ export interface WorkspaceToolsConfig {
   enableAgentFormatters?: boolean;
   /**
    * When true, an editing turn that tries to finish is verified first: language-server errors on the
-   * files it touched and the workspace's `.clara/checks.json` commands. Default false.
+   * files it touched and the workspace's `.valkade/checks.json` commands. Default false.
    */
   verifyAfterEdits?: boolean;
   /**
@@ -1552,6 +1552,12 @@ export interface AppConfig {
    * Older files omit this field (treated as 0); see `migrateConfig` in load-save.
    */
   configSchemaVersion?: number;
+  /**
+   * Semver of the last app release that opened this config (e.g. `0.5.4`).
+   * Missing on releases before version stamping; future releases use this to detect upgrades
+   * from versions on or before a target release.
+   */
+  lastAppVersion?: string;
   /** Progress is main-process-owned; ordinary Settings saves cannot replace it. */
   tutorial?: TutorialProgress;
   currentWorkspaceId: string | null;
@@ -1567,7 +1573,7 @@ export interface AppConfig {
   lastActiveConversationByWorkspaceId?: Record<string, string>;
   workspaces: Workspace[];
   /**
-   * The single app-wide UI theme id: a built-in (`clara-dark`, `clara-light`) or a user theme
+   * The single app-wide UI theme id: a built-in (`valkade-dark`, `valkade-light`) or a user theme
    * stored under `{userData}/themes/<id>/theme.json` (see `src/shared/theme`). Not per-workspace.
    */
   themeId: string;

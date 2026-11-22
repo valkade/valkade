@@ -177,7 +177,7 @@ describe('TypeScript / JavaScript settings', () => {
     const entry = 'C:/runtime/vtsls/0.3.0/node_modules/@vtsls/language-server/bin/vtsls.js';
     expect(await status({ state: 'installed', version: '0.3.0', path: entry })).toBe('vtsls · Installed, 0.3.0');
     expect(root.querySelector('.settings-lsp-status__path')?.textContent?.trim()).toBe(entry);
-    expect(root.textContent).not.toContain('ships with Clara');
+    expect(root.textContent).not.toContain('ships with ValkAde');
 
     const button = [...root.querySelectorAll('.settings-lsp-status button')].find(
       (el) => el.textContent?.trim() === 'Open Dependencies',

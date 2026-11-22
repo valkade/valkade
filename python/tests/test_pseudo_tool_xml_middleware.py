@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage
 
-from clara_coder_backend.llm.messages import extract_pseudo_tool_calls, text_uses_pseudo_tool_markup
-from clara_coder_backend.middleware.pseudo_tool_xml_middleware import PseudoToolXmlMiddleware
+from valkade_backend.llm.messages import extract_pseudo_tool_calls, text_uses_pseudo_tool_markup
+from valkade_backend.middleware.pseudo_tool_xml_middleware import PseudoToolXmlMiddleware
 
 def test_extract_pseudo_tool_calls_function_equals_syntax() -> None:
     pseudo = (

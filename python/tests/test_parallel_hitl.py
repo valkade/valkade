@@ -9,13 +9,13 @@ from typing import Any
 import pytest
 from langchain_core.messages import ToolMessage
 
-from clara_coder_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
-from clara_coder_backend.middleware.accept_command_review_middleware import AcceptCommandReviewAfterToolMiddleware
-from clara_coder_backend.middleware.delete_review_middleware import DeleteReviewAfterToolMiddleware
-from clara_coder_backend.routes.chat import agent_continue
-from clara_coder_backend.session.pause import hitl_tool_call_scope, stage_hitl_request
-from clara_coder_backend.session.schemas import AgentContinueRequest
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOOL
+from valkade_backend.middleware.accept_command_review_middleware import AcceptCommandReviewAfterToolMiddleware
+from valkade_backend.middleware.delete_review_middleware import DeleteReviewAfterToolMiddleware
+from valkade_backend.routes.chat import agent_continue
+from valkade_backend.session.pause import hitl_tool_call_scope, stage_hitl_request
+from valkade_backend.session.schemas import AgentContinueRequest
+from valkade_backend.session.state import current_session_id, get_session
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 

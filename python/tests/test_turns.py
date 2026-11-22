@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from clara_coder_backend.lang_agent.streaming import sse_line
-from clara_coder_backend.session import state
-from clara_coder_backend.session.turns import serve_turn, session_turn_active, stop_session_turn
+from valkade_backend.lang_agent.streaming import sse_line
+from valkade_backend.session import state
+from valkade_backend.session.turns import serve_turn, session_turn_active, stop_session_turn
 
 pytestmark = pytest.mark.asyncio(loop_scope='function')
 
@@ -106,10 +106,10 @@ async def test_a_turn_replaced_before_it_started_is_recorded_not_run() -> None:
 
 async def test_a_turn_whose_client_left_before_it_started_announces_waiting_reports(_session) -> None:
     """The turn it interrupted left the sub-agent reports to it; with no turn after it, they go out now."""
-    from clara_coder_backend.lang_agent.subagent_bus import SUBAGENT_BUS
-    from clara_coder_backend.lang_agent.subagents import SubagentReport
-    from clara_coder_backend.routes.chat import chat_stream
-    from clara_coder_backend.session.schemas import ChatRequest
+    from valkade_backend.lang_agent.subagent_bus import SUBAGENT_BUS
+    from valkade_backend.lang_agent.subagents import SubagentReport
+    from valkade_backend.routes.chat import chat_stream
+    from valkade_backend.session.schemas import ChatRequest
 
     SUBAGENT_BUS.reset()
     log: list[str] = []
@@ -187,8 +187,8 @@ async def test_stop_session_turn_waits_for_the_turn_and_drops_waiting_ones() -> 
 
 
 async def test_clear_route_stops_the_running_turn_before_resetting(_session) -> None:
-    from clara_coder_backend.routes.session import clear_session
-    from clara_coder_backend.session.schemas import ClearRequest
+    from valkade_backend.routes.session import clear_session
+    from valkade_backend.session.schemas import ClearRequest
 
     log: list[str] = []
     turn = asyncio.create_task(_collect(serve_turn(SID, _turn('a', log, wait_for_abort=True))))
@@ -204,9 +204,9 @@ async def test_clear_route_stops_the_running_turn_before_resetting(_session) -> 
 async def test_chat_stream_rejects_subagent_ids() -> None:
     from fastapi import HTTPException
 
-    from clara_coder_backend.lang_agent.subagents import fork_subagent_session
-    from clara_coder_backend.routes.chat import chat_stream
-    from clara_coder_backend.session.schemas import ChatRequest
+    from valkade_backend.lang_agent.subagents import fork_subagent_session
+    from valkade_backend.routes.chat import chat_stream
+    from valkade_backend.session.schemas import ChatRequest
 
     fork_subagent_session(SID, state.sessions[SID], 'turns-child-1', 'x')
     try:
@@ -220,16 +220,16 @@ async def test_chat_stream_rejects_subagent_ids() -> None:
 async def test_chat_stream_relays_the_detached_composer_turn(_session) -> None:
     from unittest.mock import MagicMock, patch
 
-    from clara_coder_backend.routes.chat import chat_stream
-    from clara_coder_backend.session.schemas import ChatRequest
+    from valkade_backend.routes.chat import chat_stream
+    from valkade_backend.session.schemas import ChatRequest
 
     async def _fake_stream(session: Any, *_args: Any, **kwargs: Any):
         kwargs['outcome'].mark_completed(final_text='Hi there.', partial_text='Hi there.')
         yield sse_line({'type': 'chunk', 'delta': 'Hi there.'})
 
     with (
-        patch('clara_coder_backend.composer.build_llm', return_value=MagicMock()),
-        patch('clara_coder_backend.composer.stream_single_agent_langgraph', side_effect=_fake_stream),
+        patch('valkade_backend.composer.build_llm', return_value=MagicMock()),
+        patch('valkade_backend.composer.stream_single_agent_langgraph', side_effect=_fake_stream),
     ):
         response = await chat_stream(ChatRequest(session_id=SID, message='hello'))
         lines = [line async for line in response.body_iterator]
@@ -245,7 +245,7 @@ async def test_a_client_disconnect_aborts_the_detached_turn_through_the_response
     """Starlette never closes the body iterator: the response itself must tell the turn its client left."""
     from starlette.requests import ClientDisconnect
 
-    from clara_coder_backend.routes.chat import _TurnStreamingResponse
+    from valkade_backend.routes.chat import _TurnStreamingResponse
 
     log: list[str] = []
     response = _TurnStreamingResponse(serve_turn(SID, _turn('a', log, wait_for_abort=True)), media_type='text/event-stream')
@@ -286,7 +286,7 @@ async def test_a_non_preempting_turn_queues_behind_the_running_one() -> None:
 
 
 async def test_session_turn_pending_can_leave_out_the_calling_turn() -> None:
-    from clara_coder_backend.session.turns import session_turn_pending
+    from valkade_backend.session.turns import session_turn_pending
 
     seen: list[tuple[str, bool]] = []
     gate = asyncio.Event()

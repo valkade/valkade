@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from clara_coder_backend.context_packs.activation import (
+from valkade_backend.context_packs.activation import (
     activate_pack,
     maybe_activate_for_tool,
     relative_path_from_tool_args,
 )
-from clara_coder_backend.context_packs.registry import (
+from valkade_backend.context_packs.registry import (
     ContextPack,
     format_context_catalog,
     get_pack,
@@ -17,13 +17,13 @@ from clara_coder_backend.context_packs.registry import (
     packs_for_tool,
     register_pack,
 )
-from clara_coder_backend.context_packs.tool import ACTIVATE_CONTEXT_NAME, activate_context
-from clara_coder_backend.llm.messages import build_system_prompt
-from clara_coder_backend.domain import RuntimeConnection, SessionState
-from clara_coder_backend.session.state import current_session_id, get_session
+from valkade_backend.context_packs.tool import ACTIVATE_CONTEXT_NAME, activate_context
+from valkade_backend.llm.messages import build_system_prompt
+from valkade_backend.domain import RuntimeConnection, SessionState
+from valkade_backend.session.state import current_session_id, get_session
 
 # Ensure built-ins are registered for this module.
-import clara_coder_backend.context_packs  # noqa: F401
+import valkade_backend.context_packs  # noqa: F401
 
 
 def _conn() -> RuntimeConnection:
@@ -121,7 +121,7 @@ def test_relative_path_from_tool_args() -> None:
     assert relative_path_from_tool_args({}) is None
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.messages.get_active_connection')
 def test_system_prompt_has_catalog_not_full_bodies(mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     session = SessionState(workspace_path='/tmp/ws', workspace_context='.', auto_apply_mode=False)
@@ -152,6 +152,6 @@ def test_register_pack_extension_point() -> None:
     finally:
         # Leave registry usable for later tests: overwrite with a noop tombstone removal
         # by re-registering is fine; drop via private map for cleanliness.
-        from clara_coder_backend.context_packs import registry as reg
+        from valkade_backend.context_packs import registry as reg
 
         reg._PACKS.pop(pack_id, None)

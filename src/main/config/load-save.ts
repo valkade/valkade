@@ -82,6 +82,12 @@ import { THEME_ID_PATTERN } from '../../shared/theme/theme-document';
 import { LEGACY_THEME_ID_MAP } from '../../shared/theme/builtin';
 import { getConfigPath } from '../paths';
 import {
+  APP_DATA_DIR_NAME,
+  DEV_APP_DATA_DIR_NAME,
+  LEGACY_APP_DATA_DIR_NAMES,
+  LEGACY_DEV_APP_DATA_DIR_NAMES,
+} from '../app-data';
+import {
   APP_CONFIG_SCHEMA_VERSION,
   createDefaultConfig,
   createPinnedLmStudioProvider,
@@ -100,6 +106,7 @@ import {
 const SECRET_DISK_PREFIX = 'clara-secret:v1:';
 
 let keychainFallbackWarned = false;
+let secretDecryptFailureWarned = false;
 
 type SafeStorageLike = {
   isEncryptionAvailable: () => boolean;
@@ -174,9 +181,31 @@ function decryptSecretFromDisk(stored: string): string {
     const blob = Buffer.from(stored.slice(SECRET_DISK_PREFIX.length), 'base64');
     return ss.decryptString(blob);
   } catch {
-    warnKeychainFallbackOnce();
+    warnSecretDecryptFailureOnce();
     return '';
   }
+}
+
+/**
+ * The keychain works but refuses a stored secret. On Linux / macOS the keyring item is named
+ * after the app, so secrets saved by Clara Coder cannot be read after the ValkAde rename (and
+ * a copied config from another machine or user fails the same way). The secret reads as empty
+ * and the user has to enter it again; never log the payload.
+ */
+function warnSecretDecryptFailureOnce(): void {
+  if (secretDecryptFailureWarned) {
+    return;
+  }
+  secretDecryptFailureWarned = true;
+  console.warn(
+    '[config] Could not decrypt a stored secret with the OS keychain (it was probably saved under the ' +
+      'previous app name). It is treated as empty; re-enter it in Settings.',
+  );
+}
+
+/** True once a stored secret failed to decrypt this session (see {@link warnSecretDecryptFailureOnce}). */
+export function hadSecretDecryptFailure(): boolean {
+  return secretDecryptFailureWarned;
 }
 
 /** Decrypt disk form (if any) and wrap as {@link SecretValue}; never drops material. */
@@ -1248,12 +1277,131 @@ function migrateLlmProvidersToLeadingPinnedSources(
   return { providers: out, activeModelId: nextActive };
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Lookahead source for a path separator right after a legacy dir (either slash on any OS). */
+const PATH_SEP_CLASS = String.raw`[\\/]`;
+
+/**
+ * Rewrite one string that points into a legacy app-data dir so it points into ``newDir``.
+ * A whole-string path is rewritten only when it no longer exists; a path embedded in longer
+ * text (a command line, say) only when the legacy dir itself is gone.
+ */
+function rewriteLegacyAppDataPathString(
+  value: string,
+  legacyDirs: readonly string[],
+  newDir: string,
+  exists: (p: string) => boolean,
+): string {
+  const flags = process.platform === 'win32' ? 'gi' : 'g';
+  for (const legacy of legacyDirs) {
+    const whole = new RegExp(`^${escapeRegExp(legacy)}(?=$|${PATH_SEP_CLASS})`, flags.replace('g', ''));
+    if (whole.test(value)) {
+      return exists(value) ? value : value.replace(whole, () => newDir);
+    }
+  }
+  let next = value;
+  for (const legacy of legacyDirs) {
+    const embedded = new RegExp(`${escapeRegExp(legacy)}(?=${PATH_SEP_CLASS})`, flags);
+    if (embedded.test(next) && !exists(legacy)) {
+      next = next.replace(embedded, () => newDir);
+    }
+  }
+  return next;
+}
+
+/**
+ * One-time fix for absolute paths persisted under the old app-data dir (``…/clara-coder/…``,
+ * also ``nemo-wrapper`` / ``Clara Coder``) after that dir moved to ``newDir``: runtime
+ * binaries, the Java LSP cache, a models dir set inside app data. Walks plain objects and
+ * arrays only, so {@link SecretValue} wrappers are never touched. Returns ``value`` itself
+ * when nothing changed. Rewritten paths no longer match, so later loads are no-ops.
+ */
+export function rewriteLegacyAppDataPaths<T>(
+  value: T,
+  newDir: string,
+  legacyDirs: readonly string[],
+  exists: (p: string) => boolean = (p) => syncFs.existsSync(p),
+): T {
+  if (typeof value === 'string') {
+    return rewriteLegacyAppDataPathString(value, legacyDirs, newDir, exists) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const rewritten = rewriteLegacyAppDataPaths(item, newDir, legacyDirs, exists);
+      if (rewritten !== item) changed = true;
+      return rewritten;
+    });
+    return (changed ? next : value) as unknown as T;
+  }
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    let next: Record<string, unknown> | null = null;
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      const rewritten = rewriteLegacyAppDataPaths(item, newDir, legacyDirs, exists);
+      if (rewritten !== item) {
+        next ??= { ...(value as Record<string, unknown>) };
+        next[key] = rewritten;
+      }
+    }
+    return (next ?? value) as T;
+  }
+  return value;
+}
+
+/**
+ * Rewrite every absolute path under ``legacyDirs`` inside a raw migrated ``config.json``
+ * document to point at ``newDir``. Used during explicit copy migration (where the legacy
+ * folder stays on disk as a backup, so existence checks would otherwise leave old paths).
+ */
+export function rewriteMigratedConfigPaths(
+  rawConfig: Record<string, unknown>,
+  newDir: string,
+  legacyDirs: readonly string[],
+): Record<string, unknown> {
+  return rewriteLegacyAppDataPaths(rawConfig, newDir, legacyDirs, () => false);
+}
+
+/**
+ * Current app-data dir and its legacy siblings, or null when the config does not live in
+ * ``valkade`` (packaged) or ``valkade-dev`` (dev).
+ */
+function legacyAppDataRewriteTarget(): { newDir: string; legacyDirs: string[] } | null {
+  let newDir: string;
+  try {
+    newDir = path.dirname(getConfigPath());
+  } catch {
+    return null;
+  }
+  const base = path.basename(newDir);
+  const root = path.dirname(newDir);
+  if (base === APP_DATA_DIR_NAME) {
+    return { newDir, legacyDirs: LEGACY_APP_DATA_DIR_NAMES.map((name) => path.join(root, name)) };
+  }
+  if (base === DEV_APP_DATA_DIR_NAME) {
+    return { newDir, legacyDirs: LEGACY_DEV_APP_DATA_DIR_NAMES.map((name) => path.join(root, name)) };
+  }
+  return null;
+}
+
 /**
  * Normalize older `config.json` shapes to the current schema; mutates a copy when needed.
  */
 export function migrateConfig(config: AppConfig): AppConfig {
   let migrated = false;
-  const newConfig: AppConfig = { ...config } as AppConfig;
+  let newConfig: AppConfig = { ...config } as AppConfig;
+
+  const appDataRewrite = legacyAppDataRewriteTarget();
+  if (appDataRewrite) {
+    const rewritten = rewriteLegacyAppDataPaths(newConfig, appDataRewrite.newDir, appDataRewrite.legacyDirs);
+    if (rewritten !== newConfig) {
+      console.log('[config] Rewrote paths under the old app data dir to', appDataRewrite.newDir);
+      newConfig = rewritten;
+      migrated = true;
+    }
+  }
 
   // Do not normalize a schema introduced by a newer release: it may no longer use
   // the v1 revision, phases or cursor shapes, and must survive ordinary config saves.
@@ -2348,6 +2496,7 @@ export function mergeSettingsConfigSave(disk: AppConfig, client: AppConfig): App
     // Tutorial transitions have their own revision-checked IPC; a stale Settings draft
     // must never resurrect dismissed phases or move the committed cursor backwards.
     tutorial: isTutorialProgressSupported(disk.tutorial) ? normalizeTutorialProgress(disk.tutorial) : disk.tutorial,
+    lastAppVersion: disk.lastAppVersion ?? clientMigrated.lastAppVersion,
     workspaces: disk.workspaces,
     currentWorkspaceId: disk.currentWorkspaceId,
     lastActiveConversationByWorkspaceId: disk.lastActiveConversationByWorkspaceId,

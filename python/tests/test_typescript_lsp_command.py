@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.lsp import typescript_server
-from clara_coder_backend.lsp.plugins import typescript_plugin as typescript_plugin_mod
-from clara_coder_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin
-from clara_coder_backend.lsp.server_plugin import LspServerNotInstalledError
-from clara_coder_backend.lsp.typescript_server import resolve_typescript_lsp_spawn
-from clara_coder_backend.runtime.deps.providers import vtsls
+from valkade_backend.domain import SessionState
+from valkade_backend.lsp import typescript_server
+from valkade_backend.lsp.plugins import typescript_plugin as typescript_plugin_mod
+from valkade_backend.lsp.plugins.typescript_plugin import TypescriptLspPlugin
+from valkade_backend.lsp.server_plugin import LspServerNotInstalledError
+from valkade_backend.lsp.typescript_server import resolve_typescript_lsp_spawn
+from valkade_backend.runtime.deps.providers import vtsls
 
 
 @pytest.fixture
@@ -145,7 +145,7 @@ def test_installed_without_electron_names_the_missing_path(
     workspace.mkdir()
 
     assert resolve_typescript_lsp_spawn(workspace) is None
-    with pytest.raises(LspServerNotInstalledError, match='CLARA_ELECTRON_EXEC_PATH is not set'):
+    with pytest.raises(LspServerNotInstalledError, match='VALKADE_ELECTRON_EXEC_PATH is not set'):
         _start_params(workspace, monkeypatch)
 
     missing = tmp_path / 'no-electron'

@@ -729,7 +729,7 @@ describe('clearPrimaryStreamParts', () => {
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'Reading…' },
     ];
     expect(clearPrimaryStreamParts(parts)).toEqual([
-      { streamTag: 'clara', label: 'Clara', text: 'Planning…' },
+      { streamTag: 'clara', label: 'ValkAde', text: 'Planning…' },
       { streamTag: 'reasoning', label: 'R', text: 'think' },
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'Reading…' },
     ]);
@@ -741,7 +741,7 @@ describe('clearPrimaryStreamParts', () => {
       { streamTag: 'agent', label: '', text: 'Second.' },
     ];
     expect(clearPrimaryStreamParts(parts)).toEqual([
-      { streamTag: 'clara', label: 'Clara', text: 'First. Second.' },
+      { streamTag: 'clara', label: 'ValkAde', text: 'First. Second.' },
     ]);
   });
 

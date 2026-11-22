@@ -1,8 +1,14 @@
-/** Workspace-local Clara metadata directory (hidden from the file tree). */
-export const WORKSPACE_META_DIR = '.clara';
+/** Workspace-local ValkAde metadata directory (hidden from the file tree). */
+export const WORKSPACE_META_DIR = '.valkade';
 
-/** Pre-rename metadata directory. Migrated to {@link WORKSPACE_META_DIR} when safe. */
-export const LEGACY_WORKSPACE_META_DIR = '.nemo';
+/**
+ * Pre-rename metadata directories, newest first. Each is merged into {@link WORKSPACE_META_DIR}
+ * when safe (`.clara` from Clara Coder, `.nemo` from before that).
+ */
+export const LEGACY_WORKSPACE_META_DIRS = ['.clara', '.nemo'] as const;
+
+/** Most recent pre-rename metadata directory (`.clara`). */
+export const LEGACY_WORKSPACE_META_DIR = LEGACY_WORKSPACE_META_DIRS[0];
 
 export const WORKSPACE_SYSTEM_PROMPT_FILE = 'system-prompt.md';
 

@@ -120,7 +120,7 @@ export const DEPENDENCY_DESCRIPTIONS: Record<DependencyId, string> = {
   'java-lsp': 'Eclipse JDT Language Server for Java diagnostics and navigation.',
   gdls: 'Standalone GDScript language server for Godot 4.6+. Needs no running Godot editor.',
   'rust-analyzer': 'Rust language server. Needs a Rust toolchain (cargo) on this computer.',
-  vtsls: 'TypeScript and JavaScript language server, with its own TypeScript 5.9. Runs on the Node built into Clara.',
+  vtsls: 'TypeScript and JavaScript language server, with its own TypeScript 5.9. Runs on the Node built into ValkAde.',
   kokoro: 'Local neural TTS (CPU PyTorch + kokoro).',
   whisper: 'Local speech-to-text (faster-whisper, CPU CTranslate2).',
 };
@@ -176,13 +176,13 @@ export interface DependencySource {
   label: string;
   /** Upstream project / repository page. */
   url: string;
-  /** How Clara pulls it, e.g. "Prebuilt binaries from GitHub releases". */
+  /** How ValkAde pulls it, e.g. "Prebuilt binaries from GitHub releases". */
   detail: string;
 }
 
 /**
  * Upstream origin of every managed dependency, mirroring the Python providers in
- * `python/clara_coder_backend/runtime/deps/providers` and `scripts/bundle-portable-python.mjs`.
+ * `python/valkade_backend/runtime/deps/providers` and `scripts/bundle-portable-python.mjs`.
  * Whisper's model repo depends on the chosen size; see {@link whisperModelSource}.
  */
 export const DEPENDENCY_SOURCES: Record<DependencyId, readonly DependencySource[]> = {

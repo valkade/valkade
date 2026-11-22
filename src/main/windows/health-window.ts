@@ -54,7 +54,7 @@ export function createHealthWindow(): void {
     maximizable: true,
     show: false,
     backgroundColor: '#0a0a0a',
-    title: 'Clara Coder — Health',
+    title: 'ValkAde — Health',
     ...(icon ? { icon } : {}),
     webPreferences: secureWebPreferences(preloadPath()),
   });

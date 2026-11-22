@@ -3,7 +3,7 @@
     <section class='lms-panel'>
       <div class='lms-panel__head'>
         <h5>Load settings</h5>
-        <span class='lms-muted'>Used each time Clara loads the model</span>
+        <span class='lms-muted'>Used each time ValkAde loads the model</span>
       </div>
 
       <div class='lms-control-grid'>
@@ -23,7 +23,7 @@
             [value]='String(s.lmStudioSettings().parallel)'
             (valueChange)="onIntSetting('parallel', $event)"
           />
-          <small class='lms-hint'>How many requests LM Studio handles at once. Clara runs its own sub-agents one at a time here.</small>
+          <small class='lms-hint'>How many requests LM Studio handles at once. ValkAde runs its own sub-agents one at a time here.</small>
         </label>
         <label class='field'>
           <span>Eval batch size</span>
@@ -99,7 +99,7 @@
           <strong>Load with these settings when you send a message</strong>
           <small class='lms-hint'>
             @if (s.lmStudioSettings().autoLoad) {
-              If the model isn't loaded, Clara loads it first. It stays loaded until you unload it.
+              If the model isn't loaded, ValkAde loads it first. It stays loaded until you unload it.
             } @else {
               If the model isn't loaded, LM Studio loads it with its own settings, not the ones above.
             }
@@ -131,7 +131,7 @@
 
       <div class='lms-control-grid lms-control-grid--two'>
         <label class='field'>
-          <span>Clara profile</span>
+          <span>ValkAde profile</span>
           <app-pill-select
             [options]='profileOptions()'
             [value]='c.optimizationPreset'

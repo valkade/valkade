@@ -40,7 +40,7 @@ export function hardenBrowserWindow(win: BrowserWindow): void {
 }
 
 /**
- * Frameless window silhouette. Win11 DWM rounds HWNDs by default; Clara chrome is
+ * Frameless window silhouette. Win11 DWM rounds HWNDs by default; ValkAde chrome is
  * square (`border-radius: 0`), so keep the OS outline square too. Ignored on Win10.
  */
 export function framelessWindowShapeOptions(

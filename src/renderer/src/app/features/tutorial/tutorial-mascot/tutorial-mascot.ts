@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 
 /**
- * Decorative Clara mark that sits inside the tutorial card. Supply accessible instructions
+ * Decorative ValkAde mark that sits inside the tutorial card. Supply accessible instructions
  * separately: it does not receive focus or pointer events.
  */
 @Component({

@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from clara_coder_backend.domain import SessionState
-from clara_coder_backend.llm import http_transport as transport
-from clara_coder_backend.session.state import current_session_id
+from valkade_backend.domain import SessionState
+from valkade_backend.llm import http_transport as transport
+from valkade_backend.session.state import current_session_id
 
 
 def _run_reset() -> None:
@@ -98,7 +98,7 @@ async def test_abort_in_flight_generation_sets_events_and_session_abort() -> Non
     session.agent_pause_event = pause
 
     with patch(
-        'clara_coder_backend.llm.http_transport.abort_in_flight_llm_requests',
+        'valkade_backend.llm.http_transport.abort_in_flight_llm_requests',
         new_callable=AsyncMock,
     ) as mock_abort_req:
         await transport.abort_in_flight_generation(session, 'sess-1')

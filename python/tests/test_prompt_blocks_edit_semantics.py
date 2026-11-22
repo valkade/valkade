@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from clara_coder_backend.llm.messages import build_system_prompt
-from clara_coder_backend.llm.prompt_blocks import edit_semantics_block
-from clara_coder_backend.domain import RuntimeConnection, SessionState
+from valkade_backend.llm.messages import build_system_prompt
+from valkade_backend.llm.prompt_blocks import edit_semantics_block
+from valkade_backend.domain import RuntimeConnection, SessionState
 
 
 def _conn() -> RuntimeConnection:
@@ -40,8 +40,8 @@ def test_edit_semantics_prefers_targeted_edits() -> None:
     assert '`write_workspace_file`' in block
 
 
-@patch('clara_coder_backend.llm.messages.get_active_connection')
-@patch('clara_coder_backend.llm.model_tuning.get_active_connection', create=True)
+@patch('valkade_backend.llm.messages.get_active_connection')
+@patch('valkade_backend.llm.model_tuning.get_active_connection', create=True)
 def test_build_system_prompt_injects_edit_semantics_once(_mt: MagicMock, mock_conn: MagicMock) -> None:
     mock_conn.return_value = _conn()
     for auto_run in (False, True):
