@@ -4,6 +4,7 @@ import {
   CLARA_DARK_THEME,
   LEGACY_THEME_ID_MAP,
   isBuiltInThemeId,
+  VALKADE_DARK_VALKYRIE_GOLD_THEME,
   VALKADE_DARK_THEME,
   VALKADE_LIGHT_THEME,
   DEFAULT_THEME,
@@ -23,8 +24,9 @@ import { THEME_TOKENS } from './theme-tokens';
 import { scopeThemeCss } from './theme-css-scope';
 
 describe('validateThemeDocument', () => {
-  it('ships the ValkAde Dark Royal Ocean and Cadmium Lantern, and ValkAde Light Mint, Iris and Ochre built-ins', () => {
+  it('ships the ValkAde Dark Valkyrie Gold, Royal Ocean and Cadmium built-ins, plus Light Mint, Iris and Ochre', () => {
     expect(BUILTIN_THEMES.map((t) => [t.id, t.name, t.mode])).toEqual([
+      ['valkade-dark-valkyrie-gold', 'ValkAde Dark Valkyrie Gold', 'dark'],
       ['valkade-dark', 'ValkAde Dark Royal Ocean', 'dark'],
       ['valkade-dark-cadmium-lantern', 'ValkAde Dark Cadmium Lantern', 'dark'],
       ['valkade-dark-cadmium-orange', 'ValkAde Dark Cadmium Orange', 'dark'],
@@ -62,15 +64,15 @@ describe('validateThemeDocument', () => {
     }
   });
 
-  it('makes ValkAde Dark Royal Ocean the default and dark base, keeping ValkAde Light for light mode', () => {
-    expect(DEFAULT_THEME_ID).toBe('valkade-dark');
-    expect(DEFAULT_THEME).toBe(VALKADE_DARK_THEME);
+  it('makes ValkAde Dark Valkyrie Gold the default and dark base, keeping ValkAde Light for light mode', () => {
+    expect(DEFAULT_THEME_ID).toBe('valkade-dark-valkyrie-gold');
+    expect(DEFAULT_THEME).toBe(VALKADE_DARK_VALKYRIE_GOLD_THEME);
     expect(DEFAULT_THEME.mode).toBe('dark');
-    expect(builtInThemeForMode('dark').id).toBe('valkade-dark');
+    expect(builtInThemeForMode('dark').id).toBe('valkade-dark-valkyrie-gold');
     expect(builtInThemeForMode('light').id).toBe(VALKADE_LIGHT_THEME.id);
-    expect(resolveLegacyThemeId('default')).toBe('valkade-dark');
-    expect(resolveLegacyThemeId('woodland')).toBe(VALKADE_DARK_THEME.id);
-    expect(resolveLegacyThemeId('')).toBe('valkade-dark');
+    expect(resolveLegacyThemeId('default')).toBe('valkade-dark-valkyrie-gold');
+    expect(resolveLegacyThemeId('woodland')).toBe(VALKADE_DARK_VALKYRIE_GOLD_THEME.id);
+    expect(resolveLegacyThemeId('')).toBe('valkade-dark-valkyrie-gold');
   });
 
   it('maps every pre-rename Clara id straight to its ValkAde built-in, and leaves look-alikes alone', () => {

@@ -48,7 +48,15 @@ describe('theme-store', () => {
   it('lists built-ins when no user themes exist', async () => {
     expect(await listUserThemes()).toEqual([]);
     const all = await listAllThemes();
-    expect(all.map((t) => t.id)).toEqual(['valkade-dark', 'valkade-dark-cadmium-lantern', 'valkade-dark-cadmium-orange', 'valkade-light', 'valkade-light-iris', 'valkade-light-ochre']);
+    expect(all.map((t) => t.id)).toEqual([
+      'valkade-dark-valkyrie-gold',
+      'valkade-dark',
+      'valkade-dark-cadmium-lantern',
+      'valkade-dark-cadmium-orange',
+      'valkade-light',
+      'valkade-light-iris',
+      'valkade-light-ochre',
+    ]);
     expect(all[0]!.builtIn).toBe(true);
   });
 
