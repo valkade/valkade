@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="1024" height="1024" role="img" aria-labelledby="valkadeBTitle">
+  <title id="valkadeBTitle">ValkAde (concept B: forged V)</title>
+  <!-- Master for scripts/render_valkade_icon.py --concept b. Slab-serif forged V resting on an anvil bar that doubles as the terminal cursor. -->
+  <rect width="64" height="64" rx="14" fill="#0f0f11"/>
+  <polygon points="8,12 26,12 26,17 23,17 32,38 41,17 38,17 38,12 56,12 56,17 52,17 38,46 26,46 12,17 8,17" fill="#f4f4f5"/>
+  <polygon points="18,50 46,50 43,55 21,55" fill="#4da3ff"/>
+</svg>
