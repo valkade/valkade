@@ -603,8 +603,9 @@ def _web_access_operational_bullet() -> str:
         return ''
     return (
         '- **Web:** `web_search`, `fetch_url`, and `screenshot_webpage` are bound (each asks confirmation when '
-        'Auto Run is off). Emails are stripped from search queries and rejected in screenshot URLs/User-Agents. '
-        'Screenshots are isolated static captures of public pages/images; embed the returned Markdown image verbatim.\n'
+        'Auto Run is off; User-Agent and search cooldowns live in Settings → Tools). Emails are stripped from '
+        'search queries and rejected in screenshot URLs/User-Agents. Screenshots are isolated static captures '
+        '(not logins or script-dependent apps); embed the returned Markdown image verbatim.\n'
     )
 
 
