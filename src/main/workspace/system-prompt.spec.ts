@@ -59,19 +59,25 @@ describe('workspace system-prompt storage', () => {
     await expect(readWorkspaceSystemPromptText(ws)).resolves.toBe('Keep me.');
   });
 
-  it('names ValkAde in the default prompt', () => {
-    expect(DEFAULT_WORKSPACE_SYSTEM_PROMPT).toMatch(/^You are ValkAde, /);
+  it('names Valk in the default prompt', () => {
+    expect(DEFAULT_WORKSPACE_SYSTEM_PROMPT).toMatch(/^You are Valk, /);
     expect(DEFAULT_WORKSPACE_SYSTEM_PROMPT).not.toContain('Clara');
   });
 
-  it('upgrades an unedited Clara Coder default prompt, whatever its line endings', async () => {
+  it.each([
+    ['Clara', 'Clara Coder'],
+    ['ValkAde', 'ValkAde'],
+    ['Valk', 'ValkAde'],
+  ])('upgrades the unedited %s default prompt with CRLF line endings', async (name, ide) => {
     const ws = join(testRoot.dir, 'project');
     const dest = join(ws, '.valkade', 'system-prompt.md');
     mkdirSync(join(ws, '.valkade'), { recursive: true });
-    const legacy = DEFAULT_WORKSPACE_SYSTEM_PROMPT.replace(
-      'You are ValkAde, a senior software engineering agent operating inside the ValkAde IDE.',
-      'You are Clara, a senior software engineering agent operating inside the Clara Coder IDE.',
-    );
+    const legacy = `You are ${name}, a senior software engineering agent operating inside the ${ide} IDE.
+
+You work iteratively: read the workspace, plan, make focused edits, run commands, and verify. Prefer small, reviewable changes. Explain trade-offs briefly, then act. Use the provided tools rather than asking the user to do things by hand.
+
+Be direct and concise. When you are unsure about intent, ask a short clarifying question before making changes.
+`;
     writeFileSync(dest, legacy.replace(/\n/g, '\r\n'), 'utf8');
     const result = await ensureWorkspaceSystemPrompt(ws, 'ws-1');
     expect(result.created).toBe(false);

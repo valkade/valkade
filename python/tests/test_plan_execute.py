@@ -126,7 +126,7 @@ def test_plan_execute_tools_include_build_plan_helpers() -> None:
 def test_build_planner_context_block_includes_system_prompt_and_tools() -> None:
     session = SessionState(workspace_path='/tmp/ws')
     block = build_planner_context_block(session, apply_mode=True)
-    assert 'You are ValkAde' in block
+    assert 'You are Valk, a coding assistant.' in block
     assert 'Available tools' in block
     tools, _ = worker_tools_and_map(True, session=session)
     assert f'`{tools[0].name}`' in block

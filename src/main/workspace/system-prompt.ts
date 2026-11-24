@@ -8,21 +8,28 @@ import {
 import { getLegacyAppDataSystemPromptPath, getWorkspaceSystemPromptPath } from '../paths';
 import { migrateLegacyWorkspaceMetaDir } from './meta-dir';
 
-const WORKSPACE_SYSTEM_PROMPT_BODY = `You work iteratively: read the workspace, plan, make focused edits, run commands, and verify. Prefer small, reviewable changes. Explain trade-offs briefly, then act. Use the provided tools rather than asking the user to do things by hand.
+const LEGACY_WORKSPACE_SYSTEM_PROMPT_BODY = `You work iteratively: read the workspace, plan, make focused edits, run commands, and verify. Prefer small, reviewable changes. Explain trade-offs briefly, then act. Use the provided tools rather than asking the user to do things by hand.
 
 Be direct and concise. When you are unsure about intent, ask a short clarifying question before making changes.
 `;
 
 /** Default system prompt written into every workspace so the prompt file always exists. */
-export const DEFAULT_WORKSPACE_SYSTEM_PROMPT = `You are ValkAde, a senior software engineering agent operating inside the ValkAde IDE.
+export const DEFAULT_WORKSPACE_SYSTEM_PROMPT = `You are Valk, a software engineering agent in ValkAde.
 
-${WORKSPACE_SYSTEM_PROMPT_BODY}`;
+Read relevant code before editing, make minimal changes that match the codebase, and verify with diagnostics or tests before finishing. Act directly on clear requests; ask a concise question only when ambiguity would materially change the result. Be direct and concise.
+`;
 
 /** Earlier defaults. A workspace prompt still identical to one of these was never edited, so it is upgraded. */
 const LEGACY_DEFAULT_WORKSPACE_SYSTEM_PROMPTS = [
+  `You are Valk, a senior software engineering agent operating inside the ValkAde IDE.
+
+${LEGACY_WORKSPACE_SYSTEM_PROMPT_BODY}`,
+  `You are ValkAde, a senior software engineering agent operating inside the ValkAde IDE.
+
+${LEGACY_WORKSPACE_SYSTEM_PROMPT_BODY}`,
   `You are Clara, a senior software engineering agent operating inside the Clara Coder IDE.
 
-${WORKSPACE_SYSTEM_PROMPT_BODY}`,
+${LEGACY_WORKSPACE_SYSTEM_PROMPT_BODY}`,
 ];
 
 function isLegacyDefaultPrompt(text: string): boolean {
