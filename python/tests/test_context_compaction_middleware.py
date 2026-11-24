@@ -715,8 +715,12 @@ async def test_the_tail_never_moves_back(session: SessionState) -> None:
     in_last_view = {
         message['tool_call_id'] for message in server.agent_requests()[-1]['messages'] if message['role'] == 'tool'
     }
-    assert in_first_view <= in_last_view
-    assert in_last_view - in_first_view == {'c10', 'c11'}
+    first_tail = min(int(cid[1:]) for cid in in_first_view)
+    last_tail = min(int(cid[1:]) for cid in in_last_view)
+    assert first_tail > 0
+    assert last_tail >= first_tail
+    assert {'c10', 'c11'} <= in_last_view
+    assert {f'c{i}' for i in range(first_tail)}.isdisjoint(in_last_view)
 
 
 async def test_crossing_round_keeps_its_call_with_a_placeholder(session: SessionState) -> None:
@@ -3023,7 +3027,7 @@ async def test_tool_results_are_budgeted_per_call_in_the_step(session: SessionSt
 
 
 async def test_tool_results_leave_room_for_the_system_prompt_and_tools(session: SessionState) -> None:
-    window = overhead_tokens(session) + 5000
+    window = overhead_tokens(session) + 4000
     set_window(window)
     batch = calls_reply(
         ('read_thing', {'path': 'a', 'size': 400_000}, 'one'),

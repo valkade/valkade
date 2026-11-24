@@ -1170,7 +1170,7 @@ def sse_lines_for_graph_event(
         if not isinstance(summary, str) or not summary.strip():
             return []
         detail = summary.strip()
-        lbl = label if isinstance(label, str) and label.strip() else 'ValkAde'
+        lbl = label if isinstance(label, str) and label.strip() else 'Valk'
         return [
             sse_line(
                 status_event(

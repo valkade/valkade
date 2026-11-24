@@ -22,12 +22,8 @@ from valkade_backend.llm.gemma_output import (
 )
 from valkade_backend.lang_agent.subagents import running_subagents_line
 from valkade_backend.llm.model_tuning import combined_model_prompt_suffix, gemma_output_parsing_active
-from valkade_backend.session.state import get_active_connection
 from valkade_backend.llm.prompt_blocks import (
     edit_semantics_block,
-    harness_mindset_block,
-    python_workspace_playbook,
-    routing_handoff_contract,
     source_code_formatting_guidance,
     speech_tts_mood_block,
     subagent_role_block,
@@ -585,13 +581,6 @@ def _workspace_system_prompt_block(session: SessionState) -> str:
     return f'Workspace system prompt:\n{text}'
 
 
-def _connection_line(session: SessionState) -> str:
-    connection = get_active_connection()
-    return (
-        f'Active model connection: {connection.name} ({connection.provider}, model={connection.model}).'
-    )
-
-
 def _model_prompt_suffix(session: SessionState, apply_mode: bool) -> str:
     """Universal tool/edit semantics plus optional parallel-batching and Qwen-specific lines."""
     return combined_model_prompt_suffix(get_active_connection(), session=session, apply_mode=apply_mode)
@@ -610,18 +599,12 @@ def _os_hint_line() -> str:
 
 def _web_access_operational_bullet() -> str:
     """One-line guidance when Settings → Allow web access is on."""
-    from valkade_backend.session.state import runtime_config
-
     if not getattr(runtime_config.tools, 'allow_web_access', False):
         return ''
     return (
-        '- **Web:** `web_search` (built-in metasearch, or your SearXNG instance), `fetch_url` and '
-        '`screenshot_webpage` are bound. When Auto Run is off, each call asks for confirmation before leaving '
-        'the machine; search/screenshot cards show the User-Agent from Settings → Tools. Email addresses are '
-        'stripped from search queries; screenshot URLs/User-Agents containing emails are rejected. '
-        'Screenshots are isolated static captures of public pages/direct images, not logins, interaction, or '
-        'script-dependent apps. Embed the returned screenshot Markdown image verbatim in your reply. '
-        'The User-Agent and per-engine search cooldowns live in Settings → Tools.\n'
+        '- **Web:** `web_search`, `fetch_url`, and `screenshot_webpage` are bound (each asks confirmation when '
+        'Auto Run is off). Emails are stripped from search queries and rejected in screenshot URLs/User-Agents. '
+        'Screenshots are isolated static captures of public pages/images; embed the returned Markdown image verbatim.\n'
     )
 
 
@@ -640,60 +623,32 @@ def _outer_agent_operational_block(session: SessionState, apply_mode: bool) -> s
     del session  # Guidance no longer varies per session (Auto Run only gates approval cards).
     web_bullet = _web_access_operational_bullet()
     base = (
-        'Operational guidance:\n'
-        '- For codebase questions, inspect the workspace before making claims.\n'
-        '- After checking the workspace tree, resolve uncertainty with tools rather than long speculation; if blocked, '
-        'state the single missing fact and the next tool you would call.\n'
-        '- If a tool returns partial data, say what is missing.\n'
-        '- When your answer refers to code or files, name the relevant paths clearly.\n'
-        '- Match shell guidance to the detected host OS; do not assume Bash is available on Windows.\n'
-        '- If no workspace is loaded, say that no local files were available.\n'
-        '- Read-only inspection: start with the workspace tree in your system instructions above for structure and likely file paths. '
-        'Use `list_workspace_directory` only when that tree is insufficient, stale, or you need to confirm a specific subtree.\n'
-        '- Discovery / reads (follow each bound tool’s description for details):\n'
-        '- **Default first move for locating code: `search_workspace`.** It greps the on-disk workspace (literal or '
-        'regex, case-insensitive, line-precise `path:line` hits) and is cheap—use it liberally during discovery and '
-        'whenever you can name a needle: symbol names, call sites, error strings, config keys, import paths, TODO '
-        'markers, log lines. Run several narrow probes (one term per call) to map where things live before reading '
-        'whole files or speculating. Prefer it over guessing file paths from the tree, and over broad whole-file reads, '
-        'whenever a searchable term exists.\n'
-        '  1. Unknown / fuzzy targets (you cannot name a needle) → `retrieve_workspace_semantic`, then verify hits with '
-        '`search_workspace` / `read_workspace_file` / LSP.\n'
-        + '  2. Any literal/regex needle → `search_workspace` (the default—see above).\n'
-        + '  3. Known `.py`/`.ts`/`.tsx`/`.js`/`.jsx`/`.mjs`/`.cjs`/`.gd`/`.java`/`.rs` paths → prefer LSP reads/diagnostics before heavy file reads; literal spans → `read_workspace_file`.\n'
-        + '  4. PDF / WSDL / XML / JSON workflow playbooks live in **context packs** (catalog below); they auto-load on first '
-        'related tool use, or call `activate_context`.\n'
+        'Operational rules:\n'
+        '- Ground claims in workspace reads and tool output; if data is missing or no workspace is attached, say so.\n'
+        '- On `Tool error:`, read it literally, fix the mismatch (path, args, or stale anchors), and retry.\n'
+        '- Match shell commands to the host OS (do not assume Bash on Windows).\n'
+        '- Discovery: check the workspace tree below first (`list_workspace_directory` only if insufficient). '
+        'Use `search_workspace` by default whenever you can name a literal/regex needle (symbols, strings, imports, '
+        'config keys); use `retrieve_workspace_semantic` for fuzzy concepts and verify hits on disk; '
+        'use LSP tools for symbols/references/diagnostics on supported code files, and `read_workspace_file` for literal spans.\n'
         + _context_packs_catalog_block()
-        + '- Text encoding/newlines: `read_workspace_file` / `search_workspace` accept `encoding`; edit tools accept `encoding` '
-        'and `newline` (lf, crlf, preserve). Defaults come from app Settings → Tools.\n'
+        + web_bullet
     )
     if not apply_mode:
         return (
             base
-            + web_bullet
-            + '- **Backend (authoritative):** Editor mode is **OFF** for this turn; workspace mutation '
-            'tools are not bound. Ignore any stale prior assistant text that claims Editor is on or lists write tools.\n'
-            '- Editor mode is off: workspace write tools are not available\u2014use read-only tools only. '
-            'If the user wants patches or deletes from chat, ask them to enable Editor in the toolbar.\n'
+            + '- **Editor mode is OFF (authoritative):** write/command tools are not bound—use read-only tools only '
+            '(ignore any earlier assistant prose claiming Editor is on). If the user wants edits, ask them to enable Editor.\n'
         )
     return (
         base
-        + web_bullet
-        + '- **Backend (authoritative):** Editor mode is **ON**; the edit, copy, delete and command tools are bound.\n'
+        + '- **Editor mode is ON (authoritative):** edit, copy, delete, and command tools are bound.\n'
         + f'- {edit_semantics_block()}\n'
-        + '- **Shell / verification:** use `run_command` for installs, tests, package managers, CLIs, port checks, '
-        'and long-lived processes (dev servers, `npm run start`/`dev`, `python app.py`) so they run as managed '
-        'background jobs—then `wait_for_command` for more output and `kill_background_command` when finished. '
-        'Commands may wait on the user\u2019s approval unless Auto Run is on.\n'
-        + '- Use `copy_workspace_files` only to duplicate existing files to new paths.\n'
-        + '- **After** editing `.py`, TS/JS, `.gd`, `.java` or `.rs` paths, call `lsp_get_diagnostics` '
-        '(`refresh_active_document=true`) before claiming the change is clean.\n'
-        + '- Summarize outcomes clearly (paths touched, what changed). Do not paste raw tool dumps.\n'
-        f'{routing_handoff_contract()}\n'
-        '- **Inspect–integrate–mutate–verify:** Base **Existence** on tools—for **update** (or when a path might already exist), '
-        'use `read_workspace_file` and/or LSP reads on those paths first so you augment or replace real content, not a guess. '
-        'When adding I/O, config, logging, or helpers, use `search_workspace` to find existing patterns and reuse them when they fit.\n'
-        f'{python_workspace_playbook()}\n'
+        + '- **Commands:** use `run_command` for installs, tests, CLIs, and long-lived processes (follow with '
+        '`wait_for_command` and `kill_background_command`). Commands prompt for approval unless Auto Run is on.\n'
+        + '- **Verify:** after editing `.py`, TS/JS, `.gd`, `.java`, or `.rs`, call `lsp_get_diagnostics` '
+        '(`refresh_active_document=true`) before claiming the change is clean. '
+        'Report only checks you actually ran, and summarize changed paths concisely without dumping raw tool output.\n'
     )
 
 
@@ -701,29 +656,27 @@ def build_system_prompt(
     session: SessionState,
     apply_mode: bool,
 ) -> str:
-    """Assemble ValkAde's system prompt: role, tools policy, connection, OS, workspace."""
-    workspace_hint = _workspace_hint(session)
+    """Assemble ValkAde's system prompt, static sections first and session-dynamic sections last."""
+    sections: list[str] = [
+        (
+            'You are Valk, a coding assistant. '
+            'Use tools whenever a task depends on the workspace, cite exact file paths and line numbers, '
+            'and keep answers concise.'
+        ),
+        _outer_agent_operational_block(session, apply_mode).rstrip(),
+    ]
+    model_suffix = _model_prompt_suffix(session, apply_mode).strip()
+    if model_suffix:
+        sections.append(model_suffix)
+    if (session.workspace_path or '').strip():
+        sections.append(source_code_formatting_guidance())
+    sections.append(_os_hint_line())
+    sections.append(_workspace_hint(session))
     workspace_system = _workspace_system_prompt_block(session)
-    operational = _outer_agent_operational_block(session, apply_mode)
-    formatting_early = (
-        f'{source_code_formatting_guidance()}\n\n' if (session.workspace_path or '').strip() else ''
-    )
-    body = (
-        'You are ValkAde, a coding assistant. '
-        'Use the available tools whenever a request depends on inspecting or searching the workspace. '
-        'Prefer quoting exact file paths, line numbers, commands, and concrete next steps. '
-        'Keep answers concise but useful, and explain what you actually inspected.\n\n'
-        f'{harness_mindset_block()}\n\n'
-        f'{_connection_line(session)}\n\n'
-        f'{_os_hint_line()}\n\n'
-        f'{operational}'
-        f'{formatting_early}'
-        f'{workspace_hint}'
-    )
     if workspace_system:
-        body = f'{body}\n\n{workspace_system}'
+        sections.append(workspace_system)
     if session.last_stream_speech_enabled and session.last_stream_tts_provider == 'openai-compatible':
-        body = f'{body}\n\n{speech_tts_mood_block()}'
+        sections.append(speech_tts_mood_block())
     if session.subagent_parent_session_id:
-        body = f'{body}\n\n{subagent_role_block(session.subagent_name, session.subagent_role)}'
-    return f'{body}{_model_prompt_suffix(session, apply_mode)}'
+        sections.append(subagent_role_block(session.subagent_name, session.subagent_role))
+    return '\n\n'.join(sections)
