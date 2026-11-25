@@ -8,7 +8,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const BRIDGE_FILE = join(process.env.APPDATA ?? '', 'clara-coder-dev', 'browser-bridge.json');
+const BRIDGE_FILE = join(process.env.APPDATA ?? '', 'valkade-dev', 'browser-bridge.json');
 const waitArg = process.argv.indexOf('--wait');
 const waitSeconds = waitArg >= 0 ? Number(process.argv[waitArg + 1] ?? 60) : 0;
 

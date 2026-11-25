@@ -529,7 +529,7 @@ export function getPythonExecutable(): string | null {
 /**
  * Isolation + discovery env for sidecar / deps-CLI spawns (packaged only).
  *
- * ``CLARA_BUNDLED_PYTHON`` switches the Python deps providers into "bundled mode"
+ * ``VALKADE_BUNDLED_PYTHON`` switches the Python deps providers into "bundled mode"
  * (thin overlay venv, ownership check on the app-data venv). Dev deliberately sets
  * nothing so the Python side mirrors Electron's dev chain (repo ``.venv`` / system).
  */
@@ -538,8 +538,8 @@ export function pythonIsolationEnv(): NodeJS.ProcessEnv {
   return {
     PYTHONDONTWRITEBYTECODE: '1',
     PYTHONNOUSERSITE: '1',
-    CLARA_BUNDLED_PYTHON: getBundledPythonExecutable() ?? '',
-    CLARA_BUNDLED_RUNTIME_DIR: getBundledRuntimeDir(),
+    VALKADE_BUNDLED_PYTHON: getBundledPythonExecutable() ?? '',
+    VALKADE_BUNDLED_RUNTIME_DIR: getBundledRuntimeDir(),
   };
 }
 

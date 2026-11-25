@@ -22,7 +22,7 @@ import { createMainWindow } from './windows/main-window';
 import { runPreBootMigrationPrompt } from './windows/migration-window';
 import { registerAllIpc } from './ipc/register-ipc';
 import { killAllWorkspacePtySessions } from './ipc/handlers/workspace-pty';
-import { envClara } from './env-clara';
+import { envValkade, setEnvValkade } from './env-valkade';
 import { configureAppDataDir } from './paths';
 import { captureIpcForBrowserBridge, startBrowserBridge } from './dev/browser-bridge';
 import { rearmMcpOAuthRefresh } from './mcp-oauth-refresh';
@@ -36,14 +36,14 @@ import { startScreenshotMaintenance, stopScreenshotMaintenance } from './web/scr
  */
 function applyLinuxDisplayWorkarounds(): void {
   if (process.platform !== 'linux') return;
-  if (envClara('ENABLE_GPU') === '1') return;
+  if (envValkade('ENABLE_GPU') === '1') return;
 
   const onWayland =
     (process.env.XDG_SESSION_TYPE ?? '').toLowerCase() === 'wayland' ||
     Boolean(process.env.WAYLAND_DISPLAY);
-  const disableGpu = envClara('DISABLE_GPU') === '1' || onWayland;
+  const disableGpu = envValkade('DISABLE_GPU') === '1' || onWayland;
 
-  const ozoneOverride = envClara('ELECTRON_OZONE_PLATFORM');
+  const ozoneOverride = envValkade('ELECTRON_OZONE_PLATFORM');
   if (ozoneOverride) {
     app.commandLine.appendSwitch('ozone-platform', ozoneOverride);
   } else if (onWayland) {
@@ -154,7 +154,7 @@ app
     // Ensure the Model Manager library root exists (default: ~/ValkAde/models; ~/ClaraCoder/models when it exists).
     const modelsDir = config.modelManager?.customModelsDir?.trim();
     if (modelsDir) {
-      process.env.CLARA_CUSTOM_MODELS_DIR = modelsDir;
+      setEnvValkade('CUSTOM_MODELS_DIR', modelsDir);
       try {
         await mkdir(modelsDir, { recursive: true });
       } catch (err) {

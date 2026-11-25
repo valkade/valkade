@@ -1,12 +1,12 @@
 ---
 name: release
-description: Cut a ClaraCoder beta or stable (full) release through the GitHub Actions Release workflow — version checks, the package.json bump PR, dispatching a beta or pushing a vX.Y.Z tag, watching the build, publishing the draft, and bumping to the next version. Use when asked to release, ship, publish, cut a beta or a stable/full release, or bump the app version.
+description: Cut a ValkAde beta or stable (full) release through the GitHub Actions Release workflow — version checks, the package.json bump PR, dispatching a beta or pushing a vX.Y.Z tag, watching the build, publishing the draft, and bumping to the next version. Use when asked to release, ship, publish, cut a beta or a stable/full release, or bump the app version.
 ---
 
-# Release ClaraCoder
+# Release ValkAde
 
 Releases are built by `.github/workflows/release.yml` and published as GitHub Releases of
-`dpere122/ClaraCoder`, which the in-app Updates window reads. Version rules live in
+`valkade/valkade`, which the in-app Updates window reads. Version rules live in
 `scripts/release-version.mjs`; read it if anything here seems off.
 
 **Convention:** `package.json` on `master` holds the *next* stable version.
@@ -61,7 +61,7 @@ git tag -l 'v*' --sort=-v:refname
    ```bash
    gh release view v<version> --json tagName,isPrerelease,assets -q '.tagName, .isPrerelease, [.assets[].name]'
    ```
-   Expect `Clara-Coder-<version>-Windows-x64.exe`, its `.blockmap`, and `latest.yml`. Users with
+   Expect `ValkAde-<version>-Windows-x64.exe`, its `.blockmap`, and `latest.yml`. Users with
    "Show beta versions" on see it in the Updates window right away.
 
 ## Stable (full) release
@@ -86,7 +86,7 @@ expects. Commit `package.json` and `package-lock.json` (`chore: release X.Y.Z`),
 ```bash
 git switch master
 git pull
-git tag -a vX.Y.Z -m "Clara Coder X.Y.Z"
+git tag -a vX.Y.Z -m "ValkAde X.Y.Z"
 git push origin vX.Y.Z
 ```
 The trigger only matches plain `v[0-9]+.[0-9]+.[0-9]+`. The `version` job fails fast if the tag
@@ -122,7 +122,7 @@ Fix the cause on a branch and get it merged, then:
   git pull
   git tag -d vX.Y.Z
   git push origin :refs/tags/vX.Y.Z
-  git tag -a vX.Y.Z -m "Clara Coder X.Y.Z"
+  git tag -a vX.Y.Z -m "ValkAde X.Y.Z"
   git push origin vX.Y.Z
   ```
   If a draft was created and you're replacing it, delete the draft first (`gh release delete vX.Y.Z`,

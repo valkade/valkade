@@ -2,8 +2,9 @@
  * Release feed for the Updates window: reads GitHub Releases of the pinned repo and keeps,
  * per release, the platform installer and its electron-builder update metadata (`latest.yml`).
  *
- * Only `api.github.com` is contacted here. Asset download URLs are rebuilt from the pinned
- * owner/repo + tag + asset name rather than taken from the API response.
+ * Only `api.github.com` is contacted here, redirects included (GitHub answers a renamed or
+ * transferred repo with a redirect to `/repositories/<id>/...`). Asset download URLs are rebuilt
+ * from the pinned owner/repo + tag + asset name rather than taken from the API response.
  */
 import {
   APP_UPDATE_RELEASES_PAGE,
@@ -12,10 +13,12 @@ import {
   versionFromReleaseTag,
   type AppReleaseSummary,
 } from '../../shared/app-updater';
-import { readLimitedText, type FetchLike } from './pinned-fetch';
+import { assertAllowedDownloadUrl, readLimitedText, type FetchLike } from './pinned-fetch';
 
 const RELEASES_API = `https://api.github.com/repos/${APP_UPDATE_REPO.owner}/${APP_UPDATE_REPO.repo}/releases?per_page=100`;
 const RELEASES_API_MAX_BYTES = 8 * 1024 * 1024;
+const RELEASES_API_HOSTS: ReadonlySet<string> = new Set(['api.github.com']);
+const RELEASES_API_MAX_REDIRECTS = 5;
 
 export interface ReleaseAssetRef {
   name: string;
@@ -119,15 +122,7 @@ export async function fetchGithubReleases(
   userAgent: string,
   signal?: AbortSignal,
 ): Promise<FeedRelease[]> {
-  const res = await fetchImpl(RELEASES_API, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': userAgent,
-    },
-    redirect: 'error',
-    signal,
-  });
+  const res = await fetchReleasesApi(fetchImpl, userAgent, signal);
   if (res.status === 403 || res.status === 429) {
     throw new Error('GitHub rate limit reached; try again in a few minutes');
   }
@@ -135,4 +130,26 @@ export async function fetchGithubReleases(
     throw new Error(`GitHub releases request failed (HTTP ${res.status})`);
   }
   return parseGithubReleases(JSON.parse(await readLimitedText(res, RELEASES_API_MAX_BYTES)), p);
+}
+
+/** GETs the releases API, following redirects one hop at a time as long as each stays on `api.github.com`. */
+async function fetchReleasesApi(fetchImpl: FetchLike, userAgent: string, signal?: AbortSignal): Promise<Response> {
+  let current = assertAllowedDownloadUrl(RELEASES_API, RELEASES_API_HOSTS);
+  for (let hop = 0; hop <= RELEASES_API_MAX_REDIRECTS; hop++) {
+    const res = await fetchImpl(current.href, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': userAgent,
+      },
+      redirect: 'manual',
+      signal,
+    });
+    if (res.status < 300 || res.status >= 400) return res;
+    const location = res.headers.get('location');
+    await res.body?.cancel().catch(() => undefined);
+    if (!location) throw new Error(`GitHub releases redirect without a Location header (HTTP ${res.status})`);
+    current = assertAllowedDownloadUrl(new URL(location, current).href, RELEASES_API_HOSTS);
+  }
+  throw new Error('GitHub releases request redirected too many times');
 }

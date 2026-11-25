@@ -28,12 +28,14 @@ from valkade_backend.runtime.deps.paths import (
     venv_unusable_reason,
 )
 from valkade_backend.runtime.deps.progress import PROGRESS
-from valkade_backend.config import env_clara
+from valkade_backend.config import env_valkade
 
 logger = logging.getLogger('clara.runtime.deps.python_runtime')
 
 DEP_ID = 'python-runtime'
-REQ_HASH_MARKER = '.clara-requirements-hash'
+REQ_HASH_MARKER = '.valkade-requirements-hash'
+#: Pre-rename marker; read when a venv has no :data:`REQ_HASH_MARKER` yet.
+LEGACY_REQ_HASH_MARKER = '.clara-requirements-hash'
 
 # Cached ``_base_has_core`` result for the bundled interpreter (status() polls often).
 _BUNDLED_CORE_OK: bool | None = None
@@ -75,6 +77,8 @@ def _write_requirements_hash(venv: Path) -> None:
 
 def _requirements_current(venv: Path) -> bool:
     marker = venv / REQ_HASH_MARKER
+    if not marker.exists():
+        marker = venv / LEGACY_REQ_HASH_MARKER
     try:
         stored = marker.read_text(encoding='utf-8').strip()
     except OSError:
@@ -176,9 +180,9 @@ def _base_python(target_venv: Path) -> str:
 
     candidates: list[Path] = []
 
-    # CLARA_PYTHON via env_clara (also accepts legacy NEMO_PYTHON). Bare PYTHON is
-    # a standard interpreter hint and is not namespaced — read it directly.
-    for raw in (env_clara('CLARA_PYTHON', ''), os.getenv('PYTHON') or ''):
+    # VALKADE_PYTHON via env_valkade (also accepts legacy CLARA_PYTHON / NEMO_PYTHON). Bare
+    # PYTHON is a standard interpreter hint and is not namespaced — read it directly.
+    for raw in (env_valkade('VALKADE_PYTHON', ''), os.getenv('PYTHON') or ''):
         raw = raw.strip()
         if raw:
             candidates.append(Path(raw))
