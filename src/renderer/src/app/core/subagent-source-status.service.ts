@@ -27,6 +27,10 @@ export class SubagentSourceStatusService {
 
   /** Local server state by connection id. */
   private readonly phases = signal<Readonly<Record<string, SourcePhase>>>({});
+  /** Local server chat port by connection id (0 / absent when stopped). */
+  private readonly ports = signal<Readonly<Record<string, number>>>({});
+  /** Local servers currently downloading weights, by connection id. */
+  private readonly downloading = signal<Readonly<Record<string, boolean>>>({});
   /** Ping results of the sources the app does not launch, by source id; absent while unknown. */
   private readonly reachable = signal<Readonly<Record<string, boolean>>>({});
 
@@ -37,10 +41,16 @@ export class SubagentSourceStatusService {
         event.modelId,
         event.phase === 'running' ? 'running' : event.phase === 'stopped' ? 'off' : 'loading',
       );
+      this.downloading.update((current) => ({ ...current, [event.modelId]: event.phase === 'downloading' }));
+      if (event.phase === 'stopped') {
+        this.setServerPort(event.modelId, 0);
+      }
     });
     this.electron.llamaServerProcessExit$.subscribe((event) => {
       if (event.stream === 'chat') {
         this.setServerPhase(event.modelId, 'off');
+        this.setServerPort(event.modelId, 0);
+        this.downloading.update((current) => ({ ...current, [event.modelId]: false }));
       }
     });
   }
@@ -50,8 +60,28 @@ export class SubagentSourceStatusService {
     return this.phases()[source.connectionId] ?? 'off';
   }
 
+  /** Active chat port for a running local server, or 0 if stopped/unknown. */
+  serverPort(connectionId: string): number {
+    return this.ports()[connectionId] ?? 0;
+  }
+
+  /** True while a local server is downloading HuggingFace weights. */
+  isDownloading(connectionId: string): boolean {
+    return this.downloading()[connectionId] === true;
+  }
+
   setServerPhase(connectionId: string, phase: SourcePhase): void {
     this.phases.update((current) => ({ ...current, [connectionId]: phase }));
+    if (phase !== 'loading') {
+      this.downloading.update((current) => (current[connectionId] ? { ...current, [connectionId]: false } : current));
+    }
+    if (phase === 'off') {
+      this.setServerPort(connectionId, 0);
+    }
+  }
+
+  setServerPort(connectionId: string, port: number): void {
+    this.ports.update((current) => ({ ...current, [connectionId]: port > 0 ? port : 0 }));
   }
 
   /** A sub-agent could run on it now: its server runs, or its ping passed. */
@@ -77,6 +107,7 @@ export class SubagentSourceStatusService {
           const status = await answer(() => this.electron.llamaServerStatus(payload));
           if (status?.ok) {
             this.setServerPhase(source.connectionId, status.running ? 'running' : status.starting ? 'loading' : 'off');
+            this.setServerPort(source.connectionId, status.running ? status.chat.port : 0);
           }
           return;
         }

@@ -1,6 +1,14 @@
 import { isPinnedLlamaServerUrlProviderId } from './llm-provider-ids';
 import type { AppConfig, LlmConnectionConfig, LlmModelProfile, LlmProviderConfig } from './types/app-config';
 
+/** Payload for atomically selecting a provider's model and activating it from the picker. */
+export interface SelectLlmSourceModelPayload {
+  providerId: string;
+  model: string;
+  name?: string;
+  contextWindowTokens?: number;
+}
+
 /** Merge provider endpoint + model preset into the wire shape used by Python and context helpers. */
 export function mergeLlmProviderModel(provider: LlmProviderConfig, model: LlmModelProfile): LlmConnectionConfig {
   const embBase = (provider.embeddingsBaseUrl ?? '').trim();

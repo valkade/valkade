@@ -407,41 +407,6 @@
   display: none;
 }
 
-/* The footer control set, laid flat for the home panel. */
-.home__runtime ::ng-deep .managed-llama-controls {
-  margin: 0;
-  padding: 0;
-  border-top: none;
-}
-
-.home__runtime ::ng-deep .managed-llama-controls__btn {
-  min-width: 4.5rem;
-  min-height: 26px;
-  padding: 0 0.75rem;
-  border: 1px solid var(--t-border);
-  border-radius: var(--chat-radius) !important;
-  background: transparent;
-  color: var(--t-primary);
-  box-shadow: none;
-}
-
-.home__runtime ::ng-deep .managed-llama-controls__btn:hover:not(:disabled) {
-  background: var(--t-hover-bg);
-  border-color: var(--t-border);
-  box-shadow: none;
-}
-
-.home__runtime ::ng-deep .managed-llama-controls__btn.action-button--danger {
-  border-color: var(--t-border);
-  background: transparent;
-  color: var(--t-danger);
-}
-
-.home__runtime ::ng-deep .managed-llama-controls__btn.action-button--danger:hover:not(:disabled) {
-  background: var(--t-hover-bg);
-  box-shadow: none;
-}
-
 .home__link {
   justify-self: start;
   padding: 0;

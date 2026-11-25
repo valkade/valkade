@@ -211,15 +211,21 @@ app-conversation-manager .conv-context-menu {
   border-radius: var(--chat-radius) !important;
 }
 
-/* Managed llama-server Start/Stop, and the workspace settings cog. */
-app-managed-llama-controls .managed-llama-controls__btn,
-app-workspace .workspace-tree-cog {
+/* Workspace settings cog, provider picker badges/pills. */
+app-workspace .workspace-tree-cog,
+app-provider-picker .provider-picker__trigger-badge,
+app-provider-picker .provider-picker__rail-badge,
+app-provider-picker .provider-picker__filter-pill,
+app-provider-picker .provider-picker__pill {
   border-radius: 999px !important;
 }
 
-/* Selects and dialogs (IDE flat): small corners on triggers, menus, options and dialog buttons. */
+/* Selects, provider picker panel, and dialogs (IDE flat): small corners. */
 app-pill-select .pill-select__trigger,
 app-pill-select .pill-select__menu,
+app-provider-picker .provider-picker__trigger,
+app-provider-picker .provider-picker__panel,
+app-provider-picker .provider-picker__empty,
 .tcd-panel,
 .tpd-panel,
 .tcd-btn,
@@ -229,6 +235,13 @@ app-pill-select .pill-select__menu,
 }
 
 app-pill-select .pill-select__option,
+app-provider-picker .provider-picker__rail-btn,
+app-provider-picker .provider-picker__row,
+app-provider-picker .provider-picker__btn,
+app-provider-picker .provider-picker__search-input,
+app-provider-picker .provider-picker__head-btn,
+app-provider-picker .provider-picker__health-link,
+app-provider-picker .provider-picker__show-more,
 .tcd-close,
 .tpd-close,
 .tcd-detail {

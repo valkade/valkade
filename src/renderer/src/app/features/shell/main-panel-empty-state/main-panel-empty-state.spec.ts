@@ -53,7 +53,7 @@ describe('MainPanelEmptyStateComponent', () => {
     fixture.detectChanges();
 
     const runtime = (fixture.nativeElement as HTMLElement).querySelector('.home__runtime');
-    expect(runtime?.querySelector('app-managed-llama-controls')).toBeTruthy();
+    expect(runtime?.querySelector('app-provider-picker')).toBeTruthy();
     const rows = Array.from(runtime?.querySelectorAll('.llama-status-rows dt') ?? []).map((el) =>
       el.textContent?.trim(),
     );

@@ -451,6 +451,7 @@ declare global {
       state: WorkspaceOpenTabsState | null,
     ) => Promise<void>;
     setActiveLlmModel: (modelId: string) => Promise<AppConfig>;
+    selectLlmSourceModel: (payload: import('@shared/index').SelectLlmSourceModelPayload) => Promise<AppConfig | null>;
     patchHealthMonitor: (patch: Partial<HealthMonitorConfig>) => Promise<AppConfig>;
     setConfirmMove: (enabled: boolean) => Promise<AppConfig>;
     llamaServerStart: (payload: { modelId: string; config: AppConfig }) => Promise<LlamaServerStartResult>;

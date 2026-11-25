@@ -345,7 +345,7 @@ export const THEME_GROUPS: readonly ThemeGroupDef[] = [
     description: "Home panel shown when no file is open.",
     selector: "[data-theme-group=\"shell.empty-state\"]",
     component: "app/features/shell/main-panel-empty-state",
-    tokens: ["--t-active-bg", "--t-bg", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-danger", "--t-elev-shadow", "--t-fg", "--t-hover-bg", "--t-primary", "--t-text-muted", "--t-warn"],
+    tokens: ["--t-active-bg", "--t-bg", "--t-bg-surface", "--t-border-subtle", "--t-elev-shadow", "--t-fg", "--t-hover-bg", "--t-primary", "--t-text-muted", "--t-warn"],
     supportsBackground: false,
   },
   {
@@ -378,7 +378,7 @@ export const THEME_GROUPS: readonly ThemeGroupDef[] = [
     description: "Bottom footer with model status and language-server chips.",
     selector: "[data-theme-group=\"shell.status-bar\"]",
     component: "app/features/shell",
-    tokens: ["--t-bg", "--t-bg-deep", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-edge-light", "--t-elev-shadow", "--t-fg", "--t-fg-muted", "--t-font", "--t-font-mono", "--t-glow", "--t-glow-soft", "--t-hover-bg", "--t-log-level-error", "--t-log-level-warning", "--t-muted", "--t-primary", "--t-secondary", "--t-surface", "--t-text-muted", "--t-titlebar-end", "--t-titlebar-start", "--t-titlebar-text", "--t-warn"],
+    tokens: ["--t-active-bg", "--t-bg", "--t-bg-deep", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-danger", "--t-edge-light", "--t-elev-shadow", "--t-fg", "--t-fg-muted", "--t-font", "--t-font-mono", "--t-glow", "--t-glow-soft", "--t-hover-bg", "--t-log-level-error", "--t-log-level-warning", "--t-muted", "--t-primary", "--t-secondary", "--t-success", "--t-surface", "--t-text-muted", "--t-titlebar-end", "--t-titlebar-start", "--t-titlebar-text", "--t-warn"],
     supportsBackground: false,
   },
   {
@@ -419,10 +419,10 @@ export const THEME_GROUPS: readonly ThemeGroupDef[] = [
     label: "LLM source controls",
     category: "workspace",
     categoryLabel: "Workspace",
-    description: "LLM source picker and managed llama-server controls in the status bar.",
+    description: "Mini provider select and local server controls in the status bar.",
     selector: "[data-theme-group=\"workspace.footer\"]",
     component: "app/features/shell",
-    tokens: ["--t-bg", "--t-bg-deep", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-edge-light", "--t-elev-shadow", "--t-fg", "--t-fg-muted", "--t-font", "--t-font-mono", "--t-glow", "--t-glow-soft", "--t-hover-bg", "--t-muted", "--t-primary", "--t-text-muted", "--t-titlebar-end", "--t-titlebar-start", "--t-titlebar-text", "--t-warn"],
+    tokens: ["--t-active-bg", "--t-bg", "--t-bg-deep", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-danger", "--t-edge-light", "--t-elev-shadow", "--t-fg", "--t-fg-muted", "--t-font", "--t-font-mono", "--t-glow", "--t-glow-soft", "--t-hover-bg", "--t-muted", "--t-primary", "--t-success", "--t-text-muted", "--t-titlebar-end", "--t-titlebar-start", "--t-titlebar-text", "--t-warn"],
     supportsBackground: false,
   },
   {

@@ -1679,6 +1679,15 @@ export class ElectronService {
     );
   }
 
+  selectLlmSourceModel(payload: {
+    providerId: string;
+    model: string;
+    name?: string;
+    contextWindowTokens?: number;
+  }): Promise<AppConfig | null> {
+    return this.api?.selectLlmSourceModel(payload) ?? Promise.resolve(null);
+  }
+
   patchHealthMonitor(patch: Partial<HealthMonitorConfig>): Promise<AppConfig> {
     return (
       this.api?.patchHealthMonitor(patch) ??

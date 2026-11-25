@@ -41,8 +41,8 @@
     },
     "workspace.footer": {
       "label": "LLM source controls",
-      "description": "LLM source picker and managed llama-server controls in the status bar.",
-      "styleSources": ["features/status/managed-llama-controls"]
+      "description": "Mini provider select and local server controls in the status bar.",
+      "styleSources": ["features/status/provider-picker"]
     }
   }
 }
