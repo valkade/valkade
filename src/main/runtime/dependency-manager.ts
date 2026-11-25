@@ -34,7 +34,7 @@ import { unwrapSecret } from '../../shared';
 import { envForChildProcess } from '../utils/filter-sensitive-env';
 import { envValkade } from '../env-valkade';
 
-const DEPS_LOGGER = 'clara.electron.deps';
+const DEPS_LOGGER = 'valkade.electron.deps';
 
 /** Exact env keys kept for the deps CLI child (plus VALKADE_, CLARA_ and NEMO_ prefixes). */
 const RUNTIME_ENV_PASSTHROUGH = new Set([

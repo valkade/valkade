@@ -85,7 +85,7 @@ from valkade_backend.session.state import (
 )
 from valkade_backend.hitl.tool_registry import worker_tools_and_map
 
-logger = logging.getLogger('clara.agent.langgraph')
+logger = logging.getLogger('valkade.agent.langgraph')
 
 #: The answer of a turn that ran out of graph steps. Its finished steps stay; the next turn goes on from them.
 _STEP_LIMIT_TEXT = 'Stopped: this turn reached the step limit. Send a message to continue from here.'

@@ -36,7 +36,7 @@ from valkade_backend.workspace_index.paths import workspace_index_persist_dir
 from valkade_backend.workspace_index.vector_store import NumpyVectorStore
 from valkade_backend.workspace_index.walk import iter_index_workspace_files
 
-logger = logging.getLogger('clara.workspace_index.build')
+logger = logging.getLogger('valkade.workspace_index.build')
 
 MANIFEST_NAME = 'manifest.json'
 INDEX_VERSION = 2

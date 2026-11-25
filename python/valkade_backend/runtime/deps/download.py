@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 from valkade_backend.runtime.deps.cancel import current, is_cancelled, raise_if_cancelled
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.download')
+logger = logging.getLogger('valkade.runtime.deps.download')
 
 READY_MARKER = '.clara-ready'
 

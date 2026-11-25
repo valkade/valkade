@@ -16,7 +16,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger('clara.runtime.deps.gpu_detect')
+logger = logging.getLogger('valkade.runtime.deps.gpu_detect')
 
 # CUDA driver API version -> (major, minor). cuDriverGetVersion returns
 # ``major * 1000 + minor * 10`` (e.g. 12.4 -> 12040, 13.3 -> 13030).

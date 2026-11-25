@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from valkade_backend.tts.openai_compatible.base_url import normalize_openai_tts_base_url
 
-logger = logging.getLogger('clara.tts.openai_compatible')
+logger = logging.getLogger('valkade.tts.openai_compatible')
 
 _DEFAULT_MODEL = 'qwen3-tts-custom-voice'
 

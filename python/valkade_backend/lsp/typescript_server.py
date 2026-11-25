@@ -37,7 +37,7 @@ import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger('clara.lsp.typescript_server')
+logger = logging.getLogger('valkade.lsp.typescript_server')
 
 __all__ = [
     'TypescriptLspSpawn',

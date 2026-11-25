@@ -30,7 +30,7 @@ from valkade_backend.runtime.deps.paths import (
 from valkade_backend.runtime.deps.progress import PROGRESS
 from valkade_backend.config import env_valkade
 
-logger = logging.getLogger('clara.runtime.deps.python_runtime')
+logger = logging.getLogger('valkade.runtime.deps.python_runtime')
 
 DEP_ID = 'python-runtime'
 REQ_HASH_MARKER = '.valkade-requirements-hash'

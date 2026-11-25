@@ -30,7 +30,7 @@ __all__ = [
     'run_checks',
 ]
 
-logger = logging.getLogger('clara.verify.evidence')
+logger = logging.getLogger('valkade.verify.evidence')
 
 #: Touched paths past this many are not sent through the language servers.
 MAX_DIAGNOSTIC_PATHS = 25

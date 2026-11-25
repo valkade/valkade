@@ -42,7 +42,7 @@ from valkade_backend.llm.model_tuning import llm_optional_kwargs
 from valkade_backend.logging.llm_interaction_logging import log_llm_connection_settings
 from valkade_backend.session.state import require_openai_api_key
 
-logger = logging.getLogger('clara.llm.anthropic')
+logger = logging.getLogger('valkade.llm.anthropic')
 
 # Streaming keeps a large cap safe from HTTP timeouts; Settings' max output (when set) wins.
 ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS = 64_000

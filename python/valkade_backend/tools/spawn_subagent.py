@@ -51,7 +51,7 @@ from valkade_backend.session import state
 from valkade_backend.session.state import current_session_id, current_stream_apply_mode
 from valkade_backend.tools.tool_conventions import describe
 
-logger = logging.getLogger('clara.tools.spawn_subagent')
+logger = logging.getLogger('valkade.tools.spawn_subagent')
 
 SPAWN_SUBAGENT_NAME = 'spawn_subagent'
 

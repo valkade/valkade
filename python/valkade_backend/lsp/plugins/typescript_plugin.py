@@ -18,7 +18,7 @@ from valkade_backend.lsp.typescript_server import resolve_typescript_lsp_spawn, 
 if TYPE_CHECKING:
     from valkade_backend.domain import SessionState
 
-logger = logging.getLogger('clara.lsp.plugins.typescript')
+logger = logging.getLogger('valkade.lsp.plugins.typescript')
 
 
 def _path_under_workspace(path: Path, workspace_root: Path) -> Path | None:

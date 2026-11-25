@@ -24,7 +24,7 @@ import httpx
 
 from valkade_backend.domain import SessionState
 
-logger = logging.getLogger('clara.llm.http_transport')
+logger = logging.getLogger('valkade.llm.http_transport')
 
 _SESSION_EXT_KEY = 'clara_session_id'
 

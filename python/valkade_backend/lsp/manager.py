@@ -30,7 +30,7 @@ from valkade_backend.session.state import current_session_id, get_session, sessi
 from valkade_backend.workspace.paths import normalize_relative_path
 from valkade_backend.workspace.workspace_text_io import read_file_for_tools, validate_workspace_encoding
 
-logger = logging.getLogger('clara.lsp.manager')
+logger = logging.getLogger('valkade.lsp.manager')
 
 __all__ = [
     'PythonLspManager',

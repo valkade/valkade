@@ -89,7 +89,7 @@ from valkade_backend.hitl.tool_registry import format_tools_catalog
 from valkade_backend.plan.plan_tools_registry import plan_execute_tools_and_map
 from valkade_backend.tools.workspace import truncate_text
 
-logger = logging.getLogger('clara.plan_execute')
+logger = logging.getLogger('valkade.plan_execute')
 
 RECORD_PLAN_LABEL = 'record_plan'
 EXECUTE_BUILD_PLAN_LABEL = 'execute_build_plan'

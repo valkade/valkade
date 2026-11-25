@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-logger = logging.getLogger('clara.workspace_index.read')
+logger = logging.getLogger('valkade.workspace_index.read')
 
 
 def read_file_for_index(path: Path, *, max_bytes: int) -> str:

@@ -27,7 +27,7 @@ from typing import Any
 from llama_index.core.storage.docstore.keyval_docstore import KVDocumentStore
 from llama_index.core.storage.kvstore.types import DEFAULT_BATCH_SIZE, DEFAULT_COLLECTION, BaseKVStore
 
-logger = logging.getLogger('clara.workspace_index.docstore')
+logger = logging.getLogger('valkade.workspace_index.docstore')
 
 DOCSTORE_FNAME = 'docstore.sqlite'
 LEGACY_DOCSTORE_FNAME = 'docstore.json'

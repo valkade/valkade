@@ -56,7 +56,7 @@ from valkade_backend.session.schemas import (
 from valkade_backend.workspace.npm_projects import discover_workspace_npm_projects
 from valkade_backend.session import state
 router = APIRouter()
-logger = logging.getLogger('clara.http.routes')
+logger = logging.getLogger('valkade.http.routes')
 
 _NPM_HINT_MAX_DEPTH = 4
 _PROMPT_TREE_CHANGE_KINDS = frozenset({'created', 'deleted', 'renamed'})

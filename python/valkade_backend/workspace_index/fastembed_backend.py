@@ -28,7 +28,7 @@ from valkade_backend.workspace_index.thread_priority import (
     python_thread_ids,
 )
 
-logger = logging.getLogger('clara.workspace_index.fastembed')
+logger = logging.getLogger('valkade.workspace_index.fastembed')
 
 _NOMIC_QUERY_PREFIX = 'search_query: '
 _NOMIC_DOC_PREFIX = 'search_document: '

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from valkade_backend.config import env_clara
 
-logger = logging.getLogger('clara.formatters')
+logger = logging.getLogger('valkade.formatters')
 
 __all__ = ['format_python_source_str', 'format_source_via_prettier', 'resolve_prettier_cli']
 

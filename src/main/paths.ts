@@ -106,7 +106,7 @@ export function getGeneralConversationsDir(): string {
   return path.join(getAppDataDir(), 'conversations');
 }
 
-/** Rotating app logs (`clara-app.log*`) — same root as config.json. */
+/** Rotating app logs (`valkade-app.log*`, `valkade-electron.log`) — same root as config.json. */
 export function getLogsDir(): string {
   return path.join(getAppDataDir(), 'logs');
 }

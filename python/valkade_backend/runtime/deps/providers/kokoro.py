@@ -14,7 +14,7 @@ from valkade_backend.runtime.deps.paths import (
 from valkade_backend.runtime.deps.progress import PROGRESS
 from valkade_backend.runtime.deps.providers import python_runtime as python_runtime_provider
 
-logger = logging.getLogger('clara.runtime.deps.kokoro')
+logger = logging.getLogger('valkade.runtime.deps.kokoro')
 
 DEP_ID = 'kokoro'
 SIZE_HINT = '~1–2 GB (CPU PyTorch + Kokoro)'

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-logger = logging.getLogger('clara.lsp.manager')
+logger = logging.getLogger('valkade.lsp.manager')
 
 __all__ = ['build_python_lsp_command']
 

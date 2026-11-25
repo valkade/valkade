@@ -45,11 +45,11 @@ def _tool_end_event(*, name: str, run_id: str, output: str) -> dict[str, object]
 
 
 def test_duplicate_tool_end_is_logged_once(caplog: pytest.LogCaptureFixture) -> None:
-    nemo = logging.getLogger('clara')
+    nemo = logging.getLogger('valkade')
     prev = nemo.propagate
     nemo.propagate = True
     try:
-        caplog.set_level(logging.INFO, logger='clara.tools.invoke')
+        caplog.set_level(logging.INFO, logger='valkade.tools.invoke')
         state = GraphStreamState()
         ev = _tool_end_event(
             name='run_command',

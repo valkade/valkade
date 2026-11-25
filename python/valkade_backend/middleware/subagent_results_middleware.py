@@ -38,7 +38,7 @@ from valkade_backend.lang_agent.subagents import (
 from valkade_backend.session import state as session_state
 from valkade_backend.session.state import current_session_id
 
-logger = logging.getLogger('clara.agent.subagent_results')
+logger = logging.getLogger('valkade.agent.subagent_results')
 
 #: Label of the end-of-turn waiting pill (a normal tool status on the parent stream).
 WAIT_PILL_LABEL = 'wait_for_subagents'

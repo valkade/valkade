@@ -17,7 +17,7 @@ from valkade_backend.config import DEFAULT_WHISPER_MODEL
 from valkade_backend.runtime.deps.paths import whisper_models_dir
 from valkade_backend.session.state import require_openai_api_key, runtime_config
 
-logger = logging.getLogger('clara.audio')
+logger = logging.getLogger('valkade.audio')
 
 _MODEL_LOCK = Lock()
 _INFERENCE_LOCK = Lock()

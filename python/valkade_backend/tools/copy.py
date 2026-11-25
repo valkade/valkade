@@ -16,7 +16,7 @@ from valkade_backend.tools.workspace import get_active_workspace_root, normalize
 from valkade_backend.workspace.meta import USER_OWNED_META_REASON, is_user_owned_meta_path
 from valkade_backend.workspace.path_locks import locked_path, note_batch_replaced
 
-logger = logging.getLogger('clara.tools.copy')
+logger = logging.getLogger('valkade.tools.copy')
 
 COPY_WORKSPACE_FILES_NAME = 'copy_workspace_files'
 

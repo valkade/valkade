@@ -860,7 +860,7 @@ class LogIngestRequest(BaseModel):
     """Body for POST /logs/ingest (Electron main → unified log)."""
 
     level: str = 'INFO'
-    logger: str = 'nemo.electron.main'
+    logger: str = 'valkade.electron.main'
     message: str
     source: str = 'electron'
 

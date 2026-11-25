@@ -14,7 +14,7 @@ from pydantic import AnyUrl
 
 from valkade_backend.domain import RuntimeMcpServer
 
-logger = logging.getLogger('clara.mcp')
+logger = logging.getLogger('valkade.mcp')
 
 _OAUTH_TIMEOUT_SEC = 180.0
 

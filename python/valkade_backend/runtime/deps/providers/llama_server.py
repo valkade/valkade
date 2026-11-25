@@ -45,7 +45,7 @@ from valkade_backend.runtime.deps.paths import (
 from valkade_backend.runtime.deps.progress import PROGRESS
 from valkade_backend.runtime.deps.providers import gpu_detect
 
-logger = logging.getLogger('clara.runtime.deps.llama_server')
+logger = logging.getLogger('valkade.runtime.deps.llama_server')
 
 DEP_ID = 'llama-server'
 # Pin a known release tag; override with CLARA_LLAMA_SERVER_VERSION (e.g. b12182).

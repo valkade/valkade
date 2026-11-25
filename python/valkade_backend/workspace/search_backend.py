@@ -15,7 +15,7 @@ from pathlib import Path
 
 from valkade_backend.config import env_clara
 
-logger = logging.getLogger('clara.search')
+logger = logging.getLogger('valkade.search')
 
 _GREP_SAFE_ENCODINGS = frozenset(
     {

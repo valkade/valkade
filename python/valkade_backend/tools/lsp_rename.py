@@ -46,7 +46,7 @@ from valkade_backend.tools.workspace import get_active_workspace_root, normalize
 from valkade_backend.workspace.path_locks import batch_line_map, note_batch_write
 from valkade_backend.workspace.workspace_text_io import read_file_for_tools, write_bytes_atomic
 
-logger = logging.getLogger('clara.tools.lsp_rename')
+logger = logging.getLogger('valkade.tools.lsp_rename')
 
 LSP_RENAME_SYMBOL_NAME = 'lsp_rename_symbol'
 

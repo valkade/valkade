@@ -27,7 +27,7 @@ from llama_index.core.vector_stores.types import (
     VectorStoreQueryResult,
 )
 
-logger = logging.getLogger('clara.workspace_index.vector_store')
+logger = logging.getLogger('valkade.workspace_index.vector_store')
 
 STORE_FORMAT = 'clara-numpy-v1'
 DEFAULT_NAMESPACE = 'default'

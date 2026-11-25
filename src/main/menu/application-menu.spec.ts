@@ -35,7 +35,8 @@ describe('validateExternalUrl', () => {
   it.each([
     'https://github.com/valkade/valkade',
     'https://github.com/',
-    'https://docs.claraverse.ai/',
+    'https://valkade.ai/',
+    'https://docs.valkade.ai/',
     'http://github.com/',
   ])('allows allowlisted http(s) hosts: %s', (url) => {
     expect(validateExternalUrl(url)).toBe(true);
@@ -48,6 +49,7 @@ describe('validateExternalUrl', () => {
     'ftp://github.com/',
     'https://evil.com/',
     'https://github.com.evil.com/',
+    'https://docs.claraverse.ai/',
     'https://user:pass@github.com/',
     '',
     'not a url',

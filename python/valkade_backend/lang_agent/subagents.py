@@ -69,7 +69,7 @@ from valkade_backend.session import state
 from valkade_backend.session.state import touch_session
 from valkade_backend.tools.tool_conventions import tool_output_cap
 
-logger = logging.getLogger('clara.agent.subagents')
+logger = logging.getLogger('valkade.agent.subagents')
 
 #: Custom LangChain event the spawn tool dispatches; the SSE mapper turns it into ``subagent_started``.
 SUBAGENT_STARTED_EVENT = 'clara_subagent_started'

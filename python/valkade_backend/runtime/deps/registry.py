@@ -9,7 +9,7 @@ from typing import Any
 from valkade_backend.runtime.deps.cancel import InstallCancelled, installing, request_cancel
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.registry')
+logger = logging.getLogger('valkade.runtime.deps.registry')
 
 DEPENDENCY_IDS = (
     'llama-server',

@@ -70,7 +70,7 @@ from valkade_backend.lang_agent.subagents import (
 )
 from valkade_backend.tools.workspace import truncate_text
 
-logger = logging.getLogger('clara.agent')
+logger = logging.getLogger('valkade.agent')
 
 _THINKING_MODES = frozenset({'default', 'on', 'off'})
 

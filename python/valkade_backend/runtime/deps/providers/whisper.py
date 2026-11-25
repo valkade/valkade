@@ -18,7 +18,7 @@ from valkade_backend.runtime.deps.paths import (
 from valkade_backend.runtime.deps.progress import PROGRESS
 from valkade_backend.runtime.deps.providers import python_runtime as python_runtime_provider
 
-logger = logging.getLogger('clara.runtime.deps.whisper')
+logger = logging.getLogger('valkade.runtime.deps.whisper')
 
 DEP_ID = 'whisper'
 SIZE_HINT = '~80–1600 MB (CTranslate2 + chosen size)'

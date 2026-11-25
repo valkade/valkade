@@ -28,7 +28,7 @@ from valkade_backend.tools.edit import write_workspace_text
 from valkade_backend.tools.tool_conventions import describe
 from valkade_backend.tools.workspace import get_active_workspace_root, normalize_relative_path
 
-logger = logging.getLogger('clara.java_bootstrap')
+logger = logging.getLogger('valkade.java_bootstrap')
 
 JAVA_BOOTSTRAP_PROJECT_NAME = 'java_bootstrap_project'
 

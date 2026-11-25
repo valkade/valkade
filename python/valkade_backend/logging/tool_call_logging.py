@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-logger = logging.getLogger('clara.tools.invoke')
+logger = logging.getLogger('valkade.tools.invoke')
 
 _TRUNC_INFO = 12_000
 _TRUNC_DEBUG = 400_000

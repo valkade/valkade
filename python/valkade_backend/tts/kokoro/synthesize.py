@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
-logger = logging.getLogger('clara.tts.kokoro')
+logger = logging.getLogger('valkade.tts.kokoro')
 
 _PIPELINE_CACHE: dict[str, Any] = {}
 _PIPELINE_LOCK = Lock()

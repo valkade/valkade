@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 
 from valkade_backend.lang_agent.streaming import sse_line, status_event
 
-logger = logging.getLogger('clara.session.turns')
+logger = logging.getLogger('valkade.session.turns')
 
 #: How long ``/clear`` / ``/dispose`` / ``/load`` wait for a stopped turn to wind down.
 TURN_STOP_TIMEOUT_SEC = 15.0

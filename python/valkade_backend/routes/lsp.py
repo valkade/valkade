@@ -47,7 +47,7 @@ from valkade_backend.tools.lsp_tools import _format_hover_contents
 from valkade_backend.workspace.workspace_text_io import validate_workspace_encoding
 
 router = APIRouter()
-_logger = logging.getLogger('clara.lsp.http')
+_logger = logging.getLogger('valkade.lsp.http')
 
 # Only gdls takes part in file renames: moving a script or scene rewrites ``load``/``preload`` paths.
 _FILE_RENAME_SERVER = 'gdscript'

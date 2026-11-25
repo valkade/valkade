@@ -34,7 +34,7 @@
     "dev:lmstudio": "cross-env NEMO_LLM_PROVIDER=lmstudio NEMO_AUDIO_PROVIDER=openai npm run dev"
   },
   "keywords": [],
-  "author": "ValkAde <dev@valkade.dev>",
+  "author": "ValkAde <dev@valkade.ai>",
   "desktopName": "valkade",
   "license": "Apache-2.0",
   "type": "commonjs",

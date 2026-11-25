@@ -40,21 +40,21 @@ class TestAppLoggingHttp(unittest.TestCase):
             os.environ['CLARA_LOG_DIR'] = self._prev_log_dir
 
     def test_recent_after_info_log(self) -> None:
-        logging.getLogger('clara.test').info('hello health')
+        logging.getLogger('valkade.test').info('hello health')
         r = self.client.get('/logs/recent?limit=50')
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn('records', data)
         texts = ' '.join(x.get('message', '') for x in data['records'])
         self.assertIn('hello health', texts)
-        self.assertTrue((Path(self._td.name) / 'clara-app.log').exists())
+        self.assertTrue((Path(self._td.name) / 'valkade-app.log').exists())
 
     def test_ingest(self) -> None:
         self.client.post(
             '/logs/ingest',
             json={
                 'level': 'WARNING',
-                'logger': 'clara.electron.test',
+                'logger': 'valkade.electron.test',
                 'message': 'from electron',
                 'source': 'electron',
             },
@@ -62,6 +62,15 @@ class TestAppLoggingHttp(unittest.TestCase):
         r = self.client.get('/logs/recent?limit=10')
         msgs = [x['message'] for x in r.json()['records']]
         self.assertIn('from electron', msgs)
+
+    def test_ingest_maps_legacy_prefixes_to_valkade(self) -> None:
+        for name in ('clara.electron.old', 'nemo.electron.old', 'electron.bare'):
+            self.client.post('/logs/ingest', json={'level': 'INFO', 'logger': name, 'message': f'via {name}'})
+        r = self.client.get('/logs/recent?limit=10')
+        by_msg = {x['message']: x['logger'] for x in r.json()['records']}
+        self.assertEqual(by_msg['via clara.electron.old'], 'valkade.electron.old')
+        self.assertEqual(by_msg['via nemo.electron.old'], 'valkade.electron.old')
+        self.assertEqual(by_msg['via electron.bare'], 'valkade.electron.bare')
 
 
 if __name__ == '__main__':

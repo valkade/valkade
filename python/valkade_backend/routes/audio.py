@@ -15,7 +15,7 @@ from valkade_backend.audio.transcribe import get_openai_client, transcribe_whisp
 from valkade_backend.tts.kokoro import synthesize_wav_bytes, validate_voice_name
 from valkade_backend.session.schemas import TtsRequest
 from valkade_backend.session import state
-logger = logging.getLogger('clara.http.routes.audio')
+logger = logging.getLogger('valkade.http.routes.audio')
 
 router = APIRouter()
 

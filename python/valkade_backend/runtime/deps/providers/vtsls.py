@@ -34,7 +34,7 @@ from valkade_backend.runtime.deps.download import (
 from valkade_backend.runtime.deps.paths import get_runtime_downloads_dir, get_runtime_vtsls_dir
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.vtsls')
+logger = logging.getLogger('valkade.runtime.deps.vtsls')
 
 DEP_ID = 'vtsls'
 LABEL = 'TypeScript/JS LSP (vtsls)'

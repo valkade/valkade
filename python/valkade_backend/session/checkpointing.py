@@ -31,7 +31,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger('clara.checkpointing')
+logger = logging.getLogger('valkade.checkpointing')
 
 _checkpointer: AsyncSqliteSaver | None = None
 _conn: aiosqlite.Connection | None = None

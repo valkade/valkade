@@ -13,7 +13,7 @@ from valkade_backend.llm.factory import build_llm
 from valkade_backend.session.schemas import CheckpointForkRequest
 from valkade_backend.session.state import get_session
 
-logger = logging.getLogger('clara.http.checkpoint')
+logger = logging.getLogger('valkade.http.checkpoint')
 
 router = APIRouter(prefix='/checkpoint', tags=['checkpoint'])
 

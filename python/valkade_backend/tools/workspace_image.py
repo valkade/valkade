@@ -19,7 +19,7 @@ from valkade_backend.session.state import current_session_id, get_active_connect
 from valkade_backend.tools.tool_conventions import RELATIVE_PATH, describe
 from valkade_backend.tools.workspace import get_active_workspace_root, normalize_relative_path
 
-logger = logging.getLogger('clara.tools.workspace_image')
+logger = logging.getLogger('valkade.tools.workspace_image')
 
 READ_WORKSPACE_IMAGE_NAME = 'read_workspace_image'
 

@@ -11,7 +11,7 @@ from valkade_backend.plan.build_plan_store import cancel_build_plan
 from valkade_backend.session.schemas import BuildPlanCancelRequest
 from valkade_backend.session.state import get_session
 
-logger = logging.getLogger('clara.http.build_plan')
+logger = logging.getLogger('valkade.http.build_plan')
 
 router = APIRouter(tags=['build-plan'])
 

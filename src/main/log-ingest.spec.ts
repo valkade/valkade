@@ -19,7 +19,7 @@ import { ELECTRON_LOG_FILE_NAME, ingestElectronLog, resetElectronLogIngestBackof
 
 describe('ingestElectronLog', () => {
   beforeEach(() => {
-    tempLogDir = mkdtempSync(path.join(os.tmpdir(), 'clara-electron-log-'));
+    tempLogDir = mkdtempSync(path.join(os.tmpdir(), 'valkade-electron-log-'));
     pythonLogIngestFetch.mockReset();
     pythonLogIngestFetch.mockResolvedValue({ ok: true });
     resetElectronLogIngestBackoffForTests();
@@ -31,13 +31,13 @@ describe('ingestElectronLog', () => {
 
   it('always writes a local line even when Python ingest fails', async () => {
     pythonLogIngestFetch.mockRejectedValue(new Error('fetch failed'));
-    await ingestElectronLog('WARNING', 'clara.electron.llama', 'chat llama-server process exited', 'electron');
+    await ingestElectronLog('WARNING', 'valkade.electron.llama', 'chat llama-server process exited', 'electron');
     const text = readFileSync(path.join(tempLogDir, ELECTRON_LOG_FILE_NAME), 'utf8');
-    expect(text).toMatch(/WARNING \[clara\.electron\.llama\] chat llama-server process exited/);
+    expect(text).toMatch(/WARNING \[valkade\.electron\.llama\] chat llama-server process exited/);
   });
 
   it('POSTs to the sidecar log ingest endpoint', async () => {
-    await ingestElectronLog('INFO', 'clara.electron.llama', 'stopped managed llama-server', 'electron');
+    await ingestElectronLog('INFO', 'valkade.electron.llama', 'stopped managed llama-server', 'electron');
     expect(pythonLogIngestFetch).toHaveBeenCalledWith(
       '/logs/ingest',
       expect.objectContaining({
@@ -49,9 +49,9 @@ describe('ingestElectronLog', () => {
 
   it('skips Python ingest for a short backoff after a failure', async () => {
     pythonLogIngestFetch.mockRejectedValueOnce(new Error('down'));
-    await ingestElectronLog('INFO', 'clara.electron.llama', 'first', 'electron');
+    await ingestElectronLog('INFO', 'valkade.electron.llama', 'first', 'electron');
     pythonLogIngestFetch.mockClear();
-    await ingestElectronLog('INFO', 'clara.electron.llama', 'second', 'electron');
+    await ingestElectronLog('INFO', 'valkade.electron.llama', 'second', 'electron');
     expect(pythonLogIngestFetch).not.toHaveBeenCalled();
     const text = readFileSync(path.join(tempLogDir, ELECTRON_LOG_FILE_NAME), 'utf8');
     expect(text).toMatch(/first/);

@@ -16,7 +16,7 @@ from valkade_backend.workspace_index.incremental import flush_semantic_index_pat
 from valkade_backend.workspace_index.index_build import load_or_rebuild_workspace_index
 from valkade_backend.workspace_index.lifecycle import cached_workspace_fingerprint
 
-logger = logging.getLogger('clara.workspace_index.semantic')
+logger = logging.getLogger('valkade.workspace_index.semantic')
 
 RETRIEVE_WORKSPACE_SEMANTIC_NAME = 'retrieve_workspace_semantic'
 

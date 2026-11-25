@@ -15,7 +15,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-LOG_FILE_NAME = 'clara-app.log'
+LOG_FILE_NAME = 'valkade-app.log'
 MAX_BACKUP_BYTES = 8 * 1024 * 1024
 BACKUP_COUNT = 4
 RING_MAX = 4000
@@ -65,7 +65,7 @@ def get_recent_records(limit: int = 200) -> list[dict[str, Any]]:
 
 def set_clara_log_level(name: str) -> None:
     level = getattr(logging, name.upper(), logging.INFO)
-    logging.getLogger('clara').setLevel(level)
+    logging.getLogger('valkade').setLevel(level)
     # Keep access noise down unless debug
     uv_err = logging.getLogger('uvicorn.error')
     uv_acc = logging.getLogger('uvicorn.access')
@@ -82,7 +82,7 @@ set_nemo_log_level = set_clara_log_level
 
 
 def configure_logging(log_dir: Path | None = None) -> Path:
-    """Attach file + ring handlers to ``clara`` subtree. Idempotent."""
+    """Attach file + ring handlers to ``valkade`` subtree. Idempotent."""
     global _configured
     if _configured:
         return log_dir or Path(env_clara('CLARA_LOG_DIR', tempfile.gettempdir()))
@@ -93,9 +93,9 @@ def configure_logging(log_dir: Path | None = None) -> Path:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / LOG_FILE_NAME
 
-    clara = logging.getLogger('clara')
-    clara.setLevel(logging.INFO)
-    clara.propagate = False
+    root = logging.getLogger('valkade')
+    root.setLevel(logging.INFO)
+    root.propagate = False
 
     fmt = logging.Formatter(
         '%(asctime)s %(levelname)s [%(name)s] %(message)s',
@@ -114,28 +114,28 @@ def configure_logging(log_dir: Path | None = None) -> Path:
     ring = RingBufferHandler()
     ring.setLevel(logging.DEBUG)
 
-    clara.addHandler(fh)
-    clara.addHandler(ring)
+    root.addHandler(fh)
+    root.addHandler(ring)
 
     # Mute uvicorn access by default — LSP diagnostics-generation polls ~1Hz and
     # otherwise flood Electron's [Python] console. Raise via set_clara_log_level('DEBUG').
     set_clara_log_level('INFO')
 
     _configured = True
-    clara.info('Logging initialized (dir=%s)', log_dir)
+    root.info('Logging initialized (dir=%s)', log_dir)
     return log_dir
 
 
 def reset_logging_handlers() -> None:
     """Close file handlers (e.g. tests on Windows before deleting temp log dir)."""
     global _configured
-    clara = logging.getLogger('clara')
-    for h in list(clara.handlers):
+    root = logging.getLogger('valkade')
+    for h in list(root.handlers):
         try:
             h.close()
         except Exception:
             pass
-        clara.removeHandler(h)
+        root.removeHandler(h)
     _configured = False
     with _buffer_lock:
         _ring.clear()
@@ -143,10 +143,13 @@ def reset_logging_handlers() -> None:
 
 def log_ingest(level: str, logger_name: str, message: str, source: str = 'electron') -> None:
     """Log a line from Electron (or other clients) into the same pipeline."""
-    if logger_name.startswith('clara.') or logger_name.startswith('nemo.'):
-        full_name = logger_name.replace('nemo.', 'clara.', 1) if logger_name.startswith('nemo.') else logger_name
+    if logger_name.startswith('valkade.'):
+        full_name = logger_name
+    elif logger_name.startswith(('clara.', 'nemo.')):
+        # Older clients still send the pre-rename prefixes.
+        full_name = 'valkade.' + logger_name.split('.', 1)[1]
     else:
-        full_name = f'clara.{logger_name}'
+        full_name = f'valkade.{logger_name}'
     lg = logging.getLogger(full_name)
     lvl = getattr(logging, level.upper(), logging.INFO)
     lg.log(lvl, '%s', message, extra={'log_source': source})

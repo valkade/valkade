@@ -39,7 +39,7 @@ function reportMissingBundledRuntime(): void {
   reportedMissingBundledRuntime = true;
   const msg = `ValkAde installation is incomplete: the bundled Python runtime was not found at ${getBundledRuntimeDir()}. Please reinstall ValkAde.`;
   console.error(msg);
-  void ingestElectronLog('ERROR', 'clara.electron.python', msg, 'electron');
+  void ingestElectronLog('ERROR', 'valkade.electron.python', msg, 'electron');
   const show = (): void => {
     dialog.showErrorBox('ValkAde installation is incomplete', msg);
   };
@@ -177,7 +177,7 @@ async function resyncRuntimeConfigAfterSidecarRestart(): Promise<void> {
   } catch (err) {
     const msg = `Runtime config re-sync after restart failed: ${err instanceof Error ? err.message : err}`;
     console.error(`[Python] ${msg}`);
-    void ingestElectronLog('WARNING', 'clara.electron.python', msg, 'electron');
+    void ingestElectronLog('WARNING', 'valkade.electron.python', msg, 'electron');
   }
 }
 
@@ -253,11 +253,11 @@ export function startPythonServer(): ChildProcess {
     hfToken = '';
   }
   for (const note of consumePythonResolutionNotes()) {
-    void ingestElectronLog('WARNING', 'clara.electron.python', note, 'electron');
+    void ingestElectronLog('WARNING', 'valkade.electron.python', note, 'electron');
   }
   const spawnMsg = `Spawning sidecar: ${pythonCmd} (packaged=${app.isPackaged})`;
   console.log(`[Python] ${spawnMsg}`);
-  void ingestElectronLog('INFO', 'clara.electron.python', spawnMsg, 'electron');
+  void ingestElectronLog('INFO', 'valkade.electron.python', spawnMsg, 'electron');
   const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
   if (app.isPackaged) {
     for (const key of PYTHON_ENV_KEYS_TO_STRIP) {
@@ -315,20 +315,20 @@ export function startPythonServer(): ChildProcess {
   child.stderr?.on('data', (data: Buffer) => {
     const text = data.toString().trim();
     console.log(`[Python] ${text}`);
-    void ingestElectronLog('INFO', 'clara.electron.python.stderr', text, 'electron');
+    void ingestElectronLog('INFO', 'valkade.electron.python.stderr', text, 'electron');
   });
 
   child.on('error', (err: Error) => {
     const msg = `Python sidecar error pid=${child.pid ?? '?'} ${err.message}`;
     console.error(`[Python] ${msg}`);
-    void ingestElectronLog('ERROR', 'clara.electron.python', msg, 'electron');
+    void ingestElectronLog('ERROR', 'valkade.electron.python', msg, 'electron');
   });
 
   child.on('close', (code, signal) => {
     const level = code === 0 ? 'INFO' : 'ERROR';
     const msg = `Python sidecar exited pid=${child.pid ?? '?'} code=${code} signal=${signal ?? ''}`;
     console.log(`[Python] ${msg}`);
-    void ingestElectronLog(level, 'clara.electron.python', msg, 'electron');
+    void ingestElectronLog(level, 'valkade.electron.python', msg, 'electron');
     if (mainState.pythonProcess === child) {
       mainState.pythonProcess = null;
     }
