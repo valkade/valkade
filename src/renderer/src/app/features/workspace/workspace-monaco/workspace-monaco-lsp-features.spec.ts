@@ -83,7 +83,7 @@ const model = () =>
   ({
     getAlternativeVersionId: () => 1,
     getValue: () => 'buffer',
-    uri: { value: 'clara-workspace:///scripts/a.gd' },
+    uri: { value: 'valkade-workspace:///scripts/a.gd' },
   }) as unknown as Monaco.editor.ITextModel;
 
 describe('registerExtendedLspFeatures', () => {
@@ -100,11 +100,11 @@ describe('registerExtendedLspFeatures', () => {
   it('scopes every editor action to GDScript', () => {
     const { actions } = setup();
     expect(actions.map((a) => a.id)).toEqual([
-      'clara.gdscript.incomingCalls',
-      'clara.gdscript.outgoingCalls',
-      'clara.gdscript.supertypes',
-      'clara.gdscript.subtypes',
-      'clara.gdscript.workspaceSymbols',
+      'valkade.gdscript.incomingCalls',
+      'valkade.gdscript.outgoingCalls',
+      'valkade.gdscript.supertypes',
+      'valkade.gdscript.subtypes',
+      'valkade.gdscript.workspaceSymbols',
     ]);
     for (const action of actions) {
       expect(action.precondition).toBe('editorLangId == gdscript');
@@ -159,7 +159,7 @@ describe('registerExtendedLspFeatures', () => {
       m: Monaco.editor.ITextModel,
     ) => Promise<{ links: Array<{ url: unknown }> }>;
     const { links } = await provide(model());
-    expect((links[0]!.url as { value: string }).value).toBe('clara-workspace:///scripts/bone.gd');
+    expect((links[0]!.url as { value: string }).value).toBe('valkade-workspace:///scripts/bone.gd');
     expect(links[1]!.url).toBe('https://godotengine.org');
   });
 
@@ -194,7 +194,7 @@ describe('lspLocationUri', () => {
 
   it('uses the workspace scheme for project files', () => {
     expect((lspLocationUri(api, { relativePath: 'a b/c.gd', range: RANGE }) as unknown as { value: string }).value).toBe(
-      'clara-workspace:///a%20b/c.gd',
+      'valkade-workspace:///a%20b/c.gd',
     );
   });
 
@@ -204,6 +204,6 @@ describe('lspLocationUri', () => {
       externalPath: 'C:\\rt\\Node2D.gd',
       range: RANGE,
     }) as unknown as { value: string };
-    expect(uri.value).toBe('clara-external:///C:/rt/Node2D.gd');
+    expect(uri.value).toBe('valkade-external:///C:/rt/Node2D.gd');
   });
 });

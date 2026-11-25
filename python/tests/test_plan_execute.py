@@ -1510,7 +1510,7 @@ def test_plan_execute_tools_bind_subagent_tools_on_request() -> None:
 def test_plan_graph_builders_allow_subagents() -> None:
     from valkade_backend.plan import plan_execute as pe
 
-    with patch.object(pe, 'build_clara_single_outer_graph') as build:
+    with patch.object(pe, 'build_valkade_single_outer_graph') as build:
         pe._plan_discovery_outer_graph_builder(object(), SessionState(), False, None)
         pe._plan_execute_outer_graph_builder(object(), SessionState(), True, None)
     discover, execute = build.call_args_list

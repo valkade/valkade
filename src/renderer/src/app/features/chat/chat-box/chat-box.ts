@@ -9,7 +9,7 @@
  *
  * **Presentation**
  * - One chronological feed: thought pills, nudge pills, tool pills, and rendered markdown (`buildTurnFeed`).
- * - Clara briefs (planning prose before / between tool calls) render as markdown in place.
+ * - Valk briefs (planning prose before / between tool calls) render as markdown in place.
  * - Backend `final_text` replaces the trailing `agent` reply segment with the clean reply.
  * - A finished turn folds everything before its reply behind one expandable pill (`turnWorkLayout`).
  * - HITL change rows merge into the feed; interactive reviews live in the composer dock.
@@ -44,7 +44,7 @@ import {
   turnFeedScrollKey,
   type TurnFeedItem,
 } from '@shared/index';
-import { ClaraBadgeComponent } from './clara-badge/clara-badge';
+import { ValkAdeBadgeComponent } from './valkade-badge/valkade-badge';
 import { PlannerChecklistComponent } from './planner-checklist/planner-checklist';
 import { RunButtonDirective } from './run-button.directive';
 import { StreamTurnFeedComponent } from './stream-turn-feed/stream-turn-feed';
@@ -91,7 +91,7 @@ import {
   resolveTurnActivity,
   turnActivitySpinner,
   liveTurnPresentationSettled as computeLiveTurnPresentationSettled,
-  mergeClaraBriefsFromChainIntoTimeline,
+  mergeValkBriefsFromChainIntoTimeline,
   prefillStyleFor,
   TOOL_BUILDING_SYNONYMS,
   turnHasPendingHitlArtifacts,
@@ -140,7 +140,7 @@ export {
   resolveTurnActivity,
   turnActivitySpinner,
   liveTurnPresentationSettled,
-  mergeClaraBriefsFromChainIntoTimeline,
+  mergeValkBriefsFromChainIntoTimeline,
   prefillStyleFor,
   turnHasPlanPanel,
   TOOL_BUILDING_SYNONYMS,
@@ -187,7 +187,7 @@ const THINKING_PROCESSING_LABEL = 'thinking';
 @Component({
   selector: 'app-chat-box',
   imports: [
-    ClaraBadgeComponent,
+    ValkAdeBadgeComponent,
     LucideAngularModule,
     RunButtonDirective,
     NgxSpinnerComponent,
@@ -265,7 +265,7 @@ export class ChatBox implements OnDestroy {
   );
 
   /**
-   * True while the reply or a Clara brief is being generated: primary prose is present in the
+   * True while the reply or a Valk brief is being generated: primary prose is present in the
    * live parts (or `final_text` landed before `[DONE]`), or prose is the latest feed event.
    * No spinner anywhere in that state — the streamed prose is the only progress indicator.
    * Reasoning chunks interleaved with the reply do not bring the spinner back.
@@ -584,7 +584,7 @@ export class ChatBox implements OnDestroy {
   turnFeedForRow(row: Extract<ChatDisplayRow, { kind: 'assistant-turn' }>): TurnFeedItem[] {
     return buildTurnFeed(
       mergeHitlTrailIntoAuxiliaryTimeline(
-        mergeClaraBriefsFromChainIntoTimeline(
+        mergeValkBriefsFromChainIntoTimeline(
           persistedAuxiliaryStreamTimeline(row.assistant),
           row.chainGroups,
         ),

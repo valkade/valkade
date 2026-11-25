@@ -39,7 +39,7 @@
           </div>
         } @else {
           <div class="msg-role msg-role--assistant">
-            <app-clara-badge />
+            <app-valkade-badge />
             <span class="msg-role__name">Valk</span>
           </div>
         }
@@ -158,7 +158,7 @@
         [class.streaming-bubble]="!liveTurnPresentationSettled()"
       >
         <div class="msg-role msg-role--assistant">
-          <app-clara-badge [live]="loading()" />
+          <app-valkade-badge [live]="loading()" />
           <span class="msg-role__name">Valk</span>
         </div>
         <div class="msg-bubble__body">

@@ -565,13 +565,13 @@ async def test_an_untrusted_workspace_runs_no_check_and_the_turn_just_ends(
 
 async def test_the_finish_gates_cost_one_graph_step_however_many_there_are(checkpoints, parent_session) -> None:
     """Each after-model node is a step against the turn's step limit on every model call."""
-    from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+    from valkade_backend.lang_agent.graph import build_valkade_single_outer_graph
 
     _sid, session = parent_session
     model = ScriptedChatModel(scripts={'parent': []})
 
     def hook_nodes(**kwargs: Any) -> list[str]:
-        graph = build_clara_single_outer_graph(model, session, **kwargs)
+        graph = build_valkade_single_outer_graph(model, session, **kwargs)
         return sorted(name for name in graph.get_graph().nodes if name.endswith(('.after_model', '.before_model')))
 
     read_only_chat = hook_nodes(apply_mode=False, allow_subagents=True)

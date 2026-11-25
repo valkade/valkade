@@ -18,7 +18,7 @@ import {
   isStickFromSlack,
   isUserScrollUp,
   liveTurnPresentationSettled,
-  mergeClaraBriefsFromChainIntoTimeline,
+  mergeValkBriefsFromChainIntoTimeline,
   pendingHitlArtifactsForDock,
   resolveLiveAssistantTurn,
   resolvePrimaryStreamLiveText,
@@ -205,7 +205,7 @@ describe('buildChatDisplayRows', () => {
     expect(rows[1].chainGroups[0].toolCallCount).toBe(0);
   });
 
-  it('folds persisted Clara chain briefs into the turn timeline when missing from auxiliary parts', () => {
+  it('folds legacy clara chain briefs into the turn timeline as valk parts', () => {
     const groups: ToolChainGroup[] = [
       {
         key: 'brief-1',
@@ -223,19 +223,19 @@ describe('buildChatDisplayRows', () => {
         toolCallCount: 0,
       },
     ];
-    const merged = mergeClaraBriefsFromChainIntoTimeline(
+    const merged = mergeValkBriefsFromChainIntoTimeline(
       [{ streamTag: 'reasoning', label: 'R', text: 'think' }],
       groups,
     );
     expect(merged[0]).toEqual({
-      streamTag: 'clara',
+      streamTag: 'valk',
       label: 'Clara',
       text: 'Checking the layout next.',
     });
     expect(merged[1]?.streamTag).toBe('reasoning');
   });
 
-  it('does not duplicate chain briefs when the timeline already has clara parts', () => {
+  it('does not duplicate chain briefs when the timeline already has legacy clara parts', () => {
     const groups: ToolChainGroup[] = [
       {
         key: 'brief-1',
@@ -254,7 +254,7 @@ describe('buildChatDisplayRows', () => {
       },
     ];
     const timeline: StreamPart[] = [{ streamTag: 'clara', label: 'Clara', text: 'from stream' }];
-    expect(mergeClaraBriefsFromChainIntoTimeline(timeline, groups)).toEqual(timeline);
+    expect(mergeValkBriefsFromChainIntoTimeline(timeline, groups)).toEqual(timeline);
   });
 
   it('preserves persisted shell tool streams on the assistant row', () => {

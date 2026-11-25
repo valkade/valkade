@@ -10,7 +10,7 @@
 
 /* Curly quotes only, for UI fonts that draw them a full em wide (see `applyAppFontOverrides`). */
 @font-face {
-  font-family: 'Clara Narrow Quotes';
+  font-family: 'ValkAde Narrow Quotes';
   src: local('Segoe UI'), local('Helvetica Neue'), local('Arial'), local('DejaVu Sans');
   unicode-range: U+2018-2019, U+201C-201D;
 }
@@ -964,7 +964,7 @@ html app-chat-box .llm-reasoning-panel {
   border-radius: var(--chat-radius) !important;
   margin-top: 0.2rem;
   padding: 0.35rem 0.5rem;
-  background-color: color-mix(in srgb, var(--t-tui-clara-frame) 6%, transparent);
+  background-color: color-mix(in srgb, var(--t-tui-valk-frame) 6%, transparent);
 }
 
 html app-chat-context-bar .chat-context-bar {

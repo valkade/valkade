@@ -53,7 +53,7 @@ from valkade_backend.llm.model_tuning import (
 from valkade_backend.lang_agent.subagents import SUBAGENT_STARTED_EVENT, announce_subagent
 from valkade_backend.session.pause import PENDING_APPROVAL_PREFIX
 from valkade_backend.session.state import get_active_connection
-from valkade_backend.stream_tags import REASONING_AUXILIARY_STREAM_TAG
+from valkade_backend.stream_tags import OUTER_BRIEF_STREAM_TAG, REASONING_AUXILIARY_STREAM_TAG
 from valkade_backend.tools.edit_diffs import take_edit_diff
 from valkade_backend.logging.tool_call_logging import log_llm_tool_input, log_llm_tool_output
 
@@ -264,7 +264,7 @@ def _on_chat_model_start(
     ]
 
 
-def _clara_outer_brief_enabled() -> bool:
+def _valk_outer_brief_enabled() -> bool:
     """True when first-turn primary prose should be retagged as a ValkAde brief."""
     try:
         return outer_agent_brief_enabled(get_active_connection())
@@ -834,7 +834,7 @@ def _on_chat_model_end(
             if (
                 state.deferred_agent_text
                 and is_meaningful_stream_delta(state.deferred_agent_text)
-                and _clara_outer_brief_enabled()
+                and _valk_outer_brief_enabled()
             ):
                 lines.append(clear_primary_stream_sse_line())
             state.deferred_agent_text = ''
@@ -1163,7 +1163,7 @@ def sse_lines_for_graph_event(
         state.deferred_agent_text = ''
         return [promote_primary_to_nudge_sse_line()]
     if et == 'outer_agent_brief':
-        if not _clara_outer_brief_enabled():
+        if not _valk_outer_brief_enabled():
             return []
         summary = data.get('summary')
         label = data.get('label')
@@ -1179,7 +1179,7 @@ def sse_lines_for_graph_event(
                     detail=detail,
                     state='complete',
                     source='agent',
-                    stream_tag='clara',
+                    stream_tag=OUTER_BRIEF_STREAM_TAG,
                 ),
             ),
         ]

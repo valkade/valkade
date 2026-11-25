@@ -13,7 +13,7 @@ export const THEME_GROUPS: readonly ThemeGroupDef[] = [
     description: "ValkAde's replies, including rendered markdown and code blocks.",
     selector: "[data-theme-group=\"chat.assistant-bubble\"]",
     component: "app/features/chat/chat-box",
-    tokens: ["--t-assistant-bg", "--t-assistant-border", "--t-assistant-fg", "--t-bg", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-chat-bg", "--t-code-bg", "--t-code-inline-bg", "--t-code-text", "--t-danger", "--t-fg", "--t-glow", "--t-glow-soft", "--t-hljs-attr", "--t-hljs-class", "--t-hljs-comment", "--t-hljs-function", "--t-hljs-keyword", "--t-hljs-meta", "--t-hljs-name", "--t-hljs-number", "--t-hljs-operator", "--t-hljs-params", "--t-hljs-property", "--t-hljs-punctuation", "--t-hljs-selector", "--t-hljs-string", "--t-hljs-symbol", "--t-hljs-tag", "--t-hover-bg", "--t-log-level-warning", "--t-primary", "--t-secondary", "--t-surface", "--t-surface-2", "--t-text-muted", "--t-tui-clara-frame", "--t-user-fg"],
+    tokens: ["--t-assistant-bg", "--t-assistant-border", "--t-assistant-fg", "--t-bg", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-chat-bg", "--t-code-bg", "--t-code-inline-bg", "--t-code-text", "--t-danger", "--t-fg", "--t-glow", "--t-glow-soft", "--t-hljs-attr", "--t-hljs-class", "--t-hljs-comment", "--t-hljs-function", "--t-hljs-keyword", "--t-hljs-meta", "--t-hljs-name", "--t-hljs-number", "--t-hljs-operator", "--t-hljs-params", "--t-hljs-property", "--t-hljs-punctuation", "--t-hljs-selector", "--t-hljs-string", "--t-hljs-symbol", "--t-hljs-tag", "--t-hover-bg", "--t-log-level-warning", "--t-primary", "--t-secondary", "--t-surface", "--t-surface-2", "--t-text-muted", "--t-tui-valk-frame", "--t-user-fg"],
     supportsBackground: false,
   },
   {

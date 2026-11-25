@@ -101,7 +101,7 @@ def test_persist_roundtrip_is_float32_npy(tmp_path: Path) -> None:
     store.persist(str(path))
 
     meta = json.loads(path.read_text(encoding='utf-8'))
-    assert meta['format'] == 'clara-numpy-v1' and meta['count'] == 200
+    assert meta['format'] == 'valkade-numpy-v1' and meta['count'] == 200
     mat = np.load(path.with_suffix('.npy'))
     assert mat.dtype == np.float32 and mat.shape == (200, 3)
 
@@ -110,6 +110,24 @@ def test_persist_roundtrip_is_float32_npy(tmp_path: Path) -> None:
     assert _query(loaded, q, 7).ids == _query(store, q, 7).ids
     loaded.delete('doc1')
     assert loaded.count() == 100
+
+
+def test_loads_a_store_saved_with_the_legacy_clara_format(tmp_path: Path) -> None:
+    store = NumpyVectorStore()
+    store.add([_node(f'n{i}', f'doc{i % 3}', [float(i), 1.0, 2.0]) for i in range(30)])
+    path = persist_path_for(tmp_path)
+    store.persist(str(path))
+    meta = json.loads(path.read_text(encoding='utf-8'))
+    meta['format'] = 'clara-numpy-v1'
+    path.write_text(json.dumps(meta), encoding='utf-8')
+
+    loaded = NumpyVectorStore.from_persist_dir(tmp_path)
+    q = [5.0, 1.0, 2.0]
+    assert _query(loaded, q, 7).ids == _query(store, q, 7).ids
+    # Loading leaves the file alone; the next persist writes the current format.
+    assert json.loads(path.read_text(encoding='utf-8'))['format'] == 'clara-numpy-v1'
+    loaded.persist(str(path))
+    assert json.loads(path.read_text(encoding='utf-8'))['format'] == 'valkade-numpy-v1'
 
 
 def test_inconsistent_store_raises(tmp_path: Path) -> None:
@@ -154,7 +172,7 @@ def test_legacy_json_index_is_migrated_without_rebuild(tmp_path: Path, monkeypat
     index, err = load_or_rebuild_workspace_index(root, 'wid', _KeywordEmb(), embedding_model_id='test-emb')
     assert err == '' and index is not None and not rebuilds
 
-    assert json.loads(persist_path_for(pdir).read_text(encoding='utf-8'))['format'] == 'clara-numpy-v1'
+    assert json.loads(persist_path_for(pdir).read_text(encoding='utf-8'))['format'] == 'valkade-numpy-v1'
     assert persist_path_for(pdir).with_suffix('.npy').is_file()
     assert (pdir / 'docstore.sqlite').is_file() and not (pdir / 'docstore.json').exists()
     hits = index.as_retriever(similarity_top_k=1).retrieve('beta')

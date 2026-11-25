@@ -63,7 +63,7 @@ def get_recent_records(limit: int = 200) -> list[dict[str, Any]]:
         return list(_ring)[-limit:]
 
 
-def set_clara_log_level(name: str) -> None:
+def set_valkade_log_level(name: str) -> None:
     level = getattr(logging, name.upper(), logging.INFO)
     logging.getLogger('valkade').setLevel(level)
     # Keep access noise down unless debug
@@ -75,10 +75,6 @@ def set_clara_log_level(name: str) -> None:
     else:
         uv_err.setLevel(logging.WARNING)
         uv_acc.setLevel(logging.WARNING)
-
-
-# Back-compat alias during rename.
-set_nemo_log_level = set_clara_log_level
 
 
 def configure_logging(log_dir: Path | None = None) -> Path:
@@ -118,8 +114,8 @@ def configure_logging(log_dir: Path | None = None) -> Path:
     root.addHandler(ring)
 
     # Mute uvicorn access by default — LSP diagnostics-generation polls ~1Hz and
-    # otherwise flood Electron's [Python] console. Raise via set_clara_log_level('DEBUG').
-    set_clara_log_level('INFO')
+    # otherwise flood Electron's [Python] console. Raise via set_valkade_log_level('DEBUG').
+    set_valkade_log_level('INFO')
 
     _configured = True
     root.info('Logging initialized (dir=%s)', log_dir)

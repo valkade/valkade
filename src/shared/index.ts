@@ -467,13 +467,14 @@ export {
 } from './conversation-composer';
 export {
   auxiliaryTimelineEmbedsToolStatus,
-  CLARA_OUTER_BRIEF_STREAM_TAG,
+  LEGACY_OUTER_BRIEF_STREAM_TAG,
+  VALK_OUTER_BRIEF_STREAM_TAG,
   NUDGE_STREAM_TAG,
   REASONING_AUXILIARY_STREAM_TAG,
   PLANNER_STREAM_TAG,
   delegatedStreamPartsForDisplay,
   emptyPrimaryAssistantFallbackMessage,
-  isClaraOuterBriefStreamTag,
+  isValkOuterBriefStreamTag,
   isNudgeStreamTag,
   isReasoningAuxiliaryStreamTag,
   isPrimaryAssistantStreamTag,

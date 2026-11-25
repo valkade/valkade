@@ -8,8 +8,8 @@ import type {
   TurnFeedItem,
 } from '@shared/index';
 import {
-  CLARA_OUTER_BRIEF_STREAM_TAG,
-  isClaraOuterBriefStreamTag,
+  VALK_OUTER_BRIEF_STREAM_TAG,
+  isValkOuterBriefStreamTag,
   isHitlTrailStreamTag,
   isInFlightToolPart,
   isPrimaryAssistantStreamTag,
@@ -542,7 +542,7 @@ export function resolveLiveAssistantTurn(
 }
 
 /**
- * True when prose (reply or Clara brief) is the latest live feed event.
+ * True when prose (reply or Valk brief) is the latest live feed event.
  * HITL change rows are display-time and always merge to the end of the live timeline, so
  * they are skipped — otherwise a single edit review would keep the spinner on for the rest
  * of the turn and hide the streaming cursor.
@@ -559,11 +559,11 @@ export function isProseLatestLiveFeedEvent(items: readonly TurnFeedItem[]): bool
 }
 
 /**
- * True while the reply (or a Clara brief) is being generated, so no spinner should show.
+ * True while the reply (or a Valk brief) is being generated, so no spinner should show.
  * Primary (`agent`) prose present in the live parts is the authoritative signal: tool calls
  * and nudges retag it away (`clear_primary_stream` / `promote_primary_to_nudge`), so the
  * spinner returns exactly when tools take over. Falls back to "prose is the latest event"
- * for backend-emitted briefs that land as complete `clara` rows.
+ * for backend-emitted briefs that land as complete `valk` rows.
  */
 export function isLiveReplyStreaming(
   items: readonly TurnFeedItem[],
@@ -686,7 +686,7 @@ export function hashChatToolPhaseKey(str: string): number {
 
 function buildToolChainGroup(rows: ChainMessage[], index: number): ToolChainGroup {
   const visibleRows = rows.filter(
-    (row) => row.source === 'tool' || isClaraOuterBriefStreamTag(row.streamTag),
+    (row) => row.source === 'tool' || isValkOuterBriefStreamTag(row.streamTag),
   );
   return {
     key: rows[0]?.statusId ?? `tool-chain-${index}`,
@@ -716,7 +716,7 @@ export function latestPrimaryStreamSegmentText(parts: readonly StreamPart[]): st
 
 /**
  * Extract the latest non-empty line from streaming text for the panel title.
- * Used for Clara status lines while tools run and the main reply zone is empty.
+ * Used for Valk status lines while tools run and the main reply zone is empty.
  */
 export function extractLatestBriefLine(text: string): string {
   const lines = text.split('\n');
@@ -732,7 +732,7 @@ export function extractLatestBriefLine(text: string): string {
 
 /**
  * Live markdown zone: prefer backend `final_text`, else stream the latest primary agent segment.
- * Pre-tool planning prose is promoted to a Clara brief via SSE ``clear_primary_stream``, so
+ * Pre-tool planning prose is promoted to a Valk brief via SSE ``clear_primary_stream``, so
  * post-tool primary can stream after tools finish (comet / thinking spinner again).
  */
 export function resolvePrimaryStreamLiveText(
@@ -752,7 +752,7 @@ export function auxiliaryPanelTitleFromChainGroups(groups: readonly ToolChainGro
     const rows = groups[i].rows;
     for (let j = rows.length - 1; j >= 0; j--) {
       const row = rows[j];
-      if (!isClaraOuterBriefStreamTag(row.streamTag)) {
+      if (!isValkOuterBriefStreamTag(row.streamTag)) {
         continue;
       }
       const title = oneLineTitle(row.text || row.label);
@@ -766,25 +766,25 @@ export function auxiliaryPanelTitleFromChainGroups(groups: readonly ToolChainGro
 }
 
 /**
- * Older transcripts stored Clara briefs as chain rows. Fold them into the turn feed
- * unless the auxiliary timeline already has `clara` parts.
+ * Older transcripts stored Valk briefs as chain rows. Fold them into the turn feed
+ * unless the auxiliary timeline already has `valk` (or legacy `clara`) parts.
  */
-export function mergeClaraBriefsFromChainIntoTimeline(
+export function mergeValkBriefsFromChainIntoTimeline(
   timeline: readonly StreamPart[],
   groups: readonly ToolChainGroup[],
 ): StreamPart[] {
   const existing = [...timeline];
-  if (existing.some((p) => isClaraOuterBriefStreamTag(p.streamTag))) {
+  if (existing.some((p) => isValkOuterBriefStreamTag(p.streamTag))) {
     return existing;
   }
   const extras: StreamPart[] = [];
   for (const group of groups) {
     for (const row of group.rows) {
-      if (!isClaraOuterBriefStreamTag(row.streamTag) || !row.text.trim()) {
+      if (!isValkOuterBriefStreamTag(row.streamTag) || !row.text.trim()) {
         continue;
       }
       extras.push({
-        streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
+        streamTag: VALK_OUTER_BRIEF_STREAM_TAG,
         label: row.label || 'Valk',
         text: row.text,
       });

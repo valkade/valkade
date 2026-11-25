@@ -680,7 +680,7 @@ export class WorkspaceMonacoComponent {
       return;
     }
     // Fallback if the contribution action map is unavailable.
-    ed.trigger('clara', 'actions.find', null);
+    ed.trigger('valkade', 'actions.find', null);
   }
 
   private isPrimaryFindKey(ev: KeyboardEvent): boolean {
@@ -894,7 +894,7 @@ export class WorkspaceMonacoComponent {
     // destroyed) instance would win Ctrl+S and silently save the wrong slot.
     this.editorActionDisposables.push(
       this.editor.addAction({
-        id: 'clara-save-file',
+        id: 'valkade-save-file',
         label: 'Save File',
         keybindings: [monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS],
         run: () => {
@@ -902,7 +902,7 @@ export class WorkspaceMonacoComponent {
         },
       }),
       this.editor.addAction({
-        id: 'clara-format-document',
+        id: 'valkade-format-document',
         label: 'Format Document',
         keybindings: [monacoApi.KeyMod.Shift | monacoApi.KeyMod.Alt | monacoApi.KeyCode.KeyF],
         run: (ed) => {
@@ -996,7 +996,7 @@ export class WorkspaceMonacoComponent {
     }
     const model = ed.getModel();
     const modelKey = this.activeModelKey()?.trim();
-    if (!model || !modelKey || model.uri.scheme !== 'clara-workspace') {
+    if (!model || !modelKey || model.uri.scheme !== 'valkade-workspace') {
       this.setActiveDiagnostics(null, []);
       this.lastLspDiagnosticsWatchKey = '';
       this.lastLspDiagnosticsGeneration = -1;
@@ -1298,12 +1298,12 @@ export class WorkspaceMonacoComponent {
       this.diffOriginalModel = monacoApi.editor.createModel(
         diff.original,
         lang,
-        monacoApi.Uri.parse(`clara-diff-org://${this.ownerId}/${uriPath}`),
+        monacoApi.Uri.parse(`valkade-diff-org://${this.ownerId}/${uriPath}`),
       );
       this.diffModifiedModel = monacoApi.editor.createModel(
         diff.modified,
         lang,
-        monacoApi.Uri.parse(`clara-diff-mod://${this.ownerId}/${uriPath}`),
+        monacoApi.Uri.parse(`valkade-diff-mod://${this.ownerId}/${uriPath}`),
       );
       this.diffEditor.setModel({
         original: this.diffOriginalModel,
@@ -1514,7 +1514,7 @@ export class WorkspaceMonacoComponent {
       return;
     }
     const { settings } = normalizeMonacoWorkspaceEditorSettings(this.editorSettings() ?? undefined);
-    if (settings.formatOnSave && model.uri.scheme === 'clara-workspace' && !this.store.isDetachedKey(modelKey)) {
+    if (settings.formatOnSave && model.uri.scheme === 'valkade-workspace' && !this.store.isDetachedKey(modelKey)) {
       await ed.getAction('editor.action.formatDocument')?.run();
     }
     const res = await this.store.saveKey(modelKey);

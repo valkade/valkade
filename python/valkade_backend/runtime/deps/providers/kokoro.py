@@ -6,6 +6,7 @@ import logging
 import subprocess
 from pathlib import Path
 
+from valkade_backend.runtime.deps.download import marker_with_legacy_fallback
 from valkade_backend.runtime.deps.paths import (
     get_runtime_python_dir,
     requirements_kokoro_pypi,
@@ -18,11 +19,15 @@ logger = logging.getLogger('valkade.runtime.deps.kokoro')
 
 DEP_ID = 'kokoro'
 SIZE_HINT = '~1–2 GB (CPU PyTorch + Kokoro)'
-MARKER_NAME = '.clara-kokoro-ready'
+MARKER_NAME = '.valkade-kokoro-ready'
+#: Pre-rename marker; read when the venv has no :data:`MARKER_NAME` yet.
+LEGACY_MARKER_NAME = '.clara-kokoro-ready'
 
 
 def _marker_path() -> Path:
-    return get_runtime_python_dir() / MARKER_NAME
+    """The marker to read: the current name, or the pre-rename one when only that exists."""
+
+    return marker_with_legacy_fallback(get_runtime_python_dir(), MARKER_NAME, LEGACY_MARKER_NAME)
 
 
 def components() -> list[str]:
@@ -145,7 +150,7 @@ def install(*, force: bool = False) -> dict:
     else:
         pass
 
-    _marker_path().write_text('kokoro\n', encoding='utf-8')
+    _marker_path().with_name(MARKER_NAME).write_text('kokoro\n', encoding='utf-8')
     logger.info('kokoro ready path=%s', py)
     PROGRESS.emit(DEP_ID, 'done', message='Kokoro TTS ready')
     return status()
@@ -153,7 +158,6 @@ def install(*, force: bool = False) -> dict:
 
 def delete() -> dict:
     py = venv_python()
-    marker = _marker_path()
     logger.info('delete kokoro path=%s', py)
     if py and py.is_file():
         PROGRESS.emit(DEP_ID, 'installing', message='Uninstalling Kokoro packages…')
@@ -163,7 +167,8 @@ def delete() -> dict:
             text=True,
         )
         # Leave torch installed — shared; user can reinstall kokoro later.
-    if marker.exists():
-        marker.unlink(missing_ok=True)
+    marker = _marker_path()
+    marker.with_name(MARKER_NAME).unlink(missing_ok=True)
+    marker.with_name(LEGACY_MARKER_NAME).unlink(missing_ok=True)
     PROGRESS.emit(DEP_ID, 'done', message='Kokoro removed')
     return status()

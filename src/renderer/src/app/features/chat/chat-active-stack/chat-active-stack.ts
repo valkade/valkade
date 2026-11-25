@@ -68,7 +68,7 @@ export type ChatLayoutMode = 'sidebar' | 'expanded';
     '[class.chat-active-stack--ready]': 'emptyStateReady()',
     '[class.chat-active-stack--empty]': 'centerEmptyComposer()',
     // OPEN_CONVERSATION_DOM_EVENT, bubbling up from a sub-agent pill in the transcript.
-    '(clara-open-conversation)': 'onOpenConversationRequested($event)',
+    '(valkade-open-conversation)': 'onOpenConversationRequested($event)',
   },
 })
 export class ChatActiveStackComponent implements OnDestroy {

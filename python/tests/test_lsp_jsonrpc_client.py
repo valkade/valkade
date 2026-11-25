@@ -56,7 +56,7 @@ def test_start_merges_env_overrides_over_inherited_environment(
             captured['command'] = command
             captured['kwargs'] = kwargs
 
-    monkeypatch.setenv('CLARA_TEST_INHERITED', 'inherited-value')
+    monkeypatch.setenv('VALKADE_TEST_INHERITED', 'inherited-value')
     monkeypatch.setattr('valkade_backend.lsp.client.subprocess.Popen', _FakeProc)
     monkeypatch.setattr('valkade_backend.lsp.client.threading.Thread', lambda **kwargs: type('T', (), {'start': lambda self: None})())
 
@@ -69,7 +69,7 @@ def test_start_merges_env_overrides_over_inherited_environment(
 
     spawn_env = captured['kwargs']['env']  # type: ignore[index]
     assert spawn_env['ELECTRON_RUN_AS_NODE'] == '1'
-    assert spawn_env['CLARA_TEST_INHERITED'] == 'inherited-value'
+    assert spawn_env['VALKADE_TEST_INHERITED'] == 'inherited-value'
 
 
 def test_start_without_env_inherits_parent_environment(monkeypatch: pytest.MonkeyPatch) -> None:

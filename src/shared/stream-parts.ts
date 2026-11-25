@@ -18,16 +18,20 @@ export function streamPlainOneLine(text: string): string {
   return text.replace(/\s+/g, ' ');
 }
 
-/** Outer Clara primary reply lane. */
+/** Outer Valk primary reply lane. */
 export function isPrimaryAssistantStreamTag(streamTag: string): boolean {
   return streamTag.trim() === 'agent';
 }
 
-/** Multiplexed nested handoffs surfaced as status rows for outer Clara. */
-export const CLARA_OUTER_BRIEF_STREAM_TAG = 'clara';
+/** Multiplexed nested handoffs surfaced as status rows for outer Valk. */
+export const VALK_OUTER_BRIEF_STREAM_TAG = 'valk';
 
-export function isClaraOuterBriefStreamTag(streamTag: string | undefined): boolean {
-  return (streamTag ?? '').trim() === CLARA_OUTER_BRIEF_STREAM_TAG;
+/** The brief tag before the ValkAde rename; conversations saved by v0.6 still carry it. */
+export const LEGACY_OUTER_BRIEF_STREAM_TAG = 'clara';
+
+export function isValkOuterBriefStreamTag(streamTag: string | undefined): boolean {
+  const tag = (streamTag ?? '').trim();
+  return tag === VALK_OUTER_BRIEF_STREAM_TAG || tag === LEGACY_OUTER_BRIEF_STREAM_TAG;
 }
 
 /** Premature primary prose folded into a nudge preview when the graph jumps back to the model. */
@@ -334,7 +338,7 @@ export function otherDelegatedStreamPartsForDisplay(
     (p) =>
       !isShellStyleToolStreamTag(p.streamTag) &&
       !isReasoningAuxiliaryStreamTag(p.streamTag) &&
-      !isClaraOuterBriefStreamTag(p.streamTag) &&
+      !isValkOuterBriefStreamTag(p.streamTag) &&
       !isNudgeStreamTag(p.streamTag) &&
       !isToolTrailStatusStreamTag(p.streamTag),
   );
@@ -348,10 +352,10 @@ export function primaryStreamPartsForDisplay(
   return parts.filter((p) => isPrimaryAssistantStreamTag(p.streamTag));
 }
 
-function asClaraOuterBriefPart(part: StreamPart): StreamPart {
+function asValkOuterBriefPart(part: StreamPart): StreamPart {
   return {
     ...part,
-    streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
+    streamTag: VALK_OUTER_BRIEF_STREAM_TAG,
     label: part.label || 'Valk',
   };
 }
@@ -385,7 +389,7 @@ function pushOrMergeNudgeItem(items: TurnFeedItem[], part: StreamPart): void {
 }
 
 /**
- * Tool / shell lanes that end the Clara outer-brief window.
+ * Tool / shell lanes that end the Valk outer-brief window.
  * HITL trail rows do not count — leftover review chips must not turn the first
  * `agent` segment into markdown.
  */
@@ -399,7 +403,7 @@ export function isToolLikeStreamTag(streamTag: string): boolean {
   return (
     !isPrimaryAssistantStreamTag(tag) &&
     !isReasoningAuxiliaryStreamTag(tag) &&
-    !isClaraOuterBriefStreamTag(tag) &&
+    !isValkOuterBriefStreamTag(tag) &&
     !isNudgeStreamTag(tag) &&
     tag.trim() !== PLANNER_STREAM_TAG
   );
@@ -472,13 +476,13 @@ function retagPrimaryStreamParts(
 }
 
 /**
- * Promote live primary (`agent`) segments into Clara outer briefs when a tool-calling
+ * Promote live primary (`agent`) segments into Valk outer briefs when a tool-calling
  * step starts: on SSE `clear_primary_stream`, or earlier when a tool row (e.g. a streamed
  * tool-call preview) lands first. Keeps the planning prose in the timeline instead of
  * discarding it.
  */
 export function clearPrimaryStreamParts(parts: readonly StreamPart[]): StreamPart[] {
-  return retagPrimaryStreamParts(parts, asClaraOuterBriefPart, isClaraOuterBriefStreamTag);
+  return retagPrimaryStreamParts(parts, asValkOuterBriefPart, isValkOuterBriefStreamTag);
 }
 
 /**
@@ -489,7 +493,7 @@ export function promotePrimaryToNudgeParts(parts: readonly StreamPart[]): Stream
   return retagPrimaryStreamParts(parts, asNudgeStreamPart, isNudgeStreamTag);
 }
 
-/** Non-primary multiplex segments (reasoning, tools, Clara briefs, tool-trail rows). */
+/** Non-primary multiplex segments (reasoning, tools, Valk briefs, tool-trail rows). */
 export function delegatedStreamPartsForDisplay(
   parts: StreamPart[],
   _processingAgentRole: LlmAgentRole | null,
@@ -606,7 +610,7 @@ function joinSplitSentences(items: TurnFeedItem[]): TurnFeedItem[] {
 /**
  * Build the unified turn feed: thought pills, nudge pills, tool pills, and rendered markdown
  * in arrival order.
- * Clara briefs (`clara` parts — planning prose retagged when a tool call starts) and `agent`
+ * Valk briefs (`valk` parts, `clara` in older transcripts — planning prose retagged when a tool call starts) and `agent`
  * prose between tool calls render as markdown in place, so they stay visible between tools.
  * When `finalText` is set, the trailing `agent` reply segment is omitted and a single markdown
  * block is appended at the end (backend `final_text` / persisted `assistant.text`).
@@ -631,7 +635,7 @@ export function buildTurnFeed(
       }
       continue;
     }
-    if (isClaraOuterBriefStreamTag(part.streamTag)) {
+    if (isValkOuterBriefStreamTag(part.streamTag)) {
       if (part.text.trim()) {
         pushOrMergeMarkdownItem(items, part.text);
       }

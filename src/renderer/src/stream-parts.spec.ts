@@ -3,7 +3,9 @@ import {
   auxiliaryTimelineEmbedsToolStatus,
   delegatedStreamPartsForDisplay,
   emptyPrimaryAssistantFallbackMessage,
-  isClaraOuterBriefStreamTag,
+  isValkOuterBriefStreamTag,
+  LEGACY_OUTER_BRIEF_STREAM_TAG,
+  VALK_OUTER_BRIEF_STREAM_TAG,
   isPrimaryAssistantStreamTag,
   isReasoningAuxiliaryStreamTag,
   isShellStyleToolStreamTag,
@@ -51,10 +53,19 @@ describe('isPrimaryAssistantStreamTag', () => {
   });
 });
 
-describe('isClaraOuterBriefStreamTag', () => {
-  it('matches clara only', () => {
-    expect(isClaraOuterBriefStreamTag('clara')).toBe(true);
-    expect(isClaraOuterBriefStreamTag('planning')).toBe(false);
+describe('isValkOuterBriefStreamTag', () => {
+  it('matches valk and the legacy clara tag from older transcripts', () => {
+    expect(isValkOuterBriefStreamTag('valk')).toBe(true);
+    expect(isValkOuterBriefStreamTag(' valk ')).toBe(true);
+    expect(isValkOuterBriefStreamTag('clara')).toBe(true);
+    expect(isValkOuterBriefStreamTag('planning')).toBe(false);
+    expect(isValkOuterBriefStreamTag('agent')).toBe(false);
+    expect(isValkOuterBriefStreamTag(undefined)).toBe(false);
+  });
+
+  it('emits valk as the canonical tag', () => {
+    expect(VALK_OUTER_BRIEF_STREAM_TAG).toBe('valk');
+    expect(LEGACY_OUTER_BRIEF_STREAM_TAG).toBe('clara');
   });
 });
 
@@ -244,9 +255,9 @@ describe('buildTurnFeed', () => {
   it('wholeReply: leaves the reply whole, joining only the prose before it', () => {
     const tool: StreamPart = { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'done' };
     const parts: StreamPart[] = [
-      { streamTag: 'clara', label: '', text: "I'll start" },
+      { streamTag: 'valk', label: '', text: "I'll start" },
       tool,
-      { streamTag: 'clara', label: '', text: ' by reading `src/`.' },
+      { streamTag: 'valk', label: '', text: ' by reading `src/`.' },
       { streamTag: 'tool-trail:edit', label: 'replace_workspace_lines', text: 'done' },
     ];
     expect(buildTurnFeed([parts[0]!, tool], 'by reading it. Done.', { wholeReply: true })).toEqual([
@@ -362,15 +373,24 @@ describe('buildTurnFeed', () => {
     ]);
   });
 
-  it('renders Clara outer briefs as inline markdown, not pills or tool rows', () => {
+  it('renders Valk outer briefs as inline markdown, not pills or tool rows', () => {
     const parts: StreamPart[] = [
-      { streamTag: 'clara', label: 'Clara', text: 'Checking the layout next.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Checking the layout next.' },
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'done' },
     ];
     expect(buildTurnFeed(parts)).toEqual([
       { kind: 'markdown', text: 'Checking the layout next.' },
       { kind: 'tool', part: parts[1] },
     ]);
+  });
+
+  it('renders legacy clara briefs from saved transcripts like valk briefs', () => {
+    const tool: StreamPart = { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'done' };
+    const legacy: StreamPart[] = [{ streamTag: 'clara', label: 'Clara', text: 'Checking the layout next.' }, tool];
+    const current: StreamPart[] = [{ streamTag: 'valk', label: 'Valk', text: 'Checking the layout next.' }, tool];
+    expect(buildTurnFeed(legacy)).toEqual(buildTurnFeed(current));
+    expect(isToolLikeStreamTag('clara')).toBe(false);
+    expect(otherDelegatedStreamPartsForDisplay(legacy, null)).toEqual(otherDelegatedStreamPartsForDisplay(current, null));
   });
 
   it('renders live pre-tool agent prose as markdown', () => {
@@ -405,7 +425,7 @@ describe('buildTurnFeed', () => {
 
   it('keeps briefs rendered between tool calls alongside the post-tool reply', () => {
     const parts: StreamPart[] = [
-      { streamTag: 'clara', label: 'Clara', text: 'Checking files.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Checking files.' },
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'Reading…' },
       { streamTag: 'agent', label: '', text: 'Here is the answer.' },
     ];
@@ -418,9 +438,9 @@ describe('buildTurnFeed', () => {
 
   it('keeps persisted briefs between tool calls when final_text is set', () => {
     const parts: StreamPart[] = [
-      { streamTag: 'clara', label: 'Clara', text: 'First I will read the file.' },
+      { streamTag: 'valk', label: 'Valk', text: 'First I will read the file.' },
       { streamTag: 'tool-trail:a', label: 'read_workspace_file', text: 'done' },
-      { streamTag: 'clara', label: 'Clara', text: 'Now listing the directory.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Now listing the directory.' },
       { streamTag: 'tool-trail:b', label: 'list_workspace_directory', text: 'done' },
     ];
     expect(buildTurnFeed(parts, 'Here is the answer.')).toEqual([
@@ -432,8 +452,8 @@ describe('buildTurnFeed', () => {
     ]);
   });
 
-  it('skips blank Clara brief parts', () => {
-    const parts: StreamPart[] = [{ streamTag: 'clara', label: 'Clara', text: '   ' }];
+  it('skips blank Valk brief parts', () => {
+    const parts: StreamPart[] = [{ streamTag: 'valk', label: 'Valk', text: '   ' }];
     expect(buildTurnFeed(parts)).toEqual([]);
   });
 
@@ -722,14 +742,14 @@ describe('primaryStreamPartsForDisplay', () => {
 });
 
 describe('clearPrimaryStreamParts', () => {
-  it('promotes agent segments to Clara briefs and keeps auxiliary trails', () => {
+  it('promotes agent segments to Valk briefs and keeps auxiliary trails', () => {
     const parts: StreamPart[] = [
       { streamTag: 'agent', label: '', text: 'Planning…' },
       { streamTag: 'reasoning', label: 'R', text: 'think' },
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'Reading…' },
     ];
     expect(clearPrimaryStreamParts(parts)).toEqual([
-      { streamTag: 'clara', label: 'Valk', text: 'Planning…' },
+      { streamTag: 'valk', label: 'Valk', text: 'Planning…' },
       { streamTag: 'reasoning', label: 'R', text: 'think' },
       { streamTag: 'tool-trail:read', label: 'read_workspace_file', text: 'Reading…' },
     ]);
@@ -741,7 +761,7 @@ describe('clearPrimaryStreamParts', () => {
       { streamTag: 'agent', label: '', text: 'Second.' },
     ];
     expect(clearPrimaryStreamParts(parts)).toEqual([
-      { streamTag: 'clara', label: 'Valk', text: 'First. Second.' },
+      { streamTag: 'valk', label: 'Valk', text: 'First. Second.' },
     ]);
   });
 
@@ -770,13 +790,13 @@ describe('promotePrimaryToNudgeParts', () => {
     ]);
   });
 
-  it('does not retag Clara briefs', () => {
+  it('does not retag Valk briefs', () => {
     const parts: StreamPart[] = [
-      { streamTag: 'clara', label: 'Clara', text: 'Checking files.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Checking files.' },
       { streamTag: 'agent', label: '', text: 'Here is the answer.' },
     ];
     expect(promotePrimaryToNudgeParts(parts)).toEqual([
-      { streamTag: 'clara', label: 'Clara', text: 'Checking files.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Checking files.' },
       { streamTag: 'nudge', label: 'Nudge', text: 'Here is the answer.' },
     ]);
   });

@@ -206,7 +206,7 @@ describe('local source tutorial targets', () => {
     expect(target(host, 'sources-advanced').tagName).toBe('SUMMARY');
 
     for (const stepId of ['sources-navigation', 'sources-lm-studio', 'sources-custom-endpoint', 'sources-openrouter', 'sources-claude', 'sources-add', 'sources-model', 'sources-defaults', 'sources-advanced', 'sources-apply']) {
-      window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId: 'local-source', stepId } }));
+      window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId: 'local-source', stepId } }));
     }
     await flush(fixture);
     expect(store.llmProviders()).toEqual(before);

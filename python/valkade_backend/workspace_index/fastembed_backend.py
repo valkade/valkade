@@ -219,7 +219,7 @@ def _ensure_idle_reaper() -> None:
     global _reaper
     if CLARA_FASTEMBED_IDLE_UNLOAD_SEC <= 0 or (_reaper is not None and _reaper.is_alive()):
         return
-    _reaper = threading.Thread(target=_idle_reaper_loop, name='clara-fastembed-idle-unload', daemon=True)
+    _reaper = threading.Thread(target=_idle_reaper_loop, name='valkade-fastembed-idle-unload', daemon=True)
     _reaper.start()
 
 

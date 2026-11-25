@@ -224,7 +224,7 @@ def _fake_install(runtime: Path, tag: str) -> Path:
     version_dir = runtime / 'gdls' / tag
     version_dir.mkdir(parents=True)
     (version_dir / 'gdls.exe').write_bytes(b'x')
-    (version_dir / gdls.READY_MARKER if hasattr(gdls, 'READY_MARKER') else version_dir / '.clara-ready').write_text(
+    (version_dir / gdls.READY_MARKER if hasattr(gdls, 'READY_MARKER') else version_dir / '.valkade-ready').write_text(
         tag, encoding='utf-8'
     )
     return version_dir

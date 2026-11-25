@@ -28,10 +28,11 @@ from pathlib import Path
 
 from valkade_backend.config import env_clara
 from valkade_backend.runtime.deps.download import (
-    READY_MARKER,
     chmod_executable,
+    clear_ready_marker,
     download_file,
     extract_archive,
+    marker_with_legacy_fallback,
     read_ready_marker,
     run_streaming,
     with_download_lock,
@@ -56,7 +57,9 @@ DEP_ID = 'llama-server'
 DEFAULT_TAG = 'b12182'
 SIZE_HINT = '~40–750 MB (CPU ~40 MB; CUDA build + CUDA runtime libs up to ~750 MB)'
 
-VARIANT_MARKER = '.clara-llama-variant'
+VARIANT_MARKER = '.valkade-llama-variant'
+#: Pre-rename marker; read when ``runtime/bin`` has no :data:`VARIANT_MARKER` yet.
+LEGACY_VARIANT_MARKER = '.clara-llama-variant'
 # CUDA build timeout for the Linux compile-from-source path.
 COMPILE_TIMEOUT_S = 1800
 
@@ -213,7 +216,7 @@ def _variant_marker_path() -> Path:
 
 
 def _read_variant() -> str | None:
-    marker = _variant_marker_path()
+    marker = marker_with_legacy_fallback(get_runtime_bin_dir(), VARIANT_MARKER, LEGACY_VARIANT_MARKER)
     if not marker.is_file():
         return None
     text = marker.read_text(encoding='utf-8').strip()
@@ -222,6 +225,14 @@ def _read_variant() -> str | None:
 
 def _write_variant(variant: str) -> None:
     _variant_marker_path().write_text(variant + '\n', encoding='utf-8')
+
+
+def _clear_markers(bin_dir: Path) -> None:
+    """Drop the ready and variant markers, current and pre-rename names alike."""
+
+    clear_ready_marker(bin_dir)
+    _variant_marker_path().unlink(missing_ok=True)
+    _variant_marker_path().with_name(LEGACY_VARIANT_MARKER).unlink(missing_ok=True)
 
 
 def components() -> list[str]:
@@ -402,8 +413,7 @@ def _install_prebuilt(
             return
         if force and bin_path.exists():
             bin_path.unlink(missing_ok=True)
-        (bin_dir / READY_MARKER).unlink(missing_ok=True)
-        _variant_marker_path().unlink(missing_ok=True)
+        _clear_markers(bin_dir)
 
         PROGRESS.emit(DEP_ID, 'downloading', message=f'Downloading {asset}…')
 
@@ -551,8 +561,7 @@ def _install_compiled_cuda(tag: str, *, force: bool) -> None:
             return
         if force and bin_path.exists():
             bin_path.unlink(missing_ok=True)
-        (bin_dir / READY_MARKER).unlink(missing_ok=True)
-        _variant_marker_path().unlink(missing_ok=True)
+        _clear_markers(bin_dir)
 
         PROGRESS.emit(DEP_ID, 'downloading', message=f'Downloading llama.cpp source {tag}…')
 
@@ -698,8 +707,7 @@ def delete() -> dict:
     logger.info('delete llama-server path=%s', bin_path)
     if bin_path.exists():
         bin_path.unlink(missing_ok=True)
-    (bin_dir / READY_MARKER).unlink(missing_ok=True)
-    _variant_marker_path().unlink(missing_ok=True)
+    _clear_markers(bin_dir)
     # Remove co-located shared libraries (DLLs on Windows, .so on Linux, dylibs on macOS).
     for pattern in ('*.dll', '*.so*', '*.dylib*'):
         for lib in bin_dir.glob(pattern):

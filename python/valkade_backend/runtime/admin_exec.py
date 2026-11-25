@@ -274,7 +274,7 @@ async def _kill_pid(pid: int) -> None:
 def _write_config(token: str) -> Path:
     root = python_package_root()
     payload = {'token': token, 'python_path': [str(root)]}
-    fd, name = tempfile.mkstemp(prefix='clara-admin-', suffix='.json')
+    fd, name = tempfile.mkstemp(prefix='valkade-admin-', suffix='.json')
     path = Path(name)
     with os.fdopen(fd, 'w', encoding='utf-8') as handle:
         json.dump(payload, handle)
@@ -473,7 +473,7 @@ async def _ensure_session_broker_locked(
 
     token = secrets.token_hex(32)
     config_path = _write_config(token)
-    fd, port_name = tempfile.mkstemp(prefix='clara-admin-port-', suffix='.json')
+    fd, port_name = tempfile.mkstemp(prefix='valkade-admin-port-', suffix='.json')
     os.close(fd)
     port_file = Path(port_name)
     try:

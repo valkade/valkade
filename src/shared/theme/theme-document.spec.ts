@@ -20,7 +20,8 @@ import {
   themeBackgroundGroupIds,
   validateThemeDocument,
 } from './theme-document';
-import { THEME_TOKENS } from './theme-tokens';
+import { THEME_TOKENS, canonicalThemeTokenName, migrateLegacyThemeCss } from './theme-tokens';
+import { resolveThemeDocument, themeStylesheetText } from './theme-resolve';
 import { scopeThemeCss } from './theme-css-scope';
 
 describe('validateThemeDocument', () => {
@@ -244,5 +245,62 @@ describe('helpers', () => {
     expect(normalizeMonacoHex('#abc')).toBe('#aabbcc');
     expect(normalizeMonacoHex('#AABBCCDD')).toBe('#aabbccdd');
     expect(normalizeMonacoHex('blue')).toBeNull();
+  });
+});
+
+describe('legacy custom themes', () => {
+  const legacyDoc = {
+    version: 1,
+    id: 'old-custom',
+    name: 'Old custom',
+    mode: 'dark',
+    tokens: { '--t-tui-clara-frame': '#123456' },
+    groups: {
+      'chat.transcript': {
+        tokens: { '--t-tui-clara-frame': '#abcdef' },
+        css: 'app-clara-badge .clara-badge__wing { fill: var(--t-tui-clara-frame); }',
+      },
+    },
+  };
+
+  it('maps --t-tui-clara-frame to --t-tui-valk-frame without a warning', () => {
+    const result = validateThemeDocument(legacyDoc);
+    expect(result.ok).toBe(true);
+    expect(result.doc!.tokens).toEqual({ '--t-tui-valk-frame': '#123456' });
+    expect(result.doc!.groups['chat.transcript']!.tokens).toEqual({ '--t-tui-valk-frame': '#abcdef' });
+    expect(result.warnings.filter((w) => w.path.includes('frame'))).toEqual([]);
+    expect(canonicalThemeTokenName('--t-tui-clara-frame')).toBe('--t-tui-valk-frame');
+    expect(canonicalThemeTokenName('--t-tui-frame')).toBe('--t-tui-frame');
+  });
+
+  it('prefers --t-tui-valk-frame when a theme sets both names', () => {
+    const result = validateThemeDocument({
+      ...legacyDoc,
+      tokens: { '--t-tui-valk-frame': '#000001', '--t-tui-clara-frame': '#123456' },
+    });
+    expect(result.doc!.tokens).toEqual({ '--t-tui-valk-frame': '#000001' });
+  });
+
+  it('rewrites legacy token and badge names in advanced CSS', () => {
+    expect(migrateLegacyThemeCss('app-clara-badge .clara-badge--live .clara-badge__wing { fill: var(--t-tui-clara-frame); }')).toBe(
+      'app-valkade-badge .valkade-badge--live .valkade-badge__wing { fill: var(--t-tui-valk-frame); }',
+    );
+    expect(migrateLegacyThemeCss('.my-clara-badge { color: red; }')).toBe('.my-clara-badge { color: red; }');
+    const scoped = scopeThemeCss(legacyDoc.groups['chat.transcript'].css, '[data-theme-group="chat.transcript"]');
+    expect(scoped.css).toContain(':scope app-valkade-badge .valkade-badge__wing');
+    expect(scoped.css).toContain('var(--t-tui-valk-frame)');
+    expect(scoped.css).not.toContain('clara');
+  });
+
+  it('applies a legacy theme with the renamed token in the stylesheet', () => {
+    const doc = validateThemeDocument(legacyDoc).doc!;
+    const resolved = resolveThemeDocument(doc);
+    expect(resolved.tokens['--t-tui-valk-frame']).toBe('#123456');
+    expect(resolved.tokens['--t-tui-clara-frame']).toBeUndefined();
+    const { tokensCss, groupsCss } = themeStylesheetText(resolved, () => null);
+    expect(tokensCss).toContain('--t-tui-valk-frame: #123456;');
+    expect(tokensCss).toContain('--t-tui-valk-frame: #abcdef;');
+    expect(groupsCss).toContain('.valkade-badge__wing');
+    expect(`${tokensCss}\n${groupsCss}`).not.toContain('clara');
   });
 });

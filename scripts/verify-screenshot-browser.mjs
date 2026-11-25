@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { buildSync } from 'esbuild';
 
 const require = createRequire(import.meta.url);
-const directory = mkdtempSync(join(tmpdir(), 'clara-screenshot-smoke-'));
+const directory = mkdtempSync(join(tmpdir(), 'valkade-screenshot-smoke-'));
 const entry = join(directory, 'smoke.cjs');
 const root = resolve(import.meta.dirname, '..');
 const fixture = '<!doctype html><html><body style="margin:0;background:rgb(12,160,80)"><h1>Safe screenshot fixture</h1><script>document.body.style.background="red"</script></body></html>';
@@ -44,7 +44,7 @@ try {
               return response;
             };
           }
-          const result = await captureWebpage({ url: live ? 'https://example.com/' : 'https://capture.example.test/', width: 800, height: 600, user_agent: 'ClaraCoder-Screenshot-Test/1.0' });
+          const result = await captureWebpage({ url: live ? 'https://example.com/' : 'https://capture.example.test/', width: 800, height: 600, user_agent: 'ValkAde-Screenshot-Test/1.0' });
           if (live) assert.ok(liveFetched, 'Pinned HTTPS transport must deliver the actual example.com page, not a blocked response');
           const response = await captureAssetResponse(result.image_url);
           assert.equal(response.status, 200);

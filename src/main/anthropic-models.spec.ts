@@ -5,7 +5,7 @@ import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ModelInfo } from '@anthropic-ai/sdk/resources/models';
 
-vi.mock('./paths', () => ({ getAppDataDir: () => process.env.CLARA_TEST_APPDATA ?? '' }));
+vi.mock('./paths', () => ({ getAppDataDir: () => process.env.VALKADE_TEST_APPDATA ?? '' }));
 
 import {
   anthropicKeyHint,
@@ -108,13 +108,13 @@ describe('anthropic key store', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'clara-claude-key-'));
-    process.env.CLARA_TEST_APPDATA = dir;
+    process.env.VALKADE_TEST_APPDATA = dir;
   });
 
   afterEach(() => {
     configureAnthropicKeyStoreForTests({ filePath: null });
     setAnthropicClientFactoryForTests(null);
-    delete process.env.CLARA_TEST_APPDATA;
+    delete process.env.VALKADE_TEST_APPDATA;
     rmSync(dir, { recursive: true, force: true });
   });
 

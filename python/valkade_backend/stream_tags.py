@@ -5,6 +5,10 @@ from __future__ import annotations
 # Keep in sync with src/shared/stream-parts.ts (SSE auxiliary / reasoning).
 REASONING_AUXILIARY_STREAM_TAG = 'reasoning'
 
+# Outer Valk briefs: planning prose and nested handoff summaries shown as status rows.
+# Keep in sync with VALK_OUTER_BRIEF_STREAM_TAG in stream-parts.ts (which also reads legacy 'clara').
+OUTER_BRIEF_STREAM_TAG = 'valk'
+
 # Primary prose promoted when a finish gate (edit verification, pending plan steps) sends the answer back.
 NUDGE_STREAM_TAG = 'nudge'
 

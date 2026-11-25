@@ -6,7 +6,7 @@ import type { HitlTrailArtifact } from '../../../../../shared/hitl-trail';
 import {
   mergeHitlTrailIntoLiveStreamParts,
   mergeToolTrailStatusText,
-  upsertClaraOuterBriefStreamPart,
+  upsertValkOuterBriefStreamPart,
   upsertToolTrailStatusStreamPart,
   appendStreamPart,
   markToolExecStreamComplete,
@@ -101,7 +101,7 @@ describe('upsertToolTrailStatusStreamPart', () => {
     expect(done[0]).toMatchObject({ toolChainState: 'complete', toolSubagentId: 'child-1', text: 'Report: all good' });
   });
 
-  it('retags pre-tool agent prose to a Clara brief when a new tool row is appended', () => {
+  it('retags pre-tool agent prose to a Valk brief when a new tool row is appended', () => {
     const parts = [
       { streamTag: 'reasoning', label: 'Model reasoning', text: 'first think' },
       { streamTag: toolTrailStatusStreamTag('run-1'), label: 'read_workspace_file', text: 'done' },
@@ -118,7 +118,7 @@ describe('upsertToolTrailStatusStreamPart', () => {
     expect(out.map((p) => p.streamTag)).toEqual([
       'reasoning',
       toolTrailStatusStreamTag('run-1'),
-      'clara',
+      'valk',
       toolTrailStatusStreamTag('run-2'),
     ]);
     expect(out[2]?.text).toBe('I should list files next');
@@ -142,7 +142,7 @@ describe('upsertToolTrailStatusStreamPart', () => {
     parts = clearPrimaryStreamParts(parts);
     parts = upsertToolTrailStatusStreamPart(parts, { ...preview, detail: 'ok (120 chars)', state: 'complete' });
 
-    expect(parts.map((p) => p.streamTag)).toEqual(['clara', toolTrailStatusStreamTag('native-tool-preview-1')]);
+    expect(parts.map((p) => p.streamTag)).toEqual(['valk', toolTrailStatusStreamTag('native-tool-preview-1')]);
     expect(parts[0]?.text).toBe('Let me check the layout before editing.');
     const feed = buildTurnFeed(parts, 'Done.');
     expect(feed.map((item) => item.kind)).toEqual(['markdown', 'tool', 'markdown']);
@@ -150,36 +150,36 @@ describe('upsertToolTrailStatusStreamPart', () => {
   });
 });
 
-describe('upsertClaraOuterBriefStreamPart', () => {
-  it('appends a Clara brief from an agent-source status row', () => {
+describe('upsertValkOuterBriefStreamPart', () => {
+  it('appends a Valk brief from an agent-source status row', () => {
     const status: LlmStatus = {
       id: 'outer-brief-1',
-      label: 'Clara',
+      label: 'Valk',
       detail: 'Checking the layout next.',
       state: 'complete',
       source: 'agent',
-      streamTag: 'clara',
+      streamTag: 'valk',
     };
-    const out = upsertClaraOuterBriefStreamPart([], status);
+    const out = upsertValkOuterBriefStreamPart([], status);
     expect(out).toEqual([
-      { streamTag: 'clara', label: 'Clara', text: 'Checking the layout next.' },
+      { streamTag: 'valk', label: 'Valk', text: 'Checking the layout next.' },
     ]);
   });
 
   it('does not duplicate a brief whose text is already in the timeline', () => {
-    const parts = [{ streamTag: 'clara', label: 'Clara', text: 'Checking the layout next.\nMore.' }];
+    const parts = [{ streamTag: 'valk', label: 'Valk', text: 'Checking the layout next.\nMore.' }];
     const status: LlmStatus = {
       id: 'outer-brief-1',
-      label: 'Clara',
+      label: 'Valk',
       detail: 'Checking the layout next.',
       state: 'complete',
       source: 'agent',
-      streamTag: 'clara',
+      streamTag: 'valk',
     };
-    expect(upsertClaraOuterBriefStreamPart(parts, status)).toEqual(parts);
+    expect(upsertValkOuterBriefStreamPart(parts, status)).toEqual(parts);
   });
 
-  it('ignores non-clara status tags', () => {
+  it('ignores non-brief status tags', () => {
     const status: LlmStatus = {
       id: 'agent-1',
       label: 'Agent',
@@ -188,7 +188,7 @@ describe('upsertClaraOuterBriefStreamPart', () => {
       source: 'agent',
       streamTag: 'agent',
     };
-    expect(upsertClaraOuterBriefStreamPart([], status)).toEqual([]);
+    expect(upsertValkOuterBriefStreamPart([], status)).toEqual([]);
   });
 });
 
@@ -243,13 +243,13 @@ describe('appendStreamPart', () => {
     expect(out[0]?.thoughtDurationMs).toBeUndefined();
   });
 
-  it('retags pre-tool agent prose to a Clara brief when a tool-like stream starts', () => {
+  it('retags pre-tool agent prose to a Valk brief when a tool-like stream starts', () => {
     const parts = [
       { streamTag: 'tool-trail:a', label: 'read', text: 'done' },
       { streamTag: 'agent', label: '', text: 'I should list files' },
     ];
     const out = appendStreamPart(parts, 'tool-pytest', 'output', 'T');
-    expect(out.map((p) => p.streamTag)).toEqual(['tool-trail:a', 'clara', 'tool-pytest']);
+    expect(out.map((p) => p.streamTag)).toEqual(['tool-trail:a', 'valk', 'tool-pytest']);
     expect(out[1]?.text).toBe('I should list files');
   });
 });

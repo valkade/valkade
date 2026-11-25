@@ -15,7 +15,7 @@
 
 import { THEME_GROUP_IDS } from './theme-registry.generated';
 import { THEME_GROUP_CSS_MAX_CHARS, scopeThemeCss } from './theme-css-scope';
-import { THEME_TOKENS, isThemeTokenName, themeTokenDef } from './theme-tokens';
+import { THEME_TOKENS, canonicalThemeTokenName, isThemeTokenName, themeTokenDef } from './theme-tokens';
 
 export const THEME_DOCUMENT_VERSION = 1 as const;
 
@@ -276,8 +276,13 @@ function validateTokenMap(
     errors.push({ path, message: 'must be an object of token name → CSS value' });
     return out;
   }
-  for (const key of Object.keys(raw)) {
-    const value = raw[key];
+  for (const rawKey of Object.keys(raw)) {
+    const value = raw[rawKey];
+    const key = canonicalThemeTokenName(rawKey);
+    if (key !== rawKey && key in raw) {
+      // Both the legacy and the current name are set: the current one wins.
+      continue;
+    }
     if (!isThemeTokenName(key)) {
       warnings.push({ path: `${path}.${key}`, message: 'unknown token (dropped)' });
       continue;

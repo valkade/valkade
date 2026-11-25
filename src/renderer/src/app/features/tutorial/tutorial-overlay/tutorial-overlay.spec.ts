@@ -226,7 +226,7 @@ describe('TutorialOverlayComponent', () => {
   it('announces rendered cursor events and retries preview when the Small row mounts late', async () => {
     const events: Array<{ phaseId: string; stepId: string }> = [];
     const listen = (event: Event): void => { events.push((event as CustomEvent).detail); };
-    window.addEventListener('clara-tutorial-step', listen);
+    window.addEventListener('valkade-tutorial-step', listen);
     const h = setup(descriptor('featured-preview'));
     await paint(h.fixture);
     expect(events).toContainEqual({ phaseId: 'featured-models', stepId: 'featured-preview' });
@@ -236,7 +236,7 @@ describe('TutorialOverlayComponent', () => {
     await paint(h.fixture);
     expect(events.length).toBeGreaterThan(before);
     expect(h.tour.advance).not.toHaveBeenCalled();
-    window.removeEventListener('clara-tutorial-step', listen);
+    window.removeEventListener('valkade-tutorial-step', listen);
   });
 
   it('warns when a tracked source draft disappears and requires an explicit safe recovery', async () => {

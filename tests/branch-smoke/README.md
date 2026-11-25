@@ -41,7 +41,7 @@ Example shape (`tests/branch-smoke/sidecar-auth.sh`):
 #!/usr/bin/env bash
 set -u
 PYTHON_URL="${PYTHON_URL:-http://127.0.0.1:5123}"   # 5124 when testing `npm run dev`
-TOKEN="${TOKEN:-}"                       # or run sidecar with CLARA_SIDECAR_AUTH_OPTIONAL=1
+TOKEN="${TOKEN:-}"                       # or run sidecar with VALKADE_SIDECAR_AUTH_OPTIONAL=1
 auth=(); [ -n "$TOKEN" ] && auth=(-H "Authorization: Bearer $TOKEN")
 
 # /health is the one auth-exempt route, so probe a protected one

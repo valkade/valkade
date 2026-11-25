@@ -31,7 +31,7 @@ export interface RegisterWorkspaceMonacoLspOptions {
   /** LSP session id (conversation id or workspace fallback). */
   readonly getLspSessionId: () => string | null;
   readonly getConversationId: () => string | null;
-  /** Resolve workspace-relative POSIX path for a ``clara-workspace`` model, or ``undefined``. */
+  /** Resolve workspace-relative POSIX path for a ``valkade-workspace`` model, or ``undefined``. */
   readonly getWorkspaceRelativePathForModel: (model: Monaco.editor.ITextModel) => string | undefined;
   /** Cached diagnostics for the active model (code actions). */
   readonly getDiagnosticsForModel: (model: Monaco.editor.ITextModel) => readonly LspEditorDiagnostic[];
@@ -62,7 +62,7 @@ function mapWorkspaceEdit(
 ): Monaco.languages.WorkspaceEdit {
   const edits: Monaco.languages.IWorkspaceTextEdit[] = [];
   for (const [rel, textEdits] of Object.entries(payload.changes)) {
-    const uri = api.Uri.parse(`clara-workspace:///${encodeURI(rel)}`);
+    const uri = api.Uri.parse(`valkade-workspace:///${encodeURI(rel)}`);
     for (const te of textEdits) {
       edits.push({
         resource: uri,
@@ -176,7 +176,7 @@ function lspCancelled(token: Monaco.CancellationToken | undefined): boolean {
 
 /**
  * Registers workspace-scoped LSP providers on the standalone editor.
- * Models must use the ``clara-workspace`` URI scheme (see ``WorkspaceMonacoComponent``).
+ * Models must use the ``valkade-workspace`` URI scheme (see ``WorkspaceMonacoComponent``).
  */
 /** A Monaco ``IEvent<void>`` source; ``monaco.Emitter`` would tie this to the loaded editor module. */
 function createVoidEvent(): { event: Monaco.IEvent<void>; fire: () => void; dispose: () => void } {
@@ -258,8 +258,8 @@ export function registerWorkspaceMonacoLsp(opts: RegisterWorkspaceMonacoLspOptio
   disposables.push(
     api.editor.registerEditorOpener({
       openCodeEditor: (source, resource, selectionOrPosition) => {
-        const external = resource.scheme === 'clara-external';
-        if (resource.scheme !== 'clara-workspace' && !external) {
+        const external = resource.scheme === 'valkade-external';
+        if (resource.scheme !== 'valkade-workspace' && !external) {
           return false;
         }
         // Monaco's peek command first "opens" the file it starts from, with no position. Treating
@@ -300,7 +300,7 @@ export function registerWorkspaceMonacoLsp(opts: RegisterWorkspaceMonacoLspOptio
   };
 
   const canRun = (model: Monaco.editor.ITextModel): boolean => {
-    if (!electron.isElectron || model.uri.scheme !== 'clara-workspace') {
+    if (!electron.isElectron || model.uri.scheme !== 'valkade-workspace') {
       return false;
     }
     const rel = getWorkspaceRelativePathForModel(model);

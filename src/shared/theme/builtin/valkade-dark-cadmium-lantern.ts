@@ -52,7 +52,7 @@ export const VALKADE_DARK_CADMIUM_LANTERN_THEME: ValkAdeThemeDocument = {
     '--t-edge-darkest': '#010402',
     '--t-tui-frame': '#2bff8866',
     '--t-tui-user-frame': '#ffd23f',
-    '--t-tui-clara-frame': '#2bff88',
+    '--t-tui-valk-frame': '#2bff88',
     '--t-tui-input-frame': '#2bff88cc',
 
     // Interaction — the light itself

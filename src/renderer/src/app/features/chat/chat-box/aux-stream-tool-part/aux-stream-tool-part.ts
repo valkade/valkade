@@ -40,7 +40,7 @@ export type AuxStreamToolPartKind = 'status' | 'shell' | 'delegated' | 'hitl';
  * Bubbling DOM event (`detail` = conversation id) a sub-agent pill dispatches to open that
  * sub-agent's conversation; the chat stack hosting the transcript handles it.
  */
-export const OPEN_CONVERSATION_DOM_EVENT = 'clara-open-conversation';
+export const OPEN_CONVERSATION_DOM_EVENT = 'valkade-open-conversation';
 
 export function auxStreamToolPartKind(streamTag: string): AuxStreamToolPartKind {
   if (isHitlTrailStreamTag(streamTag)) {

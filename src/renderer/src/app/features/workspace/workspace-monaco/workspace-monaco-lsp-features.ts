@@ -60,7 +60,7 @@ function range(api: typeof Monaco, r: LspWireLocation['range']): Monaco.Range {
 /** URI of a location: a workspace file, or a read-only page outside the workspace. */
 export function lspLocationUri(api: typeof Monaco, loc: LspWireLocation): Monaco.Uri {
   return loc.externalPath
-    ? api.Uri.parse(`clara-external:///${encodeURI(normalizePathSlashes(loc.externalPath))}`)
+    ? api.Uri.parse(`valkade-external:///${encodeURI(normalizePathSlashes(loc.externalPath))}`)
     : workspaceFileUri(api, normalizePathSlashes(loc.relativePath));
 }
 
@@ -289,10 +289,10 @@ export function registerExtendedLspFeatures(opts: RegisterExtendedLspFeaturesOpt
     );
   };
 
-  hierarchyAction('clara.gdscript.incomingCalls', 'Show Callers', 'callHierarchy', 'incoming', 'No callers found', 1.7);
-  hierarchyAction('clara.gdscript.outgoingCalls', 'Show Callees', 'callHierarchy', 'outgoing', 'No callees found', 1.71);
-  hierarchyAction('clara.gdscript.supertypes', 'Show Supertypes', 'typeHierarchy', 'supertypes', 'No supertypes found', 1.72);
-  hierarchyAction('clara.gdscript.subtypes', 'Show Subtypes', 'typeHierarchy', 'subtypes', 'No subtypes found', 1.73);
+  hierarchyAction('valkade.gdscript.incomingCalls', 'Show Callers', 'callHierarchy', 'incoming', 'No callers found', 1.7);
+  hierarchyAction('valkade.gdscript.outgoingCalls', 'Show Callees', 'callHierarchy', 'outgoing', 'No callees found', 1.71);
+  hierarchyAction('valkade.gdscript.supertypes', 'Show Supertypes', 'typeHierarchy', 'supertypes', 'No supertypes found', 1.72);
+  hierarchyAction('valkade.gdscript.subtypes', 'Show Subtypes', 'typeHierarchy', 'subtypes', 'No subtypes found', 1.73);
 
   const openWorkspaceSymbolPicker = async (monacoLanguageId: string): Promise<void> => {
     const sid = getLspSessionId()?.trim();
@@ -358,7 +358,7 @@ export function registerExtendedLspFeatures(opts: RegisterExtendedLspFeaturesOpt
 
   disposables.push(
     api.editor.addEditorAction({
-      id: 'clara.gdscript.workspaceSymbols',
+      id: 'valkade.gdscript.workspaceSymbols',
       label: 'Go to Symbol in Workspace...',
       precondition: LANGUAGE_PRECONDITION,
       keybindings: [api.KeyMod.CtrlCmd | api.KeyCode.KeyT],

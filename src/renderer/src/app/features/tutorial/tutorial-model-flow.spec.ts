@@ -66,7 +66,7 @@ function setup(selection: ModelManagerSelection | null = null) {
 }
 
 function tutorialStep(phaseId = 'featured-models', stepId = 'featured-preview'): void {
-  window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId, stepId } }));
+  window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId, stepId } }));
 }
 
 function row(el: HTMLElement, id: string): HTMLElement {
@@ -121,7 +121,7 @@ describe('featured-model tutorial preparation', () => {
     tutorialStep('local-engine', 'featured-preview');
     tutorialStep('featured-models', 'featured-low');
     tutorialStep('featured-models', 'featured-quantizations');
-    window.dispatchEvent(new Event('clara-tutorial-step'));
+    window.dispatchEvent(new Event('valkade-tutorial-step'));
     expect(store.modelManagerSelection()).toBeNull();
     expect(electron.modelManagerListHfFiles).not.toHaveBeenCalled();
     expect(electron.modelManagerHfModelDetails).not.toHaveBeenCalled();

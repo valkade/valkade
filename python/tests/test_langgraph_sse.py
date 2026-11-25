@@ -135,7 +135,7 @@ def test_outer_agent_brief_emits_status() -> None:
     assert '"label": "Planner checklist"' in lines[0]
     assert 'First step' in lines[0]
     assert 'Second step' in lines[0]
-    assert '"stream_tag": "clara"' in lines[0]
+    assert '"stream_tag": "valk"' in lines[0]
     assert '"id": "outer-brief-' in lines[0]
 
 
@@ -159,7 +159,7 @@ def test_outer_agent_brief_emits_status_for_gemma_preset(mock_conn: MagicMock) -
         llm_log_context='test',
     )
     assert len(lines) == 1
-    assert '"stream_tag": "clara"' in lines[0]
+    assert '"stream_tag": "valk"' in lines[0]
     assert 'First step' in lines[0]
 
 

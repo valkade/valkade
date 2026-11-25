@@ -17,7 +17,7 @@ import { APP_CONFIG_SCHEMA_VERSION, createDefaultConfig } from './defaults';
 const isLocalSource = (p: AppConfig['llmProviders'][number]) => p.provider === 'llamacpp' && !isPinnedLlmSourceId(p.id);
 
 vi.mock('../paths', () => ({
-  getConfigPath: () => join(process.env.CLARA_TEST_CONFIG_DIR ?? '', 'config.json'),
+  getConfigPath: () => join(process.env.VALKADE_TEST_CONFIG_DIR ?? '', 'config.json'),
 }));
 
 import {
@@ -116,7 +116,7 @@ describe('screenshot retention config', () => {
 
   it('round-trips a customized policy through serialized save and load', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'clara-screenshot-config-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const policy = { downscaleAfterDays: 14, retentionDays: 90, maxWidth: 960, maxStorageMiB: 240, maxImages: 700 };
       writeFileSync(join(tempDir, 'config.json'), JSON.stringify(sampleConfig()), 'utf-8');
@@ -125,7 +125,7 @@ describe('screenshot retention config', () => {
       expect(JSON.parse(readFileSync(join(tempDir, 'config.json'), 'utf-8')).workspaceTools.screenshotRetention)
         .toEqual(policy);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -141,7 +141,7 @@ describe('migrateConfig mcp servers', () => {
 
   it('round-trips a header secret through save and load', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'nemo-mcp-config-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       writeFileSync(join(tempDir, 'config.json'), JSON.stringify(sampleConfig(), null, 2), 'utf-8');
       await updateConfig((cfg) => {
@@ -152,7 +152,7 @@ describe('migrateConfig mcp servers', () => {
       expect(unwrapSecret(loaded.mcpServers[0]?.headers[0]?.value)).toBe('top-secret');
       expect(loaded.mcpServers[0]?.toolDecisions).toEqual({ search: 'deny' });
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -253,12 +253,12 @@ describe('updateConfig serialization', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'nemo-config-test-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     writeFileSync(join(tempDir, 'config.json'), JSON.stringify(sampleConfig(), null, 2), 'utf-8');
   });
 
   afterEach(() => {
-    delete process.env.CLARA_TEST_CONFIG_DIR;
+    delete process.env.VALKADE_TEST_CONFIG_DIR;
     if (tempDir) {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -729,7 +729,7 @@ describe('the OpenAI-compatible source', () => {
 
     it('go through the same disk encryption as API keys', async () => {
       const tempDir = mkdtempSync(join(tmpdir(), 'clara-headers-'));
-      process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+      process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
       try {
         const cfg = sampleConfig();
         urlSource(cfg).customHeaders = [{ key: 'api-key', value: SecretValue.of('hdr-secret') }];
@@ -741,7 +741,7 @@ describe('the OpenAI-compatible source', () => {
         const loaded = await loadConfig();
         expect(urlSource(loaded).customHeaders?.map((h) => unwrapSecret(h.value))).toEqual(['hdr-secret']);
       } finally {
-        delete process.env.CLARA_TEST_CONFIG_DIR;
+        delete process.env.VALKADE_TEST_CONFIG_DIR;
         rmSync(tempDir, { recursive: true, force: true });
       }
     });
@@ -799,7 +799,7 @@ describe('migrateConfig openrouter pin', () => {
 
   it('keeps a cleared OpenRouter model through save and load', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'nemo-openrouter-config-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     const modelOf = (cfg: AppConfig) =>
       cfg.llmProviders.find((p) => p.id === PINNED_OPENROUTER_PROVIDER_ID)?.models[0]?.model;
     try {
@@ -816,7 +816,7 @@ describe('migrateConfig openrouter pin', () => {
       });
       expect(modelOf(await loadConfig())).toBe('');
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -915,7 +915,7 @@ describe('migrateConfig Claude pin', () => {
 
   it('never carries or writes a Claude API key in the config', async () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'clara-claude-config-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       writeFileSync(join(tempDir, 'config.json'), JSON.stringify(sampleConfig(), null, 2), 'utf-8');
       await loadConfig();
@@ -925,7 +925,7 @@ describe('migrateConfig Claude pin', () => {
       expect(unwrapSecret(claudeOf(saved)!.apiKey)).toBe('');
       expect(readFileSync(join(tempDir, 'config.json'), 'utf-8')).not.toContain('claude-key-should-not-persist');
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -1006,8 +1006,8 @@ describe('durable tutorial progress', () => {
   });
 
   it('preserves ciphertext and every unrelated raw field across tutorial steps', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-secrets-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-secrets-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const disk = JSON.parse(JSON.stringify(sampleConfig())) as Record<string, any>;
       disk.llmProviders[0].apiKey = 'clara-secret:v1:dW5kZWNyeXB0YWJsZQ==';
@@ -1029,7 +1029,7 @@ describe('durable tutorial progress', () => {
       }
       expect(stored.tutorial.active.stepId).toBe('home-start');
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -1044,8 +1044,8 @@ describe('durable tutorial progress', () => {
   });
 
   it('persists the active step while preserving it across stale Settings and generic saves', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-config-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-config-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const stale = await loadConfig();
       expect((await updateTutorialProgress({ action: 'start', expectedRevision: 0 })).applied).toBe(true);
@@ -1060,14 +1060,14 @@ describe('durable tutorial progress', () => {
       expect(reloaded.tutorial?.active).toEqual({ phaseId: 'intro', stepId: 'home-start' });
       expect(JSON.parse(readFileSync(join(tempDir, 'config.json'), 'utf-8')).tutorial).toEqual(reloaded.tutorial);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it('serializes dismissal against stale starts and concurrent Settings saves', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-race-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-race-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const stale = await loadConfig();
       stale.chatFontSizeRem = 1.42;
@@ -1084,19 +1084,19 @@ describe('durable tutorial progress', () => {
       expect(final.tutorial?.revision).toBe(1);
       for (const phase of TUTORIAL_PHASE_REGISTRY) expect(final.tutorial?.phases[phase.id]).toBe('dismissed');
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it('serializes competing revisions across separate app processes', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-multiprocess-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-multiprocess-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       writeFileSync(join(tempDir, 'config.json'), JSON.stringify(sampleConfig()), 'utf8');
       const script = `
         const paths = require('./src/main/paths.ts');
-        paths.getConfigPath = () => require('path').join(process.env.CLARA_TEST_CONFIG_DIR, 'config.json');
+        paths.getConfigPath = () => require('path').join(process.env.VALKADE_TEST_CONFIG_DIR, 'config.json');
         const { updateTutorialProgress } = require('./src/main/config/load-save.ts');
         updateTutorialProgress({ action: process.argv[1], expectedRevision: 0 })
           .then((result) => console.log(JSON.stringify(result)))
@@ -1104,7 +1104,7 @@ describe('durable tutorial progress', () => {
       `;
       const launch = (action: string): Promise<{ applied: boolean }> => new Promise((resolve, reject) => {
         const child = spawn(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script, action], {
-          cwd: process.cwd(), env: { ...process.env, CLARA_TEST_CONFIG_DIR: tempDir },
+          cwd: process.cwd(), env: { ...process.env, VALKADE_TEST_CONFIG_DIR: tempDir },
         });
         let stdout = '';
         let stderr = '';
@@ -1131,14 +1131,14 @@ describe('durable tutorial progress', () => {
       expect(results.filter((result) => result.applied)).toHaveLength(1);
       expect(JSON.parse(readFileSync(join(tempDir, 'config.json'), 'utf8')).tutorial.revision).toBe(1);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   }, 15_000);
 
   it('recovers an abandoned config lock without losing progress', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-stale-lock-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-stale-lock-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const lockPath = join(tempDir, 'config.json.lock');
       writeFileSync(lockPath, JSON.stringify({ pid: 2147483647, token: 'abandoned' }), 'utf8');
@@ -1147,7 +1147,7 @@ describe('durable tutorial progress', () => {
       expect((await updateTutorialProgress({ action: 'start', expectedRevision: 0 })).applied).toBe(true);
       expect(existsSync(lockPath)).toBe(false);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -1178,8 +1178,8 @@ describe('durable tutorial progress', () => {
   });
 
   it('waits for a recent live lock owner but reclaims one that has long expired', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-recycled-pid-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-recycled-pid-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const lockPath = join(tempDir, 'config.json.lock');
       writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token: 'live-holder' }), 'utf8');
@@ -1200,7 +1200,7 @@ describe('durable tutorial progress', () => {
       expect((await updateTutorialProgress({ action: 'dismiss-all', expectedRevision: 1 })).applied).toBe(true);
       expect(existsSync(lockPath)).toBe(false);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -1253,8 +1253,8 @@ describe('durable tutorial progress', () => {
   });
 
   it('preserves an unknown tutorial schema through transitions and ordinary saves', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-future-schema-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-future-schema-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const future = { schemaVersion: 2, revision: 'future-revision', phases: ['new-layout'], active: { next: 7 }, extra: true };
       const disk = sampleConfig();
@@ -1267,14 +1267,14 @@ describe('durable tutorial progress', () => {
       await saveConfig(stale);
       expect(JSON.parse(readFileSync(join(tempDir, 'config.json'), 'utf8')).tutorial).toEqual(future);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it('preserves the valid backup on both tutorial and ordinary recovery', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-backup-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-backup-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const configPath = join(tempDir, 'config.json');
       const saved = JSON.parse(JSON.stringify(sampleConfig()));
@@ -1289,14 +1289,14 @@ describe('durable tutorial progress', () => {
       expect(readFileSync(`${configPath}.bak`, 'utf8')).toBe(valid);
       expect(JSON.parse(readFileSync(configPath, 'utf8')).llmProviders[0].apiKey).toBe(saved.llmProviders[0].apiKey);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it('never creates defaults over an unreadable backup when the primary is missing', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-bad-backup-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-bad-backup-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     try {
       const configPath = join(tempDir, 'config.json');
       writeFileSync(`${configPath}.bak`, '{broken', 'utf8');
@@ -1306,14 +1306,14 @@ describe('durable tutorial progress', () => {
       expect(existsSync(configPath)).toBe(false);
       expect(readFileSync(`${configPath}.bak`, 'utf8')).toBe('{broken');
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
   it('uses private unique staging files, preserves the old primary on failure, and cleans up', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-atomic-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-atomic-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     const configPath = join(tempDir, 'config.json');
     try {
       await loadTutorialProgress();
@@ -1338,13 +1338,13 @@ describe('durable tutorial progress', () => {
       expect(readdirSync(tempDir).filter((name) => name.endsWith('.tmp'))).toEqual(['config.json.tmp']);
       expect((await updateTutorialProgress({ action: 'start', expectedRevision: 0 })).applied).toBe(true);
     } finally {
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
   it('falls back to exclusive lock creation when hard links are unsupported', async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'clara-tutorial-no-hardlinks-'));
-    process.env.CLARA_TEST_CONFIG_DIR = tempDir;
+    const tempDir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-no-hardlinks-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = tempDir;
     const link = vi.spyOn(fs, 'link').mockRejectedValue(Object.assign(new Error('unsupported'), { code: 'EPERM' }));
     try {
       expect((await updateTutorialProgress({ action: 'start', expectedRevision: 0 })).applied).toBe(true);
@@ -1352,7 +1352,7 @@ describe('durable tutorial progress', () => {
       expect(existsSync(join(tempDir, 'config.json.lock'))).toBe(false);
     } finally {
       link.mockRestore();
-      delete process.env.CLARA_TEST_CONFIG_DIR;
+      delete process.env.VALKADE_TEST_CONFIG_DIR;
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -1413,22 +1413,22 @@ describe('rewriteLegacyAppDataPaths', () => {
 
 describe('migrateConfig legacy app-data paths', () => {
   let root: string;
-  const prevDir = process.env.CLARA_TEST_CONFIG_DIR;
+  const prevDir = process.env.VALKADE_TEST_CONFIG_DIR;
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'valkade-migrate-paths-'));
   });
 
   afterEach(() => {
-    if (prevDir === undefined) delete process.env.CLARA_TEST_CONFIG_DIR;
-    else process.env.CLARA_TEST_CONFIG_DIR = prevDir;
+    if (prevDir === undefined) delete process.env.VALKADE_TEST_CONFIG_DIR;
+    else process.env.VALKADE_TEST_CONFIG_DIR = prevDir;
     rmSync(root, { recursive: true, force: true });
   });
 
   it('points a models dir set inside the old clara-coder dir at the new valkade dir', () => {
     const newDir = join(root, 'valkade');
     mkdirSync(newDir, { recursive: true });
-    process.env.CLARA_TEST_CONFIG_DIR = newDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = newDir;
     const cfg = sampleConfig();
     cfg.modelManager = { ...cfg.modelManager, customModelsDir: join(root, 'clara-coder', 'models') };
     const migrated = migrateConfig(cfg);
@@ -1440,7 +1440,7 @@ describe('migrateConfig legacy app-data paths', () => {
   it('does not rewrite when the config lives outside a valkade dir (dev builds)', () => {
     const devDir = join(root, 'valkade-dev');
     mkdirSync(devDir, { recursive: true });
-    process.env.CLARA_TEST_CONFIG_DIR = devDir;
+    process.env.VALKADE_TEST_CONFIG_DIR = devDir;
     const cfg = sampleConfig();
     const legacyModels = join(root, 'clara-coder', 'models');
     cfg.modelManager = { ...cfg.modelManager, customModelsDir: legacyModels };

@@ -29,7 +29,9 @@ from llama_index.core.vector_stores.types import (
 
 logger = logging.getLogger('valkade.workspace_index.vector_store')
 
-STORE_FORMAT = 'clara-numpy-v1'
+STORE_FORMAT = 'valkade-numpy-v1'
+#: Same layout, written before the ValkAde rename; still loaded so existing indexes need no rebuild.
+LEGACY_STORE_FORMATS = frozenset({'clara-numpy-v1'})
 DEFAULT_NAMESPACE = 'default'
 
 _MIN_CAPACITY = 256
@@ -279,7 +281,7 @@ class NumpyVectorStore(BasePydanticVectorStore):
         with open(path, encoding='utf-8') as f:
             meta = json.load(f)
 
-        if meta.get('format') == STORE_FORMAT:
+        if meta.get('format') == STORE_FORMAT or meta.get('format') in LEGACY_STORE_FORMATS:
             ids = list(meta.get('ids') or [])
             refs = list(meta.get('ref_doc_ids') or [])
             mat = np.load(_matrix_path(path), allow_pickle=False)

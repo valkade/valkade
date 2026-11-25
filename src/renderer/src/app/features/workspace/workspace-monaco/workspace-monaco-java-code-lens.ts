@@ -15,26 +15,26 @@ export interface JavaShowNavigatePayload {
   readonly column: number;
 }
 
-export interface ClaraJavaShowOrigin {
+export interface ValkAdeJavaShowOrigin {
   readonly relativePath: string;
   readonly position: Monaco.IPosition;
 }
 
-export interface ClaraJavaShowLocation {
+export interface ValkAdeJavaShowLocation {
   readonly relativePath: string;
   readonly range: Monaco.IRange;
 }
 
 export interface ParsedJavaShowLocationsArgs {
-  readonly origin: ClaraJavaShowOrigin | null;
-  readonly locations: readonly ClaraJavaShowLocation[];
+  readonly origin: ValkAdeJavaShowOrigin | null;
+  readonly locations: readonly ValkAdeJavaShowLocation[];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
 }
 
-function parseOrigin(raw: unknown): ClaraJavaShowOrigin | null {
+function parseOrigin(raw: unknown): ValkAdeJavaShowOrigin | null {
   const rec = asRecord(raw);
   if (!rec) {
     return null;
@@ -52,7 +52,7 @@ function parseOrigin(raw: unknown): ClaraJavaShowOrigin | null {
   return { relativePath, position: { lineNumber, column } };
 }
 
-function parseLocation(raw: unknown): ClaraJavaShowLocation | null {
+function parseLocation(raw: unknown): ValkAdeJavaShowLocation | null {
   const rec = asRecord(raw);
   if (!rec || typeof rec['relativePath'] !== 'string') {
     return null;
@@ -85,7 +85,7 @@ function parseLocation(raw: unknown): ClaraJavaShowLocation | null {
  */
 export function parseJavaShowLocationsCommandArgs(args: readonly unknown[]): ParsedJavaShowLocationsArgs {
   if (args.length >= 2 && Array.isArray(args[1])) {
-    const locations: ClaraJavaShowLocation[] = [];
+    const locations: ValkAdeJavaShowLocation[] = [];
     for (const item of args[1]) {
       const loc = parseLocation(item);
       if (loc) {
@@ -98,7 +98,7 @@ export function parseJavaShowLocationsCommandArgs(args: readonly unknown[]): Par
 }
 
 function workspaceUri(api: typeof Monaco, relativePath: string): Monaco.Uri {
-  return api.Uri.parse(`clara-workspace:///${encodeURI(normalizePathSlashes(relativePath))}`);
+  return api.Uri.parse(`valkade-workspace:///${encodeURI(normalizePathSlashes(relativePath))}`);
 }
 
 type CommandService = {
@@ -122,7 +122,7 @@ function getCommandService(): Promise<CommandService | null> {
 
 function navigateTo(
   onNavigate: (payload: JavaShowNavigatePayload) => void,
-  loc: ClaraJavaShowLocation,
+  loc: ValkAdeJavaShowLocation,
 ): void {
   onNavigate({
     relativePath: loc.relativePath,
@@ -139,7 +139,7 @@ export interface RegisterJavaShowLocationCommandsOptions {
 
 /**
  * Monaco has no VS Code Java extension, so JDT ``java.show.*`` commands 404 unless registered.
- * Peek uses ``editor.action.peekLocations`` with ``clara-workspace`` URIs.
+ * Peek uses ``editor.action.peekLocations`` with ``valkade-workspace`` URIs.
  */
 export function registerJavaShowLocationCommands(
   opts: RegisterJavaShowLocationCommandsOptions,

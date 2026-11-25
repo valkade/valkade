@@ -103,8 +103,8 @@ export function monacoLanguageIdForPath(monacoApi: typeof Monaco, path: string):
 export function monacoUriForModelKey(monacoApi: typeof Monaco, modelKey: string): Monaco.Uri {
   const displayPath = displayPathForModelKey(modelKey);
   return isExternalModelKey(modelKey)
-    ? monacoApi.Uri.parse(`clara-external:///${encodeURI(absolutePathFromModelKey(modelKey) ?? displayPath)}`)
-    : monacoApi.Uri.parse(`clara-workspace:///${encodeURI(relativePathFromModelKey(modelKey) ?? displayPath)}`);
+    ? monacoApi.Uri.parse(`valkade-external:///${encodeURI(absolutePathFromModelKey(modelKey) ?? displayPath)}`)
+    : monacoApi.Uri.parse(`valkade-workspace:///${encodeURI(relativePathFromModelKey(modelKey) ?? displayPath)}`);
 }
 
 export interface DetachedModelInfo {
@@ -963,7 +963,7 @@ export class WorkspaceMonacoModelStore {
     if (!this.electron.isElectron || !monacoApi) {
       return null;
     }
-    if (model.uri.scheme !== 'clara-workspace') {
+    if (model.uri.scheme !== 'valkade-workspace') {
       return null;
     }
     const relKey = this.workspaceRelativePathForModel(model);

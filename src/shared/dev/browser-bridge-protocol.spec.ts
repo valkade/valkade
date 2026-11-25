@@ -62,7 +62,7 @@ describe('browserBridgeUrl', () => {
   it('builds a tab URL per window that round-trips the endpoint', () => {
     const main = new URL(browserBridgeUrl('http://127.0.0.1:4200', endpoint, 'main'));
     expect(main.hash).toBe('#/');
-    expect(parseBrowserBridgeParam(main.searchParams.get('claraBridge'))).toEqual(endpoint);
+    expect(parseBrowserBridgeParam(main.searchParams.get('valkadeBridge'))).toEqual(endpoint);
 
     expect(new URL(browserBridgeUrl('http://127.0.0.1:4200', endpoint, 'health')).hash).toBe('#/health');
   });

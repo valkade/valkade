@@ -285,7 +285,7 @@ export class TutorialOverlayComponent implements OnDestroy {
   }
 
   private emitStep(step: TutorialStepDescriptor): void {
-    window.dispatchEvent(new CustomEvent('clara-tutorial-step', {
+    window.dispatchEvent(new CustomEvent('valkade-tutorial-step', {
       detail: { phaseId: step.phaseId, stepId: step.stepId },
     }));
   }

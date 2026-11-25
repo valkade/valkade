@@ -48,7 +48,7 @@ export const VALKADE_LIGHT_THEME: ValkAdeThemeDocument = {
     '--t-edge-darkest': '#3f6d5e',
     '--t-tui-frame': '#7fb3a0',
     '--t-tui-user-frame': '#1f5f6b',
-    '--t-tui-clara-frame': '#0b7a62',
+    '--t-tui-valk-frame': '#0b7a62',
     '--t-tui-input-frame': '#0b7a62',
 
     // Interaction

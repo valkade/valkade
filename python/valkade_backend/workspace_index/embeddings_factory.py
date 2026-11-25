@@ -138,5 +138,5 @@ def preload_embedding_model(connection: RuntimeConnection) -> None:
                 if _preload_in_flight == key:
                     _preload_in_flight = None
 
-    t = threading.Thread(target=_load, name='clara-preload-embeddings', daemon=True)
+    t = threading.Thread(target=_load, name='valkade-preload-embeddings', daemon=True)
     t.start()

@@ -1,6 +1,6 @@
 /**
  * Electron main process entry: Python sidecar, IPC, workspace watch, and BrowserWindows.
- * Privileged schemes (`nemo-tts`, `nemo-asset`, `clara-theme`) must register before `app.whenReady`.
+ * Privileged schemes (`nemo-tts`, `nemo-asset`, `valkade-theme`, legacy `clara-theme`) must register before `app.whenReady`.
  */
 import { mkdir } from 'fs/promises';
 import { app, BrowserWindow } from 'electron';
@@ -9,7 +9,7 @@ import { ensurePythonServer, isPythonHealthy, stopPythonSidecar } from './python
 import { getSidecarStartupState, setSidecarStartupState } from './python/sidecar-status';
 import { registerNemoTtsStreamProtocol } from './protocol/nemo-tts';
 import { registerNemoAssetProtocol } from './protocol/nemo-asset';
-import { registerClaraThemeAssetProtocol } from './protocol/clara-theme-asset';
+import { registerValkAdeThemeAssetProtocol } from './protocol/valkade-theme-asset';
 import { loadConfigSync, updateConfig } from './config/load-save';
 import { currentAppVersion } from './updater/app-updater';
 import { reconcileLostWorkspacesOnStartup } from './ipc/handlers/config-workspaces';
@@ -32,7 +32,7 @@ import { startScreenshotMaintenance, stopScreenshotMaintenance } from './web/scr
 /**
  * Chromium GPU process often segfaults on Linux Wayland when Vulkan is enabled.
  * Keep native Wayland (x11/XWayland breaks window mapping on Hyprland) but disable
- * hardware GPU. Set CLARA_ENABLE_GPU=1 to opt in to GPU acceleration.
+ * hardware GPU. Set VALKADE_ENABLE_GPU=1 to opt in to GPU acceleration.
  */
 function applyLinuxDisplayWorkarounds(): void {
   if (process.platform !== 'linux') return;
@@ -121,7 +121,7 @@ app
     // while waitForPython polled a sidecar that had already crashed (missing venv deps).
     registerNemoTtsStreamProtocol();
     registerNemoAssetProtocol();
-    registerClaraThemeAssetProtocol();
+    registerValkAdeThemeAssetProtocol();
     createMainWindow();
     preBootMigrationHandoff = false;
     void startBrowserBridge().catch((err) => {

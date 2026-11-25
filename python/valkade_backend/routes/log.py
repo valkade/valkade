@@ -12,7 +12,7 @@ from valkade_backend.logging.app_logging import (
     get_recent_records,
     get_records_since,
     log_ingest,
-    set_clara_log_level,
+    set_valkade_log_level,
 )
 from valkade_backend.session.schemas import LogIngestRequest, LogLevelRequest
 
@@ -40,7 +40,7 @@ async def logs_stream(since: int = Query(0, ge=0)) -> StreamingResponse:
 
 @router.post('/level')
 async def logs_level(request: LogLevelRequest) -> dict[str, bool]:
-    set_clara_log_level(request.level)
+    set_valkade_log_level(request.level)
     return {'ok': True}
 
 

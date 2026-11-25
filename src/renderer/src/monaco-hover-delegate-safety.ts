@@ -12,7 +12,7 @@
  * Idempotent install; every call re-pins.
  */
 
-const PATCH_KEY = '__claraHoverDelegateSafetyPatched';
+const PATCH_KEY = '__valkadeHoverDelegateSafetyPatched';
 
 let installPromise: Promise<(() => void) | null> | null = null;
 

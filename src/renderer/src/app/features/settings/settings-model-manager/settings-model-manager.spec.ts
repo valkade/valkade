@@ -393,11 +393,11 @@ describe('featured tutorial targets', () => {
     fixture.detectChanges();
     const select = vi.spyOn(store, 'selectHfModel').mockImplementation((id) => store.modelManagerSelection.set({ kind: 'hf', id }));
     const download = vi.spyOn(store, 'downloadHfQuant');
-    window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-low' } }));
+    window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-low' } }));
     expect(select).not.toHaveBeenCalled();
-    window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-preview' } }));
+    window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-preview' } }));
     expect(select).toHaveBeenCalledExactlyOnceWith(smallestSmallModel(FEATURED_HF_MODELS)?.id);
-    window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-preview' } }));
+    window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId: 'featured-models', stepId: 'featured-preview' } }));
     expect(select).toHaveBeenCalledTimes(1);
     expect(download).not.toHaveBeenCalled();
     fixture.destroy();

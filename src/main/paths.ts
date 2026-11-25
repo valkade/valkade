@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, renameSync, cpSync, rmSync, readdirSync, readFil
 import { app } from 'electron';
 import path = require('path');
 import { ensureAppDataDir, legacyAppDataDirNames } from './app-data';
-import { envClara } from './env-clara';
+import { envValkade } from './env-valkade';
 import { WORKSPACE_META_DIR, WORKSPACE_SYSTEM_PROMPT_FILE } from '../shared';
 
 let appDataConfigured = false;
@@ -111,7 +111,7 @@ export function getLogsDir(): string {
   return path.join(getAppDataDir(), 'logs');
 }
 
-/** Nested edit staging (Python ``CLARA_STAGING_DIR``) — same root as config.json. */
+/** Nested edit staging (Python ``VALKADE_STAGING_DIR``) — same root as config.json. */
 export function getWorkspaceStagingDir(): string {
   return path.join(getAppDataDir(), 'workspace-staging');
 }
@@ -121,7 +121,7 @@ export function getEditorDetachedSnapshotsDir(): string {
   return path.join(getAppDataDir(), 'editor-snapshots');
 }
 
-/** LangGraph Sqlite checkpoints (Python ``CLARA_CHECKPOINT_DB``). */
+/** LangGraph Sqlite checkpoints (Python ``VALKADE_CHECKPOINT_DB``). */
 export function getCheckpointDbPath(): string {
   return path.join(getAppDataDir(), 'langgraph-checkpoints.sqlite');
 }
@@ -131,7 +131,7 @@ export function getConversationsDbPath(): string {
   return path.join(getAppDataDir(), 'conversations.sqlite');
 }
 
-/** Workspace + staging semantic index (Python ``CLARA_WORKSPACE_INDEX_DIR``). */
+/** Workspace + staging semantic index (Python ``VALKADE_WORKSPACE_INDEX_DIR``). */
 export function getWorkspaceSemanticIndexDir(): string {
   return path.join(getAppDataDir(), 'workspace-semantic-index');
 }
@@ -152,7 +152,7 @@ export function getWorkspaceSemanticIndexPersistDir(workspaceId: string): string
   );
 }
 
-/** Root for managed runtime dependencies (Python ``CLARA_RUNTIME_DIR``). */
+/** Root for managed runtime dependencies (Python ``VALKADE_RUNTIME_DIR``). */
 export function getRuntimeDir(): string {
   return path.join(getAppDataDir(), 'runtime');
 }
@@ -487,10 +487,10 @@ export function getPythonServerScriptPath(): string {
  *
  * Packaged: the app-data runtime venv when it was created from this install's bundled
  * interpreter (``pyvenv.cfg`` ``home`` equals the bundled exe directory); otherwise the
- * bundled portable Python. No ``CLARA_PYTHON``, PATH, or repo ``.venv`` fallback —
+ * bundled portable Python. No ``VALKADE_PYTHON``, PATH, or repo ``.venv`` fallback —
  * missing bundle returns ``null``.
  *
- * Dev (``!app.isPackaged``): ``CLARA_PYTHON`` → runtime app-data venv (if usable) →
+ * Dev (``!app.isPackaged``): ``VALKADE_PYTHON`` → runtime app-data venv (if usable) →
  * bundled portable Python → repo ``.venv`` → system ``python`` / ``python3``.
  */
 export function getPythonExecutable(): string | null {
@@ -507,7 +507,7 @@ export function getPythonExecutable(): string | null {
     return venv ?? bundled;
   }
 
-  const fromEnv = envClara('PYTHON');
+  const fromEnv = envValkade('PYTHON');
   if (fromEnv) return fromEnv;
 
   const runtimePy = runtimeVenvPython({ packaged: false, bundledExe: getBundledPythonExecutable() });

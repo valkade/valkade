@@ -1,5 +1,5 @@
 /**
- * Wire format for the dev-only browser bridge (`CLARA_BROWSER_BRIDGE=1`): a plain browser tab on
+ * Wire format for the dev-only browser bridge (`VALKADE_BROWSER_BRIDGE=1`): a plain browser tab on
  * the Angular dev server drives the same `ipcMain` handlers as the Electron window, over loopback HTTP.
  *
  * JSON alone would drop what Electron's structured clone keeps (binary buffers, `undefined` args,
@@ -7,7 +7,7 @@
  */
 
 /** Query parameter carrying `<port>.<token>` into the browser tab (stripped from the URL on load). */
-export const BROWSER_BRIDGE_QUERY_PARAM = 'claraBridge';
+export const BROWSER_BRIDGE_QUERY_PARAM = 'valkadeBridge';
 
 export interface BrowserBridgeEndpoint {
   port: number;
@@ -19,10 +19,10 @@ export const BROWSER_BRIDGE_WINDOWS = ['main', 'settings', 'dependencies', 'heal
 export type BrowserBridgeWindow = (typeof BROWSER_BRIDGE_WINDOWS)[number];
 
 /** Request header naming the window a tab acts as; absent means the main window. */
-export const BROWSER_BRIDGE_WINDOW_HEADER = 'X-Clara-Bridge-Window';
+export const BROWSER_BRIDGE_WINDOW_HEADER = 'X-Valkade-Bridge-Window';
 
 /** Response header with a per-launch id; a tab that sees it change knows the app restarted. */
-export const BROWSER_BRIDGE_INSTANCE_HEADER = 'X-Clara-Bridge-Instance';
+export const BROWSER_BRIDGE_INSTANCE_HEADER = 'X-Valkade-Bridge-Instance';
 
 /** Body of `POST /window`, which opens (or focuses) the tab's satellite window. */
 export interface BrowserBridgeOpenWindow {
@@ -84,7 +84,7 @@ export interface BridgeBase64 {
   decode(base64: string): Uint8Array;
 }
 
-const TAG = '__claraBridge';
+const TAG = '__valkadeBridge';
 
 type Tagged =
   | { [TAG]: 'undefined' }

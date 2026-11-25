@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from valkade_backend.config import DEFAULT_WHISPER_MODEL
+from valkade_backend.runtime.deps.download import marker_with_legacy_fallback
 from valkade_backend.runtime.deps.paths import (
     get_runtime_python_dir,
     requirements_whisper_pypi,
@@ -22,7 +23,9 @@ logger = logging.getLogger('valkade.runtime.deps.whisper')
 
 DEP_ID = 'whisper'
 SIZE_HINT = '~80–1600 MB (CTranslate2 + chosen size)'
-MARKER_NAME = '.clara-whisper-ready'
+MARKER_NAME = '.valkade-whisper-ready'
+#: Pre-rename marker; read when the venv has no :data:`MARKER_NAME` yet.
+LEGACY_MARKER_NAME = '.clara-whisper-ready'
 _DOWNLOAD_TIMEOUT_SEC = 1800
 _PIP_TIMEOUT_SEC = 1800
 
@@ -38,7 +41,9 @@ WHISPER_SIZE_REPOS: dict[str, str] = {
 
 
 def _marker_path() -> Path:
-    return get_runtime_python_dir() / MARKER_NAME
+    """The marker to read: the current name, or the pre-rename one when only that exists."""
+
+    return marker_with_legacy_fallback(get_runtime_python_dir(), MARKER_NAME, LEGACY_MARKER_NAME)
 
 
 def hub_cache_dirname(repo_id: str) -> str:
@@ -186,7 +191,7 @@ def _install_packages(py: Path) -> None:
         ) from exc
     if pip.returncode != 0:
         raise RuntimeError(f'faster-whisper install failed:\n{pip.stderr or pip.stdout}')
-    _marker_path().write_text('whisper\n', encoding='utf-8')
+    _marker_path().with_name(MARKER_NAME).write_text('whisper\n', encoding='utf-8')
 
 
 def install(*, force: bool = False, variant: str | None = None) -> dict:
@@ -218,7 +223,6 @@ def install(*, force: bool = False, variant: str | None = None) -> dict:
 
 def delete() -> dict:
     py = venv_python()
-    marker = _marker_path()
     logger.info('delete whisper path=%s', py)
     if py and py.is_file():
         PROGRESS.emit(DEP_ID, 'installing', message='Uninstalling Whisper packages…')
@@ -227,8 +231,9 @@ def delete() -> dict:
             capture_output=True,
             text=True,
         )
-    if marker.exists():
-        marker.unlink(missing_ok=True)
+    marker = _marker_path()
+    marker.with_name(MARKER_NAME).unlink(missing_ok=True)
+    marker.with_name(LEGACY_MARKER_NAME).unlink(missing_ok=True)
     models = whisper_models_dir()
     if models.is_dir():
         PROGRESS.emit(DEP_ID, 'installing', message='Removing Whisper model weights…')

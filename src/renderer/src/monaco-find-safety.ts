@@ -17,7 +17,7 @@ type FindWidgetCtor = {
   };
 };
 
-const PATCH_KEY = '__claraFindWidgetSafetyPatched';
+const PATCH_KEY = '__valkadeFindWidgetSafetyPatched';
 
 let patchPromise: Promise<void> | null = null;
 
