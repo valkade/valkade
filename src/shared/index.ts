@@ -363,6 +363,7 @@ export {
   shellQuoteArg,
   syncChatTemplateFileInManagedChatCommand,
 } from './llama-cpp-managed';
+export type { SelectLlmSourceModelPayload } from './llm-providers';
 export {
   countLlmModels,
   findLlmModelLocation,

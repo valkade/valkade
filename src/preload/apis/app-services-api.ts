@@ -59,6 +59,12 @@ export const createAppServicesApi = (ipcRenderer: PreloadIpc) => ({
   patchWorkspaceOpenTabs: (workspaceId: string, state: WorkspaceOpenTabsState | null) =>
     ipcRenderer.invoke('patch-workspace-open-tabs', workspaceId, state),
   setActiveLlmModel: (modelId: string) => ipcRenderer.invoke('set-active-llm-model', modelId),
+  selectLlmSourceModel: (payload: {
+    providerId: string;
+    model: string;
+    name?: string;
+    contextWindowTokens?: number;
+  }) => ipcRenderer.invoke('select-llm-source-model', payload),
   patchHealthMonitor: (patch: Partial<HealthMonitorConfig>) => ipcRenderer.invoke('patch-health-monitor', patch),
   /** Client-only UI preference; main mutates just this key so other windows' saves survive. */
   setConfirmMove: (enabled: boolean) => ipcRenderer.invoke('set-confirm-move', enabled),

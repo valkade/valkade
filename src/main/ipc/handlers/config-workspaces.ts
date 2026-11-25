@@ -6,6 +6,7 @@ import type {
   EnsureWorkspaceChecksResult,
   EnsureWorkspaceSystemPromptResult,
   HealthMonitorConfig,
+  SelectLlmSourceModelPayload,
   Workspace,
   WorkspaceContextSyncExtras,
   WorkspaceMonacoEditorScrollState,
@@ -13,6 +14,7 @@ import type {
 } from '../../../shared';
 import {
   findLlmModelLocation,
+  inferContextWindowTokens,
   normalizeWorkspaceOpenTabsState,
   reorderFavoriteWorkspaces,
   setWorkspaceFavorite,
@@ -640,6 +642,54 @@ export function registerConfigWorkspacesIpc(): void {
       }
       cfg.activeLlmModelId = modelId;
     });
+    await syncRuntimeConfigToPython(config, getLlamaManagedRuntimeOverrides(config));
+    broadcastConfig(config);
+    return config;
+  });
+
+  ipcMain.handle('select-llm-source-model', async (event, payload: SelectLlmSourceModelPayload) => {
+    try {
+      assertTrustedAppRenderer(event);
+    } catch {
+      return null;
+    }
+    const providerId = typeof payload?.providerId === 'string' ? payload.providerId.trim() : '';
+    const model = typeof payload?.model === 'string' ? payload.model.trim() : '';
+    const name = typeof payload?.name === 'string' ? payload.name.trim() : '';
+    const ctx =
+      typeof payload?.contextWindowTokens === 'number' &&
+      Number.isFinite(payload.contextWindowTokens) &&
+      payload.contextWindowTokens > 0
+        ? Math.floor(payload.contextWindowTokens)
+        : 0;
+    if (!providerId || !model) {
+      return null;
+    }
+    let matched = false;
+    const config = await updateConfig((cfg) => {
+      const provider = cfg.llmProviders.find((p) => p.id === providerId);
+      const profile = provider?.models[0];
+      if (!provider || !profile || provider.provider === 'python-t2i') {
+        return;
+      }
+      matched = true;
+      const modelChanged = profile.model !== model;
+      profile.model = model;
+      if (name) {
+        profile.name = name;
+      } else if (modelChanged) {
+        profile.name = model;
+      }
+      if (ctx > 0) {
+        profile.contextWindowTokens = ctx;
+      } else if (modelChanged) {
+        profile.contextWindowTokens = inferContextWindowTokens(model, provider.provider);
+      }
+      cfg.activeLlmModelId = profile.id;
+    });
+    if (!matched) {
+      return null;
+    }
     await syncRuntimeConfigToPython(config, getLlamaManagedRuntimeOverrides(config));
     broadcastConfig(config);
     return config;

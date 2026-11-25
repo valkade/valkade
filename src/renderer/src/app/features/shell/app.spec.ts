@@ -210,6 +210,7 @@ function stubElectronApi(
     patchWorkspaceMonacoScroll: async () => {},
     patchWorkspaceOpenTabs: refs.patchWorkspaceOpenTabs,
     setActiveLlmModel: async (_modelId: string) => ({ ...defaultConfig }),
+    selectLlmSourceModel: async () => ({ ...defaultConfig }),
     updateConversationComposer: async () => true,
     patchHealthMonitor: async (patch: { logLevel?: string; metricsEnabled?: boolean }) => ({
       ...defaultConfig,
@@ -1063,7 +1064,7 @@ describe('App', () => {
     expect(compiled.querySelector('.sidebar')).toBeNull();
     expect(compiled.querySelector('app-chat-conversation-hub')).toBeNull();
     // The source picker lives in the home Runtime panel, not the (absent) status bar.
-    expect(compiled.querySelector('.home__runtime app-managed-llama-controls')).toBeTruthy();
+    expect(compiled.querySelector('.home__runtime app-provider-picker')).toBeTruthy();
     // No status bar on the home screen: the Runtime panel already shows model status.
     expect(compiled.querySelector('.app-status-footer')).toBeNull();
     expect(compiled.querySelector('app-workspace-terminal-dock')).toBeNull();
@@ -1123,9 +1124,9 @@ describe('App', () => {
     expect(compiled.querySelector('.app-content--no-workspace')).toBeNull();
     // The source picker sits at the start of the status bar, before the model indicator.
     const statusStart = compiled.querySelector('.app-status-footer__start');
-    expect(statusStart?.firstElementChild?.querySelector('app-managed-llama-controls')).toBeTruthy();
+    expect(statusStart?.firstElementChild?.querySelector('app-provider-picker')).toBeTruthy();
     expect(statusStart?.querySelector('app-llama-status-indicator')).toBeTruthy();
-    expect(compiled.querySelector('app-workspace app-managed-llama-controls')).toBeNull();
+    expect(compiled.querySelector('app-workspace app-provider-picker')).toBeNull();
   });
 
   it('persists a delete-confirm for a non-active conversation so it re-surfaces on reopen', async () => {

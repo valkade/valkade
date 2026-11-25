@@ -188,7 +188,7 @@
             }
             <div class="home__runtime-source">
               <span class="home__runtime-label">Source</span>
-              <app-managed-llama-controls class="home__runtime-controls" [appConfig]="appConfig()" />
+              <app-provider-picker class="home__runtime-controls" [appConfig]="appConfig()" />
               @if (!hasSources()) {
                 <button type="button" class="home__link" (click)="openSources.emit()">Add a model source…</button>
               }

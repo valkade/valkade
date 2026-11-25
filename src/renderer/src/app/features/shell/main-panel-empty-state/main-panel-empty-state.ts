@@ -10,7 +10,7 @@ import {
 import { LucideAngularModule } from 'lucide-angular';
 import { GridSpinnerComponent } from '../../../shared/grid-spinner/grid-spinner';
 import { LlamaStatusIndicator } from '../../status/llama-status-indicator/llama-status-indicator';
-import { ManagedLlamaControlsComponent } from '../../status/managed-llama-controls/managed-llama-controls';
+import { ProviderPickerComponent } from '../../status/provider-picker/provider-picker';
 import { HomeSubagentsComponent } from './home-subagents/home-subagents';
 
 @Component({
@@ -20,7 +20,7 @@ import { HomeSubagentsComponent } from './home-subagents/home-subagents';
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
-    ManagedLlamaControlsComponent,
+    ProviderPickerComponent,
     LlamaStatusIndicator,
     HomeSubagentsComponent,
     GridSpinnerComponent,

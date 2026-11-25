@@ -1,0 +1,615 @@
+@if (show()) {
+  <div
+    class="provider-picker"
+    [class.provider-picker--status-bar]="statusBar()"
+    [class.is-open]="open()"
+  >
+    <button
+      type="button"
+      class="provider-picker__trigger"
+      [class.is-glowing]="modelGlow()"
+      [attr.aria-expanded]="open()"
+      aria-haspopup="dialog"
+      aria-label="Select LLM provider and model"
+      (click)="togglePanel($event)"
+    >
+      <span
+        class="provider-picker__dot"
+        [class.is-on]="triggerDot() === 'on'"
+        [class.is-starting]="triggerDot() === 'starting'"
+        [class.is-error]="triggerDot() === 'error'"
+        aria-hidden="true"
+      ></span>
+      @if (triggerInfo().providerLabel) {
+        <span class="provider-picker__trigger-provider">{{ triggerInfo().providerLabel }}</span>
+      }
+      <span class="provider-picker__trigger-model">{{ triggerInfo().modelLabel }}</span>
+      @if (triggerRunningBadge()) {
+        <span class="provider-picker__trigger-badge">{{ triggerRunningBadge() }}</span>
+      }
+      <span class="provider-picker__chevron" aria-hidden="true"></span>
+    </button>
+
+    @if (open()) {
+      <div
+        #panel
+        class="provider-picker__panel"
+        popover="manual"
+        role="dialog"
+        aria-label="LLM providers and models"
+        [ngStyle]="panelStyle()"
+      >
+        <div class="provider-picker__split">
+          <!-- Left scrollable provider rail -->
+          <nav class="provider-picker__rail" aria-label="LLM providers">
+            @for (item of railItems(); track item.id; let i = $index) {
+              @if (groupHeading(i); as heading) {
+                <div class="provider-picker__rail-group">{{ heading }}</div>
+              }
+              <button
+                type="button"
+                class="provider-picker__rail-btn"
+                [class.is-browsing]="browsedItem()?.id === item.id"
+                [class.is-active-provider]="activeRailId() === item.id"
+                [class.is-dimmed]="railDimmed(item)"
+                [attr.aria-current]="browsedItem()?.id === item.id ? 'true' : null"
+                (click)="browseProvider(item.id)"
+              >
+                @if (activeRailId() === item.id) {
+                  <span class="provider-picker__active-bar" aria-hidden="true"></span>
+                }
+                <span
+                  class="provider-picker__dot"
+                  [class.is-on]="railDotState(item) === 'on'"
+                  [class.is-starting]="railDotState(item) === 'starting'"
+                  [class.is-error]="railDotState(item) === 'error'"
+                  aria-hidden="true"
+                ></span>
+                <span class="provider-picker__rail-name">{{ item.label }}</span>
+                @if (railBadge(item); as badge) {
+                  <span class="provider-picker__rail-badge">{{ badge }}</span>
+                }
+              </button>
+            }
+          </nav>
+
+          <!-- Right model list + Option B action footer -->
+          @if (browsedItem(); as item) {
+            <div class="provider-picker__pane">
+              <div class="provider-picker__pane-head">
+                <div class="provider-picker__pane-title">
+                  <span>{{ item.label }}</span>
+                  @if (item.kind === 'local-llamacpp') {
+                    <span class="provider-picker__pane-sub">{{ runningLocalCount() }} running</span>
+                  } @else if (item.kind === 'lmstudio') {
+                    <span class="provider-picker__pane-sub">
+                      @if (lmStudioLoading()) {
+                        Loading…
+                      } @else if (lmStudioError()) {
+                        Offline
+                      } @else {
+                        {{ lmStudioLoadedCount() }} loaded
+                      }
+                    </span>
+                  } @else if (item.kind === 'anthropic') {
+                    <span class="provider-picker__pane-sub">
+                      {{ anthropic.configured() ? 'Connected' : 'Not configured' }}
+                    </span>
+                  } @else if (item.kind === 'openrouter') {
+                    <span class="provider-picker__pane-sub">
+                      @if (openRouterLoading()) {
+                        Loading…
+                      } @else if (openRouterError()) {
+                        Offline
+                      } @else {
+                        {{ openRouterModels().length }} models
+                      }
+                    </span>
+                  } @else {
+                    <span class="provider-picker__pane-sub">
+                      @if (customEndpointState(item.id)?.loading || railDotState(item) === 'starting') {
+                        Loading…
+                      } @else if (railDotState(item) === 'on') {
+                        Connected
+                      } @else {
+                        Offline
+                      }
+                    </span>
+                  }
+                </div>
+                <div class="provider-picker__head-actions">
+                  @if (item.kind === 'local-llamacpp' && activeOrStartingLocalCount() > 1) {
+                    <button
+                      type="button"
+                      class="provider-picker__head-btn provider-picker__head-btn--danger"
+                      [disabled]="stoppingAnyLocal()"
+                      (click)="stopAllLocal()"
+                    >Stop all</button>
+                  }
+                  @if (item.kind !== 'local-llamacpp') {
+                    <button
+                      type="button"
+                      class="provider-picker__head-btn"
+                      title="Refresh models"
+                      aria-label="Refresh models"
+                      (click)="refreshBrowsedProvider()"
+                    >Refresh</button>
+                  }
+                  <button
+                    type="button"
+                    class="provider-picker__head-btn"
+                    (click)="openSettingsSources()"
+                  >Settings ↗</button>
+                </div>
+              </div>
+
+              <!-- Unified llama.cpp (Local) pane -->
+              @if (item.kind === 'local-llamacpp') {
+                <div class="provider-picker__list" role="listbox" aria-label="Local llama.cpp models">
+                  @for (row of localRows(); track row.modelId) {
+                    <button
+                      type="button"
+                      class="provider-picker__row"
+                      role="option"
+                      [class.is-active]="row.active"
+                      [class.is-focused]="focusedLocalRow()?.modelId === row.modelId"
+                      [attr.aria-selected]="focusedLocalRow()?.modelId === row.modelId"
+                      (click)="focusLocalModel(row.modelId)"
+                    >
+                      <span
+                        class="provider-picker__dot"
+                        [class.is-on]="row.phase === 'running'"
+                        [class.is-starting]="row.phase === 'loading'"
+                        [class.is-error]="row.error"
+                        aria-hidden="true"
+                      ></span>
+                      <span class="provider-picker__row-info">
+                        <span class="provider-picker__row-name">{{ row.label }}</span>
+                        <span class="provider-picker__row-meta">{{ row.meta }}</span>
+                      </span>
+                      <span class="provider-picker__row-status">
+                        @if (row.active && row.phase === 'running') {
+                          <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                        } @else if (row.active && row.error) {
+                          <span class="provider-picker__pill provider-picker__pill--error">Active · Error</span>
+                        } @else if (row.active) {
+                          <span class="provider-picker__pill provider-picker__pill--active-off">
+                            {{ row.phase === 'loading' && row.downloading ? 'Downloading…' : row.phase === 'loading' ? 'Starting…' : 'Active · Off' }}
+                          </span>
+                        } @else if (row.error) {
+                          <span class="provider-picker__pill provider-picker__pill--error">Error</span>
+                        } @else if (row.phase === 'running') {
+                          <span class="provider-picker__pill provider-picker__pill--running">Running</span>
+                        } @else if (row.phase === 'loading') {
+                          <span class="provider-picker__pill provider-picker__pill--starting">
+                            {{ row.downloading ? 'Downloading…' : 'Starting…' }}
+                          </span>
+                        } @else {
+                          <span class="provider-picker__status-text">Stopped</span>
+                        }
+                      </span>
+                    </button>
+                  }
+                </div>
+
+                @if (focusedLocalRow(); as target) {
+                  @if (target.error) {
+                    <div class="provider-picker__error-strip" role="alert">
+                      <span class="provider-picker__error-text">An error occurred starting this server.</span>
+                      <div class="provider-picker__error-actions">
+                        <button
+                          type="button"
+                          class="provider-picker__health-link"
+                          (click)="openHealthWindow()"
+                        >Open Health ↗</button>
+                        <button
+                          type="button"
+                          class="provider-picker__error-dismiss"
+                          aria-label="Dismiss error"
+                          (click)="dismissLocalError(target.modelId)"
+                        >&times;</button>
+                      </div>
+                    </div>
+                  }
+                  <div class="provider-picker__footer">
+                    <div class="provider-picker__footer-target">
+                      <span class="provider-picker__footer-name">{{ target.label }}</span>
+                      <span class="provider-picker__footer-hint">
+                        @if (!target.canStart) {
+                          Configure a run command in Settings
+                        } @else if (target.phase === 'running') {
+                          {{ target.active ? 'Active main model' : 'Running in background' }}
+                        } @else if (target.phase === 'loading') {
+                          {{ target.downloading ? 'Downloading model weights…' : 'Starting llama-server…' }}
+                        } @else {
+                          {{ target.active ? 'Selected (stopped)' : 'Local managed server' }}
+                        }
+                      </span>
+                    </div>
+                    <div class="provider-picker__footer-actions">
+                      @if (target.phase === 'running') {
+                        @if (!target.active) {
+                          <button
+                            type="button"
+                            class="provider-picker__btn provider-picker__btn--primary"
+                            [disabled]="localActingIds()[target.modelId] || localStoppingIds()[target.modelId]"
+                            (click)="switchLocal(target)"
+                          >Switch</button>
+                        }
+                        <button
+                          type="button"
+                          class="provider-picker__btn provider-picker__btn--danger"
+                          [disabled]="localActingIds()[target.modelId] || localStoppingIds()[target.modelId]"
+                          (click)="stopLocal(target)"
+                        >Stop</button>
+                      } @else if (target.phase === 'loading') {
+                        <button
+                          type="button"
+                          class="provider-picker__btn provider-picker__btn--danger"
+                          [disabled]="localStoppingIds()[target.modelId]"
+                          (click)="stopLocal(target)"
+                        >Cancel</button>
+                      } @else if (target.active) {
+                        <button
+                          type="button"
+                          class="provider-picker__btn provider-picker__btn--primary"
+                          [disabled]="!target.canStart || localActingIds()[target.modelId] || localStoppingIds()[target.modelId]"
+                          title="Start server for the active model"
+                          (click)="startLocal(target, false)"
+                        >Start</button>
+                      } @else {
+                        <button
+                          type="button"
+                          class="provider-picker__btn"
+                          [disabled]="!target.canStart || localActingIds()[target.modelId] || localStoppingIds()[target.modelId]"
+                          title="Start server in background without switching active model"
+                          (click)="startLocal(target, false)"
+                        >Start</button>
+                        <button
+                          type="button"
+                          class="provider-picker__btn provider-picker__btn--primary"
+                          [disabled]="!target.canStart || localActingIds()[target.modelId] || localStoppingIds()[target.modelId]"
+                          title="Start server and switch main model to it"
+                          (click)="startLocal(target, true)"
+                        >Start &amp; Switch</button>
+                      }
+                    </div>
+                  </div>
+                }
+              }
+
+              <!-- LM Studio pane -->
+              @else if (item.kind === 'lmstudio') {
+                @if (lmStudioError()) {
+                  <div class="provider-picker__empty">
+                    <p>LM Studio is not reachable right now.</p>
+                    <button type="button" class="provider-picker__btn" (click)="openSettingsSources()">
+                      Configure in Settings ↗
+                    </button>
+                  </div>
+                } @else if (lmStudioLoading() && lmStudioChatModels().length === 0) {
+                  <div class="provider-picker__empty"><p>Loading LM Studio models…</p></div>
+                } @else if (lmStudioChatModels().length === 0) {
+                  <div class="provider-picker__empty"><p>No chat models found in LM Studio.</p></div>
+                } @else {
+                  <div class="provider-picker__list" role="listbox" aria-label="LM Studio models">
+                    @for (card of lmStudioChatModels(); track card.id) {
+                      <button
+                        type="button"
+                        class="provider-picker__row"
+                        role="option"
+                        [class.is-active]="isLmStudioActive(card)"
+                        [class.is-focused]="lmStudioCanManage() && focusedLmStudioCard()?.id === card.id"
+                        [attr.aria-selected]="lmStudioCanManage() ? focusedLmStudioCard()?.id === card.id : isLmStudioActive(card)"
+                        (click)="focusLmStudioModel(card)"
+                      >
+                        <span
+                          class="provider-picker__dot"
+                          [class.is-on]="lmStudioCardLoaded(card)"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="provider-picker__row-info">
+                          <span class="provider-picker__row-name">{{ lmStudioCardName(card) }}</span>
+                          @if (lmStudioCardMeta(card); as meta) {
+                            <span class="provider-picker__row-meta">{{ meta }}</span>
+                          }
+                        </span>
+                        <span class="provider-picker__row-status">
+                          @if (isLmStudioActive(card) && (!lmStudioCanManage() || lmStudioCardLoaded(card))) {
+                            <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                          } @else if (isLmStudioActive(card)) {
+                            <span class="provider-picker__pill provider-picker__pill--active-off">Active · Off</span>
+                          } @else if (lmStudioCardLoaded(card)) {
+                            <span class="provider-picker__pill provider-picker__pill--running">Loaded</span>
+                          } @else {
+                            <span class="provider-picker__status-text">On disk</span>
+                          }
+                        </span>
+                      </button>
+                    }
+                  </div>
+                  @if (lmStudioActionError()) {
+                    <div class="provider-picker__error-strip" role="alert">
+                      <span class="provider-picker__error-text">An error occurred communicating with LM Studio.</span>
+                      <div class="provider-picker__error-actions">
+                        <button
+                          type="button"
+                          class="provider-picker__health-link"
+                          (click)="openHealthWindow()"
+                        >Open Health ↗</button>
+                        <button
+                          type="button"
+                          class="provider-picker__error-dismiss"
+                          aria-label="Dismiss error"
+                          (click)="lmStudioActionError.set(false)"
+                        >&times;</button>
+                      </div>
+                    </div>
+                  }
+                  @if (lmStudioCanManage() && focusedLmStudioCard(); as card) {
+                    <div class="provider-picker__footer">
+                      <div class="provider-picker__footer-target">
+                        <span class="provider-picker__footer-name">{{ lmStudioCardName(card) }}</span>
+                        <span class="provider-picker__footer-hint">
+                          @if (lmStudioBusyIds()[card.id]) {
+                            Working…
+                          } @else if (lmStudioCardLoaded(card)) {
+                            {{ isLmStudioActive(card) ? 'Active model' : 'Loaded in LM Studio' }}
+                          } @else {
+                            {{ isLmStudioActive(card) ? 'Selected (unloaded)' : 'Available to load' }}
+                          }
+                        </span>
+                      </div>
+                      <div class="provider-picker__footer-actions">
+                        @if (lmStudioCardLoaded(card)) {
+                          @if (!isLmStudioActive(card)) {
+                            <button
+                              type="button"
+                              class="provider-picker__btn provider-picker__btn--primary"
+                              [disabled]="lmStudioBusyIds()[card.id] || switchingModel()"
+                              (click)="switchToLmStudioModel(card)"
+                            >Switch</button>
+                          }
+                          @if (card.instanceId) {
+                            <button
+                              type="button"
+                              class="provider-picker__btn provider-picker__btn--danger"
+                              [disabled]="lmStudioBusyIds()[card.id]"
+                              (click)="unloadLmStudio(card)"
+                            >Unload</button>
+                          }
+                        } @else if (isLmStudioActive(card)) {
+                          <button
+                            type="button"
+                            class="provider-picker__btn provider-picker__btn--primary"
+                            [disabled]="lmStudioBusyIds()[card.id]"
+                            (click)="loadLmStudio(card, false)"
+                          >Load</button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="provider-picker__btn"
+                            [disabled]="lmStudioBusyIds()[card.id]"
+                            (click)="loadLmStudio(card, false)"
+                          >Load</button>
+                          <button
+                            type="button"
+                            class="provider-picker__btn provider-picker__btn--primary"
+                            [disabled]="lmStudioBusyIds()[card.id] || switchingModel()"
+                            (click)="loadLmStudio(card, true)"
+                          >Load &amp; Switch</button>
+                        }
+                      </div>
+                    </div>
+                  }
+                }
+              }
+
+              <!-- Claude (Anthropic) pane -->
+              @else if (item.kind === 'anthropic') {
+                @if (!anthropic.configured()) {
+                  <div class="provider-picker__empty">
+                    <p>Add a Claude API key in Settings to select models.</p>
+                    <button type="button" class="provider-picker__btn" (click)="openSettingsSources()">
+                      Configure in Settings ↗
+                    </button>
+                  </div>
+                } @else if (anthropic.loading() && claudeRows().length === 0) {
+                  <div class="provider-picker__empty"><p>Loading Claude models…</p></div>
+                } @else {
+                  <div class="provider-picker__list" role="listbox" aria-label="Claude models">
+                    @for (row of claudeRows(); track row.id) {
+                      <button
+                        type="button"
+                        class="provider-picker__row"
+                        role="option"
+                        [class.is-active]="row.active"
+                        [attr.aria-selected]="row.active"
+                        [disabled]="switchingModel()"
+                        (click)="pickClaudeModel(row.id)"
+                      >
+                        <span class="provider-picker__dot is-on" aria-hidden="true"></span>
+                        <span class="provider-picker__row-info">
+                          <span class="provider-picker__row-name">{{ row.label }}</span>
+                          @if (row.meta) {
+                            <span class="provider-picker__row-meta">{{ row.meta }}</span>
+                          }
+                        </span>
+                        <span class="provider-picker__row-status">
+                          @if (row.active) {
+                            <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                          }
+                        </span>
+                      </button>
+                    }
+                  </div>
+                  @if (anthropic.error()) {
+                    <div class="provider-picker__error-strip" role="alert">
+                      <span class="provider-picker__error-text" [title]="anthropic.error()">{{ anthropic.error() }}</span>
+                      <div class="provider-picker__error-actions">
+                        <button
+                          type="button"
+                          class="provider-picker__health-link"
+                          (click)="openHealthWindow()"
+                        >Open Health ↗</button>
+                      </div>
+                    </div>
+                  }
+                }
+              }
+
+              <!-- OpenRouter pane -->
+              @else if (item.kind === 'openrouter') {
+                @if (openRouterError() && openRouterModels().length === 0) {
+                  <div class="provider-picker__empty">
+                    <p>{{ openRouterError() }}</p>
+                    <button type="button" class="provider-picker__btn" (click)="openSettingsSources()">
+                      Configure in Settings ↗
+                    </button>
+                  </div>
+                } @else {
+                  <div class="provider-picker__search-bar">
+                    <input
+                      type="search"
+                      class="provider-picker__search-input"
+                      placeholder="Search OpenRouter models…"
+                      aria-label="Search OpenRouter models"
+                      [value]="openRouterQuery()"
+                      (input)="onOpenRouterQueryInput($event)"
+                    />
+                    <button
+                      type="button"
+                      class="provider-picker__filter-pill"
+                      [class.is-on]="openRouterRecentOnly()"
+                      [attr.aria-pressed]="openRouterRecentOnly()"
+                      (click)="toggleOpenRouterFilter('recent')"
+                    >Recent</button>
+                    <button
+                      type="button"
+                      class="provider-picker__filter-pill"
+                      [class.is-on]="openRouterFreeOnly()"
+                      [attr.aria-pressed]="openRouterFreeOnly()"
+                      (click)="toggleOpenRouterFilter('free')"
+                    >Free</button>
+                    <button
+                      type="button"
+                      class="provider-picker__filter-pill"
+                      [class.is-on]="openRouterReasoningOnly()"
+                      [attr.aria-pressed]="openRouterReasoningOnly()"
+                      (click)="toggleOpenRouterFilter('reasoning')"
+                    >Reasoning</button>
+                  </div>
+                  @if (openRouterLoading() && openRouterModels().length === 0) {
+                    <div class="provider-picker__empty"><p>Loading OpenRouter catalog…</p></div>
+                  } @else {
+                    <div class="provider-picker__list" role="listbox" aria-label="OpenRouter models">
+                      @if (openRouterCustomId(); as customId) {
+                        <button
+                          type="button"
+                          class="provider-picker__row"
+                          role="option"
+                          [class.is-active]="isOpenRouterActive(customId)"
+                          [attr.aria-selected]="isOpenRouterActive(customId)"
+                          [disabled]="switchingModel()"
+                          (click)="pickOpenRouterCustomId(customId)"
+                        >
+                          <span class="provider-picker__dot is-on" aria-hidden="true"></span>
+                          <span class="provider-picker__row-info">
+                            <span class="provider-picker__row-name">Use "{{ customId }}"</span>
+                            <span class="provider-picker__row-meta">Custom OpenRouter model id</span>
+                          </span>
+                        </button>
+                      }
+                      @for (model of openRouterVisible(); track model.id) {
+                        <button
+                          type="button"
+                          class="provider-picker__row"
+                          role="option"
+                          [class.is-active]="isOpenRouterActive(model.id)"
+                          [attr.aria-selected]="isOpenRouterActive(model.id)"
+                          [disabled]="switchingModel()"
+                          (click)="pickOpenRouterModel(model)"
+                        >
+                          <span class="provider-picker__dot is-on" aria-hidden="true"></span>
+                          <span class="provider-picker__row-info">
+                            <span class="provider-picker__row-name">{{ model.id }}</span>
+                            @if (openRouterMeta(model); as meta) {
+                              <span class="provider-picker__row-meta">{{ meta }}</span>
+                            }
+                          </span>
+                          <span class="provider-picker__row-status">
+                            @if (isOpenRouterActive(model.id)) {
+                              <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                            }
+                          </span>
+                        </button>
+                      } @empty {
+                        @if (!openRouterCustomId()) {
+                          <div class="provider-picker__empty">
+                            <p>{{ openRouterEmptyMessage() }}</p>
+                          </div>
+                        }
+                      }
+                      @if (openRouterFiltered().length > openRouterVisible().length) {
+                        <button
+                          type="button"
+                          class="provider-picker__show-more"
+                          (click)="showMoreOpenRouter()"
+                        >Show more ({{ openRouterFiltered().length - openRouterVisible().length }} remaining)</button>
+                      }
+                    </div>
+                  }
+                }
+              }
+
+              <!-- Custom OpenAI / Remote llama-server URL pane -->
+              @else {
+                @if (customEndpointState(item.id)?.loading && customRows().length === 0) {
+                  <div class="provider-picker__empty"><p>Loading models…</p></div>
+                } @else if (customRows().length === 0) {
+                  <div class="provider-picker__empty">
+                    <p>{{ customEndpointState(item.id)?.error || 'No models available on this endpoint.' }}</p>
+                    <button type="button" class="provider-picker__btn" (click)="openSettingsSources()">
+                      Configure in Settings ↗
+                    </button>
+                  </div>
+                } @else {
+                  <div class="provider-picker__list" role="listbox" [attr.aria-label]="item.label + ' models'">
+                    @for (row of customRows(); track row.id) {
+                      <button
+                        type="button"
+                        class="provider-picker__row"
+                        role="option"
+                        [class.is-active]="row.active"
+                        [attr.aria-selected]="row.active"
+                        [disabled]="switchingModel()"
+                        (click)="pickCustomModel(row.id, row.contextLength)"
+                      >
+                        <span
+                          class="provider-picker__dot"
+                          [class.is-on]="railDotState(item) === 'on'"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="provider-picker__row-info">
+                          <span class="provider-picker__row-name">{{ row.id }}</span>
+                          @if (row.meta) {
+                            <span class="provider-picker__row-meta">{{ row.meta }}</span>
+                          }
+                        </span>
+                        <span class="provider-picker__row-status">
+                          @if (row.active) {
+                            <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                          }
+                        </span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}
