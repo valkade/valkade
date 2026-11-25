@@ -31,7 +31,7 @@ import {
   clearPrimaryStreamParts,
   promotePrimaryToNudgeParts,
   findManagedLocalLlamaLocation,
-  isClaraOuterBriefStreamTag,
+  isValkOuterBriefStreamTag,
   isInFlightToolPart,
   primaryAssistantTextFromParts,
   shouldIgnoreWhitespaceOnlyModelChunkDuringTool,
@@ -65,7 +65,7 @@ import {
   appendStreamPart,
   markToolExecStreamComplete,
   mergeHitlTrailIntoLiveStreamParts,
-  upsertClaraOuterBriefStreamPart,
+  upsertValkOuterBriefStreamPart,
   upsertToolTrailStatusStreamPart,
   openRunCommandLane,
 } from './app-stream-parts';
@@ -474,8 +474,8 @@ export class ConversationSessionService {
         });
         return;
       }
-      if (isClaraOuterBriefStreamTag(status.streamTag)) {
-        this.streamingParts.update((prev) => upsertClaraOuterBriefStreamPart(prev, status));
+      if (isValkOuterBriefStreamTag(status.streamTag)) {
+        this.streamingParts.update((prev) => upsertValkOuterBriefStreamPart(prev, status));
         return;
       }
       this.upsertChainMessage(status);

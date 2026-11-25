@@ -22,7 +22,7 @@ import logging
 from collections import deque
 from typing import Any
 
-logger = logging.getLogger('clara.agent.subagent_bus')
+logger = logging.getLogger('valkade.agent.subagent_bus')
 
 #: Events kept for the next subscriber while none is connected.
 BUS_BUFFER_MAX = 5_000

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-logger = logging.getLogger('clara.lsp.manager')
+logger = logging.getLogger('valkade.lsp.manager')
 
 __all__ = ['build_python_lsp_command']
 
@@ -118,7 +118,7 @@ def build_python_lsp_command(workspace_root: Path) -> list[str]:
     backend_python = Path(sys.executable)
     cmd = _resolve_basedpyright_command_for_interpreter(backend_python)
     if cmd is not None:
-        logger.info('python LSP command clara-backend workspace=%s command=%s', workspace_root, cmd)
+        logger.info('python LSP command valkade-backend workspace=%s command=%s', workspace_root, cmd)
         return cmd
 
     raise RuntimeError(

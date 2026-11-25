@@ -30,7 +30,7 @@ from typing import Any
 
 from valkade_backend.lsp.java_project_root import JavaProjectLayout
 
-logger = logging.getLogger('clara.lsp.java_loose_folder')
+logger = logging.getLogger('valkade.lsp.java_loose_folder')
 
 __all__ = [
     'LooseJavaConfig',

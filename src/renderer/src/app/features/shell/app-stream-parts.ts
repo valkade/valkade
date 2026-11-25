@@ -1,9 +1,9 @@
 import type { HitlTrailArtifact, LlmStatus, StreamPart } from '@shared/index';
 import {
-  CLARA_OUTER_BRIEF_STREAM_TAG,
+  VALK_OUTER_BRIEF_STREAM_TAG,
   clearPrimaryStreamParts,
   mergeHitlTrailIntoAuxiliaryTimeline,
-  isClaraOuterBriefStreamTag,
+  isValkOuterBriefStreamTag,
   isReasoningAuxiliaryStreamTag,
   isRunCommandStreamTag,
   isShellStyleToolStreamTag,
@@ -142,24 +142,24 @@ export function mergeToolTrailStatusText(
   return `${headline}${previewBody}`;
 }
 
-/** Fold a Clara outer-brief status row into the multiplex timeline (source is `agent`, not `tool`). */
-export function upsertClaraOuterBriefStreamPart(
+/** Fold a Valk outer-brief status row into the multiplex timeline (source is `agent`, not `tool`). */
+export function upsertValkOuterBriefStreamPart(
   parts: StreamPart[],
   status: LlmStatus,
   now = Date.now(),
 ): StreamPart[] {
-  if (!isClaraOuterBriefStreamTag(status.streamTag)) {
+  if (!isValkOuterBriefStreamTag(status.streamTag)) {
     return parts;
   }
   const text = (status.detail ?? '').trim();
   if (!text) {
     return parts;
   }
-  if (parts.some((p) => isClaraOuterBriefStreamTag(p.streamTag) && p.text.includes(text))) {
+  if (parts.some((p) => isValkOuterBriefStreamTag(p.streamTag) && p.text.includes(text))) {
     return parts;
   }
   const last = parts[parts.length - 1];
-  if (last && isClaraOuterBriefStreamTag(last.streamTag)) {
+  if (last && isValkOuterBriefStreamTag(last.streamTag)) {
     const next = [...parts];
     next[next.length - 1] = {
       ...last,
@@ -170,7 +170,7 @@ export function upsertClaraOuterBriefStreamPart(
   return [
     ...closeOpenThought(parts, now),
     {
-      streamTag: CLARA_OUTER_BRIEF_STREAM_TAG,
+      streamTag: VALK_OUTER_BRIEF_STREAM_TAG,
       label: status.label || 'Valk',
       text,
     },
@@ -185,7 +185,7 @@ export function upsertToolTrailStatusStreamPart(
 ): StreamPart[] {
   const src = (status.source ?? 'agent').toLowerCase();
   if (src !== 'tool') {
-    return upsertClaraOuterBriefStreamPart(parts, status, now);
+    return upsertValkOuterBriefStreamPart(parts, status, now);
   }
   const streamTag = toolTrailStatusStreamTag(status.id);
   const next = [...parts];

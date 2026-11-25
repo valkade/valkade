@@ -18,7 +18,7 @@ from pathlib import Path
 from valkade_backend.runtime.deps import cancel as deps_cancel
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.jdtls_product')
+logger = logging.getLogger('valkade.runtime.deps.jdtls_product')
 
 __all__ = [
     'DEFAULT_JDTLS_MILESTONE',

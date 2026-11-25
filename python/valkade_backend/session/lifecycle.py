@@ -8,7 +8,7 @@ from valkade_backend.domain import SessionState
 from valkade_backend.session.checkpointing import delete_outer_threads_for_session
 from valkade_backend.workspace_index.lifecycle import invalidate_staging_index_disk
 
-logger = logging.getLogger('clara.session.lifecycle')
+logger = logging.getLogger('valkade.session.lifecycle')
 
 
 def clear_session_hitl_fields(sess: SessionState) -> None:

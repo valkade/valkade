@@ -3,7 +3,7 @@
  * backed by the main-process browser bridge (`npm run dev:bridge`), so the full app can be driven
  * from a test browser. The API object is built from the same preload factories as Electron's.
  *
- * The `<port>.<token>` pair arrives once in the `claraBridge` query parameter, is removed from the
+ * The `<port>.<token>` pair arrives once in the `valkadeBridge` query parameter, is removed from the
  * address bar immediately, and is kept in sessionStorage so reloads of this tab stay connected.
  *
  * A tab on `#/settings`, `#/dependencies`, `#/health` or `#/updater` acts as that satellite window: loading it
@@ -38,7 +38,7 @@ import { createWorkspaceApi } from '../../../../../preload/apis/workspace-api';
 import type { PreloadIpc } from '../../../../../preload/preload-ipc';
 import { markBrowserBridgeTab } from './bridge-tab';
 
-const STORAGE_KEY = 'clara.browserBridge';
+const STORAGE_KEY = 'valkade.browserBridge';
 const RECONNECT_MIN_MS = 500;
 /** Short enough that a tab is back soon after an electronmon restart. */
 const RECONNECT_MAX_MS = 5_000;
@@ -135,11 +135,11 @@ function writeStoredParam(value: string | null): void {
 
 /** Dev-only banner over the app; the tab is unusable until reopened with a fresh token. */
 function showBridgeNotice(message: string): void {
-  if (document.getElementById('clara-bridge-notice')) {
+  if (document.getElementById('valkade-bridge-notice')) {
     return;
   }
   const notice = document.createElement('div');
-  notice.id = 'clara-bridge-notice';
+  notice.id = 'valkade-bridge-notice';
   notice.setAttribute('role', 'alert');
   notice.textContent = message;
   Object.assign(notice.style, {

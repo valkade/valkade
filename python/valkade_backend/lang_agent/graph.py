@@ -85,7 +85,7 @@ from valkade_backend.session.state import (
 )
 from valkade_backend.hitl.tool_registry import worker_tools_and_map
 
-logger = logging.getLogger('clara.agent.langgraph')
+logger = logging.getLogger('valkade.agent.langgraph')
 
 #: The answer of a turn that ran out of graph steps. Its finished steps stay; the next turn goes on from them.
 _STEP_LIMIT_TEXT = 'Stopped: this turn reached the step limit. Send a message to continue from here.'
@@ -123,7 +123,7 @@ def _stream_is_genuinely_stalled(session: SessionState, main_state: GraphStreamS
     return True
 
 
-def build_clara_single_outer_graph(
+def build_valkade_single_outer_graph(
     llm: Any,
     session: SessionState,
     apply_mode: bool,
@@ -195,7 +195,7 @@ def _default_outer_graph_builder(
     apply_mode: bool,
     extra_middleware: list[Any] | None,
 ) -> Any:
-    return build_clara_single_outer_graph(llm, session, apply_mode, extra_middleware=extra_middleware)
+    return build_valkade_single_outer_graph(llm, session, apply_mode, extra_middleware=extra_middleware)
 
 
 def _chat_outer_graph_builder(
@@ -209,7 +209,7 @@ def _chat_outer_graph_builder(
     Other callers of :func:`_default_outer_graph_builder` run without sub-agents, so the flag cannot
     live there (plan mode has its own builders).
     """
-    return build_clara_single_outer_graph(
+    return build_valkade_single_outer_graph(
         llm, session, apply_mode, extra_middleware=extra_middleware, allow_subagents=True
     )
 

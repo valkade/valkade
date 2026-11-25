@@ -298,7 +298,7 @@ def test_install_recreates_venv_when_base_interpreter_gone(
     stub.write_text('', encoding='utf-8')
     gone = tmp_path / 'gone-runtime-python'
     (venv / 'pyvenv.cfg').write_text(f'home = {gone}\n', encoding='utf-8')
-    (venv / '.clara-ready').write_text('3.12.11\n', encoding='utf-8')
+    (venv / '.valkade-ready').write_text('3.12.11\n', encoding='utf-8')
 
     durable = _fake_base_home(tmp_path) / ('python.exe' if sys.platform.startswith('win') else 'python3')
 

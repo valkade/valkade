@@ -17,7 +17,7 @@ from valkade_backend.session.schemas import SuggestConversationTitleRequest
 from valkade_backend.session.state import get_session
 from valkade_backend.tools.workspace import truncate_text
 
-logger = logging.getLogger('clara.title')
+logger = logging.getLogger('valkade.title')
 
 router = APIRouter()
 

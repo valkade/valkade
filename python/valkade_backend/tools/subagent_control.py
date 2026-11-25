@@ -26,7 +26,7 @@ from valkade_backend.session import state
 from valkade_backend.session.state import current_session_id
 from valkade_backend.tools.tool_conventions import describe, tool_output_cap
 
-logger = logging.getLogger('clara.tools.subagent_control')
+logger = logging.getLogger('valkade.tools.subagent_control')
 
 WAIT_FOR_SUBAGENTS_NAME = 'wait_for_subagents'
 STOP_SUBAGENT_NAME = 'stop_subagent'

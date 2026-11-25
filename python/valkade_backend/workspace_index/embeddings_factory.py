@@ -16,7 +16,7 @@ from valkade_backend.workspace_index.fastembed_backend import (
     fastembed_cache_dir,
 )
 
-logger = logging.getLogger('clara.workspace_index.embeddings')
+logger = logging.getLogger('valkade.workspace_index.embeddings')
 
 _CHAT_EMBEDDING_PROVIDERS = frozenset({'openai', 'lmstudio', 'llamacpp', 'openai-compatible', 'openrouter'})
 _logged_backend_choice: set[str] = set()
@@ -138,5 +138,5 @@ def preload_embedding_model(connection: RuntimeConnection) -> None:
                 if _preload_in_flight == key:
                     _preload_in_flight = None
 
-    t = threading.Thread(target=_load, name='clara-preload-embeddings', daemon=True)
+    t = threading.Thread(target=_load, name='valkade-preload-embeddings', daemon=True)
     t.start()

@@ -1,7 +1,7 @@
 """A Claude thread only grows: what each request sends starts with everything the previous one sent.
 
 Claude's preserved thinking binds each thinking block to the system prompt, the tools and every message before
-it. These run ``graph.py``'s real graph and ``ClaraChatAnthropic`` against a fake Messages API (only the
+it. These run ``graph.py``'s real graph and ``ValkAdeChatAnthropic`` against a fake Messages API (only the
 transport is fake) and check the bodies on the wire, the way the API checks them: the system prompt and the
 tool set unchanged, and every earlier message unchanged, thinking blocks included.
 """
@@ -30,7 +30,7 @@ from valkade_backend.domain import (
     SessionState,
 )
 from valkade_backend.lang_agent import graph as graph_module
-from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+from valkade_backend.lang_agent.graph import build_valkade_single_outer_graph
 from valkade_backend.llm import anthropic_llm
 from valkade_backend.llm.anthropic_llm import (
     COMPACTION_BETA,
@@ -230,7 +230,7 @@ def use_server(monkeypatch: pytest.MonkeyPatch, server: FakeClaude) -> None:
 def claude_graph(sess: SessionState, tools: Callable[..., Any]) -> Any:
     connection = runtime_config.connections[0]
     llm = build_anthropic_llm(connection, idle_timeout_sec=60)
-    return build_clara_single_outer_graph(llm, sess, True, tools_provider=tools)
+    return build_valkade_single_outer_graph(llm, sess, True, tools_provider=tools)
 
 
 def user_turn(body: str) -> HumanMessage:

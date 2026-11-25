@@ -37,7 +37,7 @@ describe('applyAppFontOverrides UI font', () => {
 
   it('borrows narrow quotes for a font that draws them a full em wide', () => {
     stubQuoteWidths({ '"Microsoft Tai Le", sans-serif': 100 });
-    expect(apply('"Microsoft Tai Le", sans-serif')).toBe('"Clara Narrow Quotes", "Microsoft Tai Le", sans-serif');
+    expect(apply('"Microsoft Tai Le", sans-serif')).toBe('"ValkAde Narrow Quotes", "Microsoft Tai Le", sans-serif');
   });
 
   it('keeps a proportional font as chosen', () => {

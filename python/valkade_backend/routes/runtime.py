@@ -38,7 +38,7 @@ from valkade_backend.session.schemas import (
 )
 from valkade_backend.workspace.workspace_text_io import validate_workspace_encoding
 from valkade_backend.session import state
-logger = logging.getLogger('clara.http.routes')
+logger = logging.getLogger('valkade.http.routes')
 
 router = APIRouter()
 

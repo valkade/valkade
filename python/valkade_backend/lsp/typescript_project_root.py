@@ -15,7 +15,7 @@ from valkade_backend.workspace.npm_detection import (
     package_json_declares_typescript as _package_json_declares_typescript,
 )
 
-logger = logging.getLogger('clara.lsp.typescript_project_root')
+logger = logging.getLogger('valkade.lsp.typescript_project_root')
 
 __all__ = [
     'package_node_modules_link_rels',

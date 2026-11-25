@@ -22,7 +22,7 @@ from valkade_backend.llm.gemma_output import (
 )
 from valkade_backend.llm.messages import reasoning_sidecar_text, stringify_content
 
-logger = logging.getLogger('clara.agent.langgraph')
+logger = logging.getLogger('valkade.agent.langgraph')
 
 
 def _gemma_native_tools_active() -> bool:

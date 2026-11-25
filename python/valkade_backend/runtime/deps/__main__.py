@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     raw_log = env_clara('CLARA_LOG_DIR', '').strip()
     configure_logging(Path(raw_log) if raw_log else None)
 
-    parser = argparse.ArgumentParser(prog='clara-deps')
+    parser = argparse.ArgumentParser(prog='valkade-deps')
     parser.add_argument('action', choices=('list', 'install', 'reinstall', 'delete', 'status', 'cleanup'))
     parser.add_argument('dep_id', nargs='?', default=None)
     parser.add_argument(

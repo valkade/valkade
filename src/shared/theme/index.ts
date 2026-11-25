@@ -47,7 +47,9 @@ export {
   THEME_TOKENS,
   THEME_TOKEN_CATEGORIES,
   THEME_TOKEN_NAMES,
+  canonicalThemeTokenName,
   isThemeTokenName,
+  migrateLegacyThemeCss,
   themeTokenDef,
   themeTokensInCategory,
 } from './theme-tokens';

@@ -64,7 +64,7 @@ from valkade_backend.workspace.workspace_text_io import (
     write_file_resolved,
 )
 
-logger = logging.getLogger('clara.tools.edit')
+logger = logging.getLogger('valkade.tools.edit')
 
 WRITE_WORKSPACE_FILE_NAME = 'write_workspace_file'
 REPLACE_WORKSPACE_LINES_NAME = 'replace_workspace_lines'

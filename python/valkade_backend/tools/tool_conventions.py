@@ -10,7 +10,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 _F = TypeVar("_F", bound=Callable[..., Any])
-_guard_logger = logging.getLogger("clara.tools")
+_guard_logger = logging.getLogger("valkade.tools")
 
 # Fragments (no trailing period): ``describe()`` adds sentence punctuation, so compose freely.
 ENCODING_NEWLINE = "`encoding` empty → Settings default; `newline` lf|crlf|preserve (match existing)"

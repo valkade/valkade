@@ -14,7 +14,7 @@ from typing_extensions import override
 
 from valkade_backend.llm.messages import extract_pseudo_tool_calls, final_assistant_text
 
-logger = logging.getLogger('clara.agent.langgraph')
+logger = logging.getLogger('valkade.agent.langgraph')
 
 
 class PseudoToolXmlMiddleware(AgentMiddleware):

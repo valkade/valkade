@@ -28,7 +28,7 @@ from valkade_backend.workspace_index.thread_priority import (
     python_thread_ids,
 )
 
-logger = logging.getLogger('clara.workspace_index.fastembed')
+logger = logging.getLogger('valkade.workspace_index.fastembed')
 
 _NOMIC_QUERY_PREFIX = 'search_query: '
 _NOMIC_DOC_PREFIX = 'search_document: '
@@ -219,7 +219,7 @@ def _ensure_idle_reaper() -> None:
     global _reaper
     if CLARA_FASTEMBED_IDLE_UNLOAD_SEC <= 0 or (_reaper is not None and _reaper.is_alive()):
         return
-    _reaper = threading.Thread(target=_idle_reaper_loop, name='clara-fastembed-idle-unload', daemon=True)
+    _reaper = threading.Thread(target=_idle_reaper_loop, name='valkade-fastembed-idle-unload', daemon=True)
     _reaper.start()
 
 

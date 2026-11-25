@@ -14,7 +14,7 @@ from valkade_backend.config import CLARA_COMMAND_RISK_ASSESS_TIMEOUT_SEC
 from valkade_backend.llm.factory import build_llm
 from valkade_backend.session.state import get_active_connection
 
-logger = logging.getLogger('clara.command_risk_assess')
+logger = logging.getLogger('valkade.command_risk_assess')
 
 
 class CommandRiskAssessment(BaseModel):

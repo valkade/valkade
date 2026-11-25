@@ -16,7 +16,7 @@ from typing import Any, Literal
 from valkade_backend.domain import SessionEditJournalState, SessionState, TurnVerifyState
 from valkade_backend.workspace.workspace_text_io import decode_for_tools, detect_newline_preference
 
-logger = logging.getLogger('clara.session.file_journal')
+logger = logging.getLogger('valkade.session.file_journal')
 
 FILE_JOURNAL_MAX_CHARS = 2_000_000
 #: Directory deletes above these caps cannot be restored, so they still ask the user first.

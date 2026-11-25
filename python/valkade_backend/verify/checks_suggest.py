@@ -15,7 +15,7 @@ from valkade_backend.workspace.meta import migrate_legacy_workspace_meta_dir
 
 __all__ = ['ensure_workspace_checks_file', 'suggest_workspace_checks']
 
-logger = logging.getLogger('clara.verify.checks')
+logger = logging.getLogger('valkade.verify.checks')
 
 _MAX_SUGGESTIONS = 8
 #: package.json scripts worth offering, in the order they should run (cheapest first).

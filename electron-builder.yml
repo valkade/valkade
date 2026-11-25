@@ -110,7 +110,7 @@ linux:
   # Multi-size hicolor PNGs (build/icons/NxN.png) so DEs render the launcher icon.
   icon: build/icons
   # Required by fpm for .deb.
-  maintainer: ValkAde <dev@valkade.dev>
+  maintainer: ValkAde <dev@valkade.ai>
   syncDesktopName: true
   artifactName: ValkAde-${version}-Linux-${arch}.${ext}
 

@@ -29,6 +29,8 @@
  *   outside `valkade-theme:` (or legacy `clara-theme:`) / `data:image/` / `data:font/` are removed.
  */
 
+import { migrateLegacyThemeCss } from './theme-tokens';
+
 export interface ThemeCssScopeResult {
   css: string;
   warnings: string[];
@@ -516,7 +518,7 @@ export function scopeThemeCss(css: string, scope: string): ThemeCssScopeResult {
     warnings.push(`CSS truncated to ${THEME_GROUP_CSS_MAX_CHARS} characters`);
     source = source.slice(0, THEME_GROUP_CSS_MAX_CHARS);
   }
-  const cleaned = stripCssComments(source);
+  const cleaned = migrateLegacyThemeCss(stripCssComments(source));
   const global: string[] = [];
   const scoped = processBlock(cleaned, scope, warnings, global, []);
   const parts = [...global];

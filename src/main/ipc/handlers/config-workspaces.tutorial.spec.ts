@@ -25,7 +25,7 @@ vi.mock('electron', () => ({
   },
 }));
 vi.mock('../../state', () => ({ mainState: state }));
-vi.mock('../../paths', () => ({ getConfigPath: () => `${process.env.CLARA_TEST_CONFIG_DIR}/config.json` }));
+vi.mock('../../paths', () => ({ getConfigPath: () => `${process.env.VALKADE_TEST_CONFIG_DIR}/config.json` }));
 vi.mock('../../llama-server-manager', () => ({ getLlamaManagedRuntimeOverrides: vi.fn() }));
 vi.mock('../../python/workspace-sync', () => ({}));
 vi.mock('../../runtime/user-path', () => ({}));
@@ -67,8 +67,8 @@ describe('tutorial cross-window IPC', () => {
     vi.resetModules();
     handlers.clear();
     appHandlers.clear();
-    dir = mkdtempSync(join(tmpdir(), 'clara-tutorial-ipc-'));
-    process.env.CLARA_TEST_CONFIG_DIR = dir;
+    dir = mkdtempSync(join(tmpdir(), 'valkade-tutorial-ipc-'));
+    process.env.VALKADE_TEST_CONFIG_DIR = dir;
     home = new FakeContents(1);
     settings = new FakeContents(2);
     dependencies = new FakeContents(3);
@@ -82,7 +82,7 @@ describe('tutorial cross-window IPC', () => {
   });
 
   afterEach(() => {
-    delete process.env.CLARA_TEST_CONFIG_DIR;
+    delete process.env.VALKADE_TEST_CONFIG_DIR;
     rmSync(dir, { recursive: true, force: true });
   });
 

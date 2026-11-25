@@ -21,7 +21,7 @@ _MAX_BOOTSTRAP_OUTPUT_CHARS = 80_000
 _PROCESS_PATH_LOCK = threading.RLock()
 _ACTIVE_PROCESS_PYTHON_BIN_PATH = ''
 
-logger = logging.getLogger('clara.python_env')
+logger = logging.getLogger('valkade.python_env')
 
 # Cap retained bytes from subprocess stdout when streaming or buffering (avoid OOM on huge CI logs).
 _MAX_SUBPROCESS_CAPTURE_BYTES = 2 * 1024 * 1024

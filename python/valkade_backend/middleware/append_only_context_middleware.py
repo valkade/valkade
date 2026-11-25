@@ -48,7 +48,7 @@ from valkade_backend.llm.anthropic_llm import (
 from valkade_backend.middleware.user_event_injection_middleware import with_messages_before
 from valkade_backend.session.state import get_active_connection
 
-logger = logging.getLogger('clara.middleware.append_only')
+logger = logging.getLogger('valkade.middleware.append_only')
 
 STATE_KEY = 'append_only_context'
 _SYSTEM_CHANGE_LEAD = (

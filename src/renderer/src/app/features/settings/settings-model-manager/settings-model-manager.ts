@@ -291,7 +291,7 @@ export class SettingsModelManager {
   });
 
   /** The preview is opt-in to this exact tutorial step and never starts a model download. */
-  @HostListener('window:clara-tutorial-step', ['$event'])
+  @HostListener('window:valkade-tutorial-step', ['$event'])
   protected onTutorialStep(event: Event): void {
     const detail = (event as CustomEvent<{ phaseId?: string; stepId?: string }>).detail;
     if (

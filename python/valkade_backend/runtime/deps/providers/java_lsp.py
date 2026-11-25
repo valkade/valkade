@@ -15,7 +15,7 @@ from valkade_backend.runtime.deps.jdtls_product import (
 from valkade_backend.runtime.deps.paths import get_runtime_dir, get_runtime_java_lsp_dir
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.java_lsp')
+logger = logging.getLogger('valkade.runtime.deps.java_lsp')
 
 DEP_ID = 'java-lsp'
 SIZE_HINT = '~50–80 MB'

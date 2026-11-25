@@ -23,7 +23,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-logger = logging.getLogger('clara.lsp.java_server')
+logger = logging.getLogger('valkade.lsp.java_server')
 
 __all__ = [
     'DEFAULT_JDTLS_MILESTONE',

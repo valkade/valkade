@@ -7,8 +7,8 @@ on the filled rounded tile; the etch asset is the white silhouette used as a CSS
 
 Preview mode (default) writes 16/32/64/256px PNGs, a 256px etch mask and a contact sheet
 (real-size and 4x-zoomed icons on dark and light backgrounds) into --out-dir.
---apply overwrites build/icon.*, build/icons/, and the renderer's app-icon / etch / favicon,
-exactly as scripts/render_clara_coder_icon.py does.
+--apply overwrites build/icon.*, build/icons/, and the renderer's app-icon / etch / favicon;
+`npm run render:icon` applies the shipped concept and palette.
 
 Run from repo root:
   python scripts/render_valkade_icon.py --concept a

@@ -669,8 +669,8 @@ def test_status_reports_missing_when_thin_binary_lacks_libs(
     bin_dir.mkdir()
     bin_path = bin_dir / 'llama-server'
     bin_path.write_bytes(b'x' * 17_944)
-    (bin_dir / '.clara-ready').write_text('b10262\n', encoding='utf-8')
-    (bin_dir / '.clara-llama-variant').write_text('cuda-compiled\n', encoding='utf-8')
+    (bin_dir / '.valkade-ready').write_text('b10262\n', encoding='utf-8')
+    (bin_dir / '.valkade-llama-variant').write_text('cuda-compiled\n', encoding='utf-8')
     monkeypatch.setattr(ls, 'llama_server_binary', lambda: bin_path)
     monkeypatch.setattr(ls, 'get_runtime_bin_dir', lambda: bin_dir)
     st = ls.status()
@@ -690,7 +690,7 @@ def _installed_build(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, marker: st
     bin_path = bin_dir / 'llama-server.exe'
     bin_path.write_bytes(b'x')
     if marker is not None:
-        (bin_dir / '.clara-ready').write_text(marker + '\n', encoding='utf-8')
+        (bin_dir / '.valkade-ready').write_text(marker + '\n', encoding='utf-8')
     monkeypatch.setattr(ls, 'llama_server_binary', lambda: bin_path)
     monkeypatch.setattr(ls, 'get_runtime_bin_dir', lambda: bin_dir)
     monkeypatch.setattr(ls, '_pinned_tag', lambda: 'b12182')

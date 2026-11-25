@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Annotated
 
-logger = logging.getLogger('clara.tools.workspace')
+logger = logging.getLogger('valkade.tools.workspace')
 
 from langchain_core.tools import tool
 

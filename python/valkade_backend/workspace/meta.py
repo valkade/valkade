@@ -23,7 +23,7 @@ CHECKS_RELATIVE_PATH = f'{WORKSPACE_META_DIR}/{CHECKS_FILENAME}'
 
 _BUILD_PLANS_PREFIX = f'{BUILD_PLANS_REL_DIR}/'
 
-logger = logging.getLogger('clara.workspace.meta')
+logger = logging.getLogger('valkade.workspace.meta')
 
 
 #: Why a file tool refused (no ``Tool error:`` prefix and no final stop; each tool adds its own).

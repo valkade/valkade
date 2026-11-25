@@ -48,7 +48,7 @@ export const VALKADE_DARK_CADMIUM_ORANGE_THEME: ValkAdeThemeDocument = {
     '--t-edge-darkest': '#080706',
     '--t-tui-frame': '#ff7a1a99',
     '--t-tui-user-frame': '#4fc1c9',
-    '--t-tui-clara-frame': '#ff7a1a',
+    '--t-tui-valk-frame': '#ff7a1a',
     '--t-tui-input-frame': '#ff7a1acc',
 
     // Interaction

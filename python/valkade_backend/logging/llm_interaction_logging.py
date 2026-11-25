@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 
 from valkade_backend.llm.messages import stringify_content
 
-logger = logging.getLogger('clara.llm')
+logger = logging.getLogger('valkade.llm')
 
 _TRUNC_INFO = 8_000
 _TRUNC_DEBUG = 120_000

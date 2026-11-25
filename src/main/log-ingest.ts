@@ -5,7 +5,7 @@ import { pythonLogIngestFetch } from './python/http-client';
 import { getLogsDir } from './paths';
 
 /** Sidecar-independent Electron log (survives a hung/dead Python process). */
-export const ELECTRON_LOG_FILE_NAME = 'clara-electron.log';
+export const ELECTRON_LOG_FILE_NAME = 'valkade-electron.log';
 
 const INGEST_BACKOFF_MS = 5_000;
 let ingestBackoffUntil = 0;
@@ -19,7 +19,7 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-/** Local timestamp matching Python ``clara-app.log`` (``%Y-%m-%d %H:%M:%S``). */
+/** Local timestamp matching Python ``valkade-app.log`` (``%Y-%m-%d %H:%M:%S``). */
 export function formatElectronLogTimestamp(d = new Date()): string {
   return (
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +

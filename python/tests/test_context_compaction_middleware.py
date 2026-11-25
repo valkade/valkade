@@ -43,7 +43,7 @@ from valkade_backend.lang_agent.context_compaction import (
     prompt_overhead_chars,
     thinking_budget_tokens,
 )
-from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+from valkade_backend.lang_agent.graph import build_valkade_single_outer_graph
 from valkade_backend.lang_agent.langgraph_sse import GraphStreamState, sse_lines_for_graph_event
 from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
 from valkade_backend.lang_agent.subagent_bus import SUBAGENT_BUS
@@ -385,7 +385,7 @@ def user_turn(text: str = 'do the work') -> HumanMessage:
 
 def fake_graph(server: MockServer, sess: SessionState, **kwargs: Any) -> Any:
     model = kwargs.pop('model', None) or build_model(server)
-    return build_clara_single_outer_graph(model, sess, True, tools_provider=fake_tools, allow_subagents=True, **kwargs)
+    return build_valkade_single_outer_graph(model, sess, True, tools_provider=fake_tools, allow_subagents=True, **kwargs)
 
 
 def thread(name: str = 't', limit: int = 400) -> dict:
@@ -508,7 +508,7 @@ def turns_on(server: MockServer, tools_provider: Callable[..., Any] = fake_tools
     llm = build_model(server)
 
     def builder(model: Any, sess: SessionState, mode: bool, extra: Any) -> Any:
-        return build_clara_single_outer_graph(
+        return build_valkade_single_outer_graph(
             model, sess, mode, extra_middleware=extra, tools_provider=tools_provider, allow_subagents=True
         )
 
@@ -1283,7 +1283,7 @@ async def test_giant_write_args_go_on_the_second_retry_and_the_placeholder_is_re
         return call_reply('write_workspace_file', {'relative_path': 'a.txt', 'content': content}, 'c-copy')
 
     server = MockServer([giant_write, copy_the_placeholder, text_reply('done')], n_ctx=window)
-    graph = build_clara_single_outer_graph(
+    graph = build_valkade_single_outer_graph(
         build_model(server), session, True, tools_provider=_fake_tools_with_write, allow_subagents=True
     )
 
@@ -1439,7 +1439,7 @@ async def workspace(session: SessionState, tmp_path: Path):
 
 
 def real_graph(server: MockServer, sess: SessionState) -> Any:
-    return build_clara_single_outer_graph(build_model(server), sess, True)
+    return build_valkade_single_outer_graph(build_model(server), sess, True)
 
 
 def real_overhead(sess: SessionState) -> int:
@@ -3139,7 +3139,7 @@ async def test_truncation_hook_ignores_everything_else(session: SessionState) ->
 
 
 async def test_plan_execution_pins_less_of_its_long_prompt() -> None:
-    with patch.object(pe, 'build_clara_single_outer_graph') as build:
+    with patch.object(pe, 'build_valkade_single_outer_graph') as build:
         pe._plan_discovery_outer_graph_builder(object(), SessionState(), False, None)
         pe._plan_execute_outer_graph_builder(object(), SessionState(), True, None)
     discover, execute = build.call_args_list

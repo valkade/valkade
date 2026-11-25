@@ -21,7 +21,7 @@ from typing import Any
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 
-from valkade_backend.lang_agent.graph import AgentGraphConfig, _stream_langgraph_tool_agent, build_clara_single_outer_graph
+from valkade_backend.lang_agent.graph import AgentGraphConfig, _stream_langgraph_tool_agent, build_valkade_single_outer_graph
 from valkade_backend.lang_agent.loop import AgentLoopOutcome, LangGraphWorkerOutcome
 from valkade_backend.middleware.plan_pending_steps_middleware import PlanPendingStepsMiddleware
 from valkade_backend.session.pause import await_diff_review_note, await_question_answers
@@ -89,7 +89,7 @@ from valkade_backend.hitl.tool_registry import format_tools_catalog
 from valkade_backend.plan.plan_tools_registry import plan_execute_tools_and_map
 from valkade_backend.tools.workspace import truncate_text
 
-logger = logging.getLogger('clara.plan_execute')
+logger = logging.getLogger('valkade.plan_execute')
 
 RECORD_PLAN_LABEL = 'record_plan'
 EXECUTE_BUILD_PLAN_LABEL = 'execute_build_plan'
@@ -731,7 +731,7 @@ def _plan_discovery_outer_graph_builder(
     The results middleware keeps discovery going until every sub-agent reported, so their findings
     land in the summary the planner reads.
     """
-    return build_clara_single_outer_graph(
+    return build_valkade_single_outer_graph(
         llm, session, apply_mode, extra_middleware=extra_middleware, allow_subagents=True
     )
 
@@ -743,7 +743,7 @@ def _plan_execute_outer_graph_builder(
     extra_middleware: list[Any] | None,
 ) -> Any:
     """Plan execution: editor tools, build-plan helpers and the sub-agent tools for delegated steps."""
-    return build_clara_single_outer_graph(
+    return build_valkade_single_outer_graph(
         llm,
         session,
         apply_mode,

@@ -109,7 +109,7 @@ function setup() {
 }
 
 describe('the workspace editor opener', () => {
-  const HERE = 'clara-workspace:///scripts/a.gd';
+  const HERE = 'valkade-workspace:///scripts/a.gd';
   const source = { getModel: () => ({ uri: uri(HERE) }) };
 
   it("ignores the peek command opening the file it starts from: the caret must stay put", () => {
@@ -126,13 +126,13 @@ describe('the workspace editor opener', () => {
 
   it('opens another file at its top when given no position', () => {
     const { opener, onNavigate } = setup();
-    opener.openCodeEditor(source, uri('clara-workspace:///scripts/b.gd'));
+    opener.openCodeEditor(source, uri('valkade-workspace:///scripts/b.gd'));
     expect(onNavigate).toHaveBeenCalledExactlyOnceWith({ relativePath: 'scripts/b.gd', line: 1, column: 1 });
   });
 
   it('opens an engine page by its absolute path', () => {
     const { opener, onNavigate } = setup();
-    opener.openCodeEditor(source, uri('clara-external:///C:/rt/Node2D.gd'), { lineNumber: 5, column: 12 });
+    opener.openCodeEditor(source, uri('valkade-external:///C:/rt/Node2D.gd'), { lineNumber: 5, column: 12 });
     expect(onNavigate).toHaveBeenCalledExactlyOnceWith({
       relativePath: 'C:/rt/Node2D.gd',
       absolutePath: 'C:/rt/Node2D.gd',
@@ -154,8 +154,8 @@ describe('a multi-file rename', () => {
 
   it('writes a file known only to a peek preview to disk, and edits a tab through Monaco', async () => {
     const { renameProviders, electron, addModel } = setup();
-    const here = addModel('clara-workspace:///scripts/a.gd', true);
-    addModel('clara-workspace:///scripts/peeked.gd', false);
+    const here = addModel('valkade-workspace:///scripts/a.gd', true);
+    addModel('valkade-workspace:///scripts/peeked.gd', false);
     electron.lspEditorRename.mockResolvedValue({
       ok: true,
       workspaceEdit: {
@@ -169,12 +169,12 @@ describe('a multi-file rename', () => {
     const result = await renameProviders.get('gdscript')!.provideRenameEdits(here, {}, 'new', NOT_CANCELLED);
 
     expect(electron.writeWorkspaceFile).toHaveBeenCalledExactlyOnceWith('C:/ws', 'scripts/peeked.gd', 'new text');
-    expect(result!.edits.map((edit) => edit.resource.value)).toEqual(['clara-workspace:///scripts/a.gd']);
+    expect(result!.edits.map((edit) => edit.resource.value)).toEqual(['valkade-workspace:///scripts/a.gd']);
   });
 
   it('rejects with the reason when a closed file cannot be read, changing nothing', async () => {
     const { renameProviders, electron, addModel } = setup();
-    const here = addModel('clara-workspace:///scripts/a.gd', true);
+    const here = addModel('valkade-workspace:///scripts/a.gd', true);
     electron.readWorkspaceFile.mockResolvedValue({ ok: false, error: 'too large' });
     electron.lspEditorRename.mockResolvedValue({
       ok: true,
@@ -191,9 +191,9 @@ describe('a multi-file rename', () => {
 describe('inlay hints after Settings → Apply', () => {
   it('asks every language again and re-sends the buffers of the restarted servers', () => {
     const { addModel, inlayHintEvents, applySettings } = setup();
-    const ts = addModel('clara-workspace:///src/app.ts', true);
-    const js = addModel('clara-workspace:///src/util.js', true);
-    const py = addModel('clara-workspace:///tool.py', true);
+    const ts = addModel('valkade-workspace:///src/app.ts', true);
+    const js = addModel('valkade-workspace:///src/util.js', true);
+    const py = addModel('valkade-workspace:///tool.py', true);
     for (const model of [ts, js, py]) {
       markMonacoModelLspDocumentSynced(model as unknown as Monaco.editor.ITextModel);
     }

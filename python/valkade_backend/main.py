@@ -47,7 +47,7 @@ from valkade_backend.routes.subagents import router as subagents_router
 _raw_log = env_valkade('LOG_DIR')
 configure_logging(Path(_raw_log) if _raw_log else None)
 
-_logger = logging.getLogger('clara.main')
+_logger = logging.getLogger('valkade.main')
 
 # Health is the only unauthenticated route (Electron probes + sidecar marker echo).
 _AUTH_EXEMPT_PATHS = frozenset({'/health'})

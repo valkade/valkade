@@ -22,7 +22,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger('clara.lsp.java_project_root')
+logger = logging.getLogger('valkade.lsp.java_project_root')
 
 __all__ = [
     'JAVA_LAYOUT_ECLIPSE',

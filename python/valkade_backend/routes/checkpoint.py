@@ -7,13 +7,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from valkade_backend.lang_agent.graph import build_clara_single_outer_graph
+from valkade_backend.lang_agent.graph import build_valkade_single_outer_graph
 from valkade_backend.session.checkpointing import outer_agent_thread_id
 from valkade_backend.llm.factory import build_llm
 from valkade_backend.session.schemas import CheckpointForkRequest
 from valkade_backend.session.state import get_session
 
-logger = logging.getLogger('clara.http.checkpoint')
+logger = logging.getLogger('valkade.http.checkpoint')
 
 router = APIRouter(prefix='/checkpoint', tags=['checkpoint'])
 
@@ -31,7 +31,7 @@ def _outer_config(session_id: str, *, apply_mode: bool) -> dict[str, Any]:
 
 
 def _outer_graph_for_checkpoint(llm: Any, session: Any, apply_mode: bool) -> Any:
-    return build_clara_single_outer_graph(llm, session, apply_mode)
+    return build_valkade_single_outer_graph(llm, session, apply_mode)
 
 
 @router.get('/history')

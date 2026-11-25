@@ -101,7 +101,7 @@ export const THEME_TOKENS: readonly ThemeTokenDef[] = [
   T('--t-edge-darkest', 'Edge darkest', 'borders'),
   T('--t-tui-frame', 'Frame', 'borders', 'color', { description: 'ASCII-style frame lines.' }),
   T('--t-tui-user-frame', 'User frame', 'borders'),
-  T('--t-tui-clara-frame', 'Assistant frame', 'borders'),
+  T('--t-tui-valk-frame', 'Assistant frame', 'borders'),
   T('--t-tui-input-frame', 'Input frame', 'borders'),
 
   // Interaction
@@ -190,6 +190,29 @@ export function themeTokenDef(name: string): ThemeTokenDef | undefined {
 
 export function isThemeTokenName(name: unknown): name is string {
   return typeof name === 'string' && TOKEN_BY_NAME.has(name);
+}
+
+/**
+ * Token names renamed after the ValkAde rebrand (legacy → current). Custom themes saved
+ * before the rename still define the old names; validation maps them to the current ones.
+ */
+const LEGACY_THEME_TOKEN_NAMES: Readonly<Record<string, string>> = {
+  '--t-tui-clara-frame': '--t-tui-valk-frame',
+};
+
+/** Current name for a legacy token name; other names pass through unchanged. */
+export function canonicalThemeTokenName(name: string): string {
+  return Object.prototype.hasOwnProperty.call(LEGACY_THEME_TOKEN_NAMES, name) ? LEGACY_THEME_TOKEN_NAMES[name] : name;
+}
+
+/**
+ * Rewrite legacy token names and component class names in a theme's advanced CSS
+ * (`var(--t-tui-clara-frame)`, `.clara-badge__wing`, `app-clara-badge`) to the current ones.
+ */
+export function migrateLegacyThemeCss(css: string): string {
+  return css
+    .replace(/--t-tui-clara-frame(?![\w-])/g, '--t-tui-valk-frame')
+    .replace(/(^|[^\w-])(app-|\.)clara-badge/g, '$1$2valkade-badge');
 }
 
 export function themeTokensInCategory(category: ThemeTokenCategoryId): ThemeTokenDef[] {

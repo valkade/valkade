@@ -33,7 +33,7 @@ from valkade_backend.session.state import current_session_id, verify_after_edits
 from valkade_backend.verify.checks_config import check_applies, load_workspace_checks
 from valkade_backend.verify.evidence import FEEDBACK_HEADER, VerificationResult, format_feedback, gather_evidence
 
-logger = logging.getLogger('clara.agent.turn_verification')
+logger = logging.getLogger('valkade.agent.turn_verification')
 
 #: Label of the verification pill (a normal tool status on the turn's stream).
 VERIFY_PILL_LABEL = 'verify_turn'

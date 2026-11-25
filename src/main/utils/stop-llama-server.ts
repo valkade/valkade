@@ -159,7 +159,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
-public static class ClaraConsoleCtrl {
+public static class ValkAdeConsoleCtrl {
   [DllImport("kernel32.dll", SetLastError = true)]
   public static extern bool FreeConsole();
   [DllImport("kernel32.dll", SetLastError = true)]
@@ -170,10 +170,10 @@ public static class ClaraConsoleCtrl {
   public static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
 }
 "@
-[void][ClaraConsoleCtrl]::FreeConsole()
-if (-not [ClaraConsoleCtrl]::AttachConsole(${pid})) { exit 2 }
-[void][ClaraConsoleCtrl]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)
-if (-not [ClaraConsoleCtrl]::GenerateConsoleCtrlEvent(0, 0)) { exit 3 }
+[void][ValkAdeConsoleCtrl]::FreeConsole()
+if (-not [ValkAdeConsoleCtrl]::AttachConsole(${pid})) { exit 2 }
+[void][ValkAdeConsoleCtrl]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)
+if (-not [ValkAdeConsoleCtrl]::GenerateConsoleCtrlEvent(0, 0)) { exit 3 }
 exit 0
 `;
 }
@@ -237,7 +237,7 @@ export function hideWindowsConsoleWindow(pid: number | undefined): void {
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
-public static class ClaraHideConsole {
+public static class ValkAdeHideConsole {
   public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc lpEnumFunc, IntPtr lParam);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
@@ -252,7 +252,7 @@ public static class ClaraHideConsole {
   }
 }
 "@
-[ClaraHideConsole]::Hide(${pid})
+[ValkAdeHideConsole]::Hide(${pid})
 `;
   try {
     spawnSync(

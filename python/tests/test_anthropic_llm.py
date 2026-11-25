@@ -12,7 +12,7 @@ from valkade_backend.domain import RuntimeConnection
 from valkade_backend.lang_agent.streaming import aimessage_chunk_reasoning_delta
 from valkade_backend.llm.anthropic_llm import (
     THINKING_BINDING_BETA,
-    ClaraChatAnthropic,
+    ValkAdeChatAnthropic,
     build_anthropic_llm,
     resolve_anthropic_effort,
 )
@@ -41,7 +41,7 @@ def _connection(**overrides: object) -> RuntimeConnection:
     return RuntimeConnection(**base)  # type: ignore[arg-type]
 
 
-def _payload(llm: ClaraChatAnthropic) -> dict[str, object]:
+def _payload(llm: ValkAdeChatAnthropic) -> dict[str, object]:
     return llm._get_request_payload([HumanMessage(content='hi')])
 
 

@@ -15,7 +15,7 @@ from valkade_backend.runtime.python_env import (
     resolve_python_workspace_root,
 )
 
-logger = logging.getLogger('clara.python.interpreter')
+logger = logging.getLogger('valkade.python.interpreter')
 
 # Keep in sync with ``src/shared/python-interpreter-ids.ts``.
 RUNTIME_VENV_INTERPRETER_ID = 'runtime-venv'

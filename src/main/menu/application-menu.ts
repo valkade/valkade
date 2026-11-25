@@ -9,7 +9,7 @@ import { getRecentWorkspaces } from './recent-workspaces';
 import { loadConfigSync } from '../config/load-save';
 
 /** Hosts permitted for Documentation / shell.openExternal. */
-const ALLOWED_EXTERNAL_HOSTS = new Set(['github.com', 'docs.claraverse.ai']);
+const ALLOWED_EXTERNAL_HOSTS = new Set(['github.com', 'valkade.ai', 'docs.valkade.ai']);
 
 /** Pinned ValkAde docs URL (must pass {@link validateExternalUrl}). */
 const DOCUMENTATION_URL = 'https://github.com/valkade/valkade';

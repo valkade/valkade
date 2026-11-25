@@ -50,7 +50,7 @@ from valkade_backend.llm.model_tuning import (
 )
 from valkade_backend.session.state import get_active_connection, require_openai_api_key
 
-logger = logging.getLogger('clara.llm')
+logger = logging.getLogger('valkade.llm')
 
 # OpenAI (and aligned gateways) reject arbitrary strings; ``on``/``off`` are app UI aliases only.
 _REASONING_API_VALUES = frozenset({'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'})

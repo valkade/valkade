@@ -54,7 +54,7 @@ import {
   setCachedLlamaServerNctx,
 } from './chat-template-reasoning-cache';
 
-const LLAMA_LOGGER = 'clara.electron.llama';
+const LLAMA_LOGGER = 'valkade.electron.llama';
 
 function logLlamaLifecycle(level: string, message: string): void {
   if (level === 'WARNING' || level === 'ERROR') {

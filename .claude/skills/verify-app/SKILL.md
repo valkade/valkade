@@ -60,8 +60,8 @@ Prefer, in order:
    navigations, so check `performance.timeOrigin` or re-test live state before blaming an old error.
 4. Screenshots at `scale: 0.5`, only for layout, theme or icon changes.
 
-Backend / model / tool behaviour: read `%APPDATA%\valkade-dev\logs\clara-app.log` (`clara.llm`
-shows each AIMessage's tool calls; `clara.tools.invoke` / `clara.tools.edit` show execution) rather
+Backend / model / tool behaviour: read `%APPDATA%\valkade-dev\logs\valkade-app.log` (`valkade.llm`
+shows each AIMessage's tool calls; `valkade.tools.invoke` / `valkade.tools.edit` show execution) rather
 than watching the chat UI.
 
 ## Gotchas

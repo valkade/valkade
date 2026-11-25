@@ -1,7 +1,7 @@
 """Deliver sub-agent reports to a live main-agent turn, and keep the turn going until they arrive.
 
 Bound on the chat turns of main sessions (with the sub-agent tools; see
-:func:`~valkade_backend.lang_agent.graph.build_clara_single_outer_graph`). Reports waiting on the
+:func:`~valkade_backend.lang_agent.graph.build_valkade_single_outer_graph`). Reports waiting on the
 session (:mod:`~valkade_backend.lang_agent.subagents`) reach the model two ways:
 
 - **Before each model call** they are added to the conversation as one HumanMessage. Unlike the
@@ -38,7 +38,7 @@ from valkade_backend.lang_agent.subagents import (
 from valkade_backend.session import state as session_state
 from valkade_backend.session.state import current_session_id
 
-logger = logging.getLogger('clara.agent.subagent_results')
+logger = logging.getLogger('valkade.agent.subagent_results')
 
 #: Label of the end-of-turn waiting pill (a normal tool status on the parent stream).
 WAIT_PILL_LABEL = 'wait_for_subagents'

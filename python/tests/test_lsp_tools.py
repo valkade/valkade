@@ -428,7 +428,7 @@ def test_python_lsp_events_flow_into_clara_logging(lsp_env, tmp_path: Path) -> N
         reset_logging_handlers()
     loggers = {record['logger'] for record in records}
     messages = ' '.join(record['message'] for record in records)
-    assert 'clara.lsp.manager' in loggers
+    assert 'valkade.lsp.manager' in loggers
     assert 'python LSP didOpen' in messages
 
 

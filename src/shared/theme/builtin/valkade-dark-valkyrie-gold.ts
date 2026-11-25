@@ -53,7 +53,7 @@ export const VALKADE_DARK_VALKYRIE_GOLD_THEME: ValkAdeThemeDocument = {
     '--t-edge-darkest': '#070605',
     '--t-tui-frame': '#f5a82699',
     '--t-tui-user-frame': '#ffde82',
-    '--t-tui-clara-frame': '#f5a826',
+    '--t-tui-valk-frame': '#f5a826',
     '--t-tui-input-frame': '#f5a826cc',
 
     // Interaction — forged gold sheen
@@ -132,9 +132,9 @@ export const VALKADE_DARK_VALKYRIE_GOLD_THEME: ValkAdeThemeDocument = {
     // Match the winged-V transcript badge directly to the Valkyrie Gold logo.
     'chat.assistant-bubble': {
       css: [
-        '.clara-badge__stem { fill: #f6f2e9; }',
-        '.clara-badge__wing { fill: #f5a826; }',
-        '.clara-badge__tip { fill: #c46d12; opacity: 1; }',
+        '.valkade-badge__stem { fill: #f6f2e9; }',
+        '.valkade-badge__wing { fill: #f5a826; }',
+        '.valkade-badge__tip { fill: #c46d12; opacity: 1; }',
       ].join('\n'),
     },
     // Focused composer lights up with a warm forged-gold edge.

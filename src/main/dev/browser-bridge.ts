@@ -2,7 +2,7 @@
  * Dev-only browser bridge: lets a plain browser tab on the Angular dev server (e.g. an embedded
  * test browser) drive the app through the same `ipcMain` handlers as the Electron window.
  *
- * Off unless `CLARA_BROWSER_BRIDGE=1`, the app is unpackaged, and `DEV_SERVER_URL` is set
+ * Off unless `VALKADE_BROWSER_BRIDGE=1`, the app is unpackaged, and `DEV_SERVER_URL` is set
  * (`npm run dev:bridge`). Every request must:
  *  - reach the loopback listener (127.0.0.1 only) with a loopback `Host` (blocks DNS rebinding);
  *  - come from the dev server origin (CORS is granted to that origin alone);
@@ -10,11 +10,11 @@
  *
  * The token is kept in `browser-bridge-token` under the dev app-data dir and reused across
  * launches, so open tabs survive electronmon restarts: each launch has its own instance id
- * (`X-Clara-Bridge-Instance` on `/events`), and a tab that sees it change reloads itself, as the
+ * (`X-Valkade-Bridge-Instance` on `/events`), and a tab that sees it change reloads itself, as the
  * Electron windows do. Delete the file to rotate the token; old tabs then get a 401.
  *
  * A tab acts as the app window its route belongs to (`#/settings`, `#/dependencies`, `#/health`, `#/updater`,
- * anything else the main window), named by the `X-Clara-Bridge-Window` header. Calls run as that
+ * anything else the main window), named by the `X-Valkade-Bridge-Window` header. Calls run as that
  * window: handlers see its `webContents` as `event.sender`, so trust checks pass and the tab has
  * that window's full privileges. A satellite tab first opens the real window (`POST /window`) and
  * receives only that window's `webContents.send` pushes. That is the point (end-to-end testing)
@@ -50,7 +50,7 @@ import {
   type BrowserBridgeWindow,
 } from '../../shared/dev/browser-bridge-protocol';
 import { DEV_SERVER_URL } from '../constants';
-import { envClara } from '../env-clara';
+import { envValkade } from '../env-valkade';
 import { getAppDataDir } from '../paths';
 import { mainState } from '../state';
 import { createDependenciesWindow } from '../windows/dependencies-window';
@@ -66,7 +66,7 @@ const MAX_BODY_BYTES = 64 * 1024 * 1024;
 const KEEPALIVE_MS = 15_000;
 /**
  * Fixed so an open tab reconnects to the restarted app (electronmon) instead of retrying a dead
- * random port. `CLARA_BROWSER_BRIDGE_PORT` overrides it.
+ * random port. `VALKADE_BROWSER_BRIDGE_PORT` overrides it.
  */
 const DEFAULT_PORT = 4210;
 
@@ -83,7 +83,7 @@ const mirroredSenders = new WeakSet<WebContents>();
 let server: Server | null = null;
 
 export function isBrowserBridgeEnabled(): boolean {
-  return !app.isPackaged && !!DEV_SERVER_URL && envClara('BROWSER_BRIDGE') === '1';
+  return !app.isPackaged && !!DEV_SERVER_URL && envValkade('BROWSER_BRIDGE') === '1';
 }
 
 /**
@@ -133,7 +133,7 @@ export async function startBrowserBridge(): Promise<void> {
   const token = loadOrCreateToken(join(getAppDataDir(), 'browser-bridge-token'));
   const expectedToken = Buffer.from(token);
   const instanceId = randomBytes(8).toString('hex');
-  const portOverride = Number(envClara('BROWSER_BRIDGE_PORT') ?? 0) || 0;
+  const portOverride = Number(envValkade('BROWSER_BRIDGE_PORT') ?? 0) || 0;
 
   mirrorWindowSends();
   // Satellites open from the app as well as from tabs, and the main window can be recreated

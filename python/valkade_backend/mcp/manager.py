@@ -20,7 +20,7 @@ from valkade_backend.mcp.oauth import (
     stored_from_memory,
 )
 
-logger = logging.getLogger('clara.mcp')
+logger = logging.getLogger('valkade.mcp')
 
 SCHEMA_WARN_PER_SERVER = 6_000
 SCHEMA_WARN_TOTAL = 12_000

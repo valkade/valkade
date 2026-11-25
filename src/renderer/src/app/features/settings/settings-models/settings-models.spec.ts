@@ -262,7 +262,7 @@ describe('local source tutorial', () => {
     const before = structuredClone(store.llmProviders());
     const choose = vi.spyOn(store, 'onManagedInventoryPick');
     for (const stepId of ['sources-model', 'sources-defaults', 'sources-advanced', 'sources-commands', 'sources-add-command', 'sources-vram', 'sources-apply']) {
-      window.dispatchEvent(new CustomEvent('clara-tutorial-step', { detail: { phaseId: 'local-source', stepId } }));
+      window.dispatchEvent(new CustomEvent('valkade-tutorial-step', { detail: { phaseId: 'local-source', stepId } }));
     }
     fixture.detectChanges();
     expect(store.llmProviders()).toEqual(before);

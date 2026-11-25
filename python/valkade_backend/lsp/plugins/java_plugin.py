@@ -29,7 +29,7 @@ from valkade_backend.lsp.server_plugin import LspServerNotInstalledError, LspSer
 if TYPE_CHECKING:
     from valkade_backend.domain import SessionState
 
-logger = logging.getLogger('clara.lsp.plugins.java')
+logger = logging.getLogger('valkade.lsp.plugins.java')
 
 #: The first sync waits on network refreshes in the app, which can take tens of seconds.
 _RUNTIME_CONFIG_WAIT_S = 60.0

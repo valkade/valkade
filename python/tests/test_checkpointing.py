@@ -76,7 +76,7 @@ async def test_second_turn_uses_delta_input_no_duplicate_users(
         await shutdown_graph_checkpointing()
 
 
-@patch('valkade_backend.routes.checkpoint.build_clara_single_outer_graph')
+@patch('valkade_backend.routes.checkpoint.build_valkade_single_outer_graph')
 @patch('valkade_backend.routes.checkpoint.build_llm')
 def test_checkpoint_history_endpoint_returns_entries(
     mock_build_llm: MagicMock,

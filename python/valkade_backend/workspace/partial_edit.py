@@ -15,7 +15,7 @@ from valkade_backend.config import (
 
 __all__ = ['merge_partial_edit', 'line_range_edit_tool_feedback', 'snippet_unique_on_text']
 
-logger = logging.getLogger('clara.partial_edit')
+logger = logging.getLogger('valkade.partial_edit')
 
 # Legacy read_workspace_file gutter "N: text"; current gutter uses U+2502 or ASCII "|" after padded line number.
 _LINE_NUMBER_LEGACY_COLON = re.compile(r'^(\d+):\s?(.*)$')

@@ -60,7 +60,7 @@ export function applyTextEditsToString(text: string, edits: readonly LspWireText
 }
 
 export function workspaceFileUri(api: typeof Monaco, relativePath: string): Monaco.Uri {
-  return api.Uri.parse(`clara-workspace:///${encodeURI(relativePath)}`);
+  return api.Uri.parse(`valkade-workspace:///${encodeURI(relativePath)}`);
 }
 
 function wireToMonacoRange(api: typeof Monaco, r: LspWireRange): Monaco.Range {

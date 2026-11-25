@@ -40,7 +40,7 @@ __all__ = [
     'workspace_checks_path',
 ]
 
-logger = logging.getLogger('clara.verify.checks')
+logger = logging.getLogger('valkade.verify.checks')
 
 #: Enabled checks past this many are ignored: they all run, one after another, when a turn ends.
 MAX_ENABLED_CHECKS = 6

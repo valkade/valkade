@@ -27,9 +27,6 @@ export function registerValkAdeThemeAssetProtocol(): void {
   protocol.handle(LEGACY_THEME_ASSET_SCHEME, serveThemeAsset);
 }
 
-/** @deprecated Use {@link registerValkAdeThemeAssetProtocol}; registers the same schemes. */
-export const registerClaraThemeAssetProtocol = registerValkAdeThemeAssetProtocol;
-
 async function serveThemeAsset(request: Request): Promise<Response> {
   let themeId: string;
   let fileName: string;

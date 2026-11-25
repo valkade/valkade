@@ -7,7 +7,7 @@ import os
 import sys
 import threading
 
-logger = logging.getLogger('clara.workspace_index.thread_priority')
+logger = logging.getLogger('valkade.workspace_index.thread_priority')
 
 _TH32CS_SNAPTHREAD = 0x00000004
 _THREAD_SET_INFORMATION = 0x0020

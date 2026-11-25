@@ -1,6 +1,6 @@
 /**
  * The slice of `ipcRenderer` the preload API modules use. Electron's `ipcRenderer` satisfies it;
- * the dev browser bridge (`CLARA_BROWSER_BRIDGE=1`) supplies an HTTP-backed stand-in so a plain
+ * the dev browser bridge (`VALKADE_BROWSER_BRIDGE=1`) supplies an HTTP-backed stand-in so a plain
  * browser tab gets the exact same `electronAPI` surface.
  */
 export interface PreloadIpc {

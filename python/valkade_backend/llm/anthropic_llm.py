@@ -42,7 +42,7 @@ from valkade_backend.llm.model_tuning import llm_optional_kwargs
 from valkade_backend.logging.llm_interaction_logging import log_llm_connection_settings
 from valkade_backend.session.state import require_openai_api_key
 
-logger = logging.getLogger('clara.llm.anthropic')
+logger = logging.getLogger('valkade.llm.anthropic')
 
 # Streaming keeps a large cap safe from HTTP timeouts; Settings' max output (when set) wins.
 ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS = 64_000
@@ -240,7 +240,7 @@ def log_input_transformations(entries: list[dict[str, Any]], model: str) -> None
         logger.log(level, 'Claude (%s) left out %d thinking block(s), reason %s: %s', model, len(paths), reason, ', '.join(paths[:8]))
 
 
-class ClaraChatAnthropic(ChatAnthropic):
+class ValkAdeChatAnthropic(ChatAnthropic):
     """``ChatAnthropic`` on ValkAde's owned ``httpx2`` clients, so Stop can close the live stream.
 
     Also shapes the payload for an append-only thread: system notices, compaction blocks, betas.
@@ -341,7 +341,7 @@ def build_anthropic_llm(
     *,
     idle_timeout_sec: float,
     disable_thinking: bool = False,
-) -> ClaraChatAnthropic:
+) -> ValkAdeChatAnthropic:
     """Build the Claude chat model for ``connection`` (provider ``anthropic``)."""
     api_key = connection.api_key or os.getenv('ANTHROPIC_API_KEY', '')
     require_openai_api_key(api_key, 'Claude')
@@ -391,4 +391,4 @@ def build_anthropic_llm(
             'idle_read_timeout_sec': idle_timeout_sec,
         }
     )
-    return ClaraChatAnthropic(**kwargs)
+    return ValkAdeChatAnthropic(**kwargs)

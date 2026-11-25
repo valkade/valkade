@@ -40,7 +40,7 @@ from valkade_backend.domain import (
     SessionState,
 )
 
-logger = logging.getLogger('clara.session.state')
+logger = logging.getLogger('valkade.session.state')
 
 # Which session_id workspace tools and the agent should use for the current task.
 current_session_id: contextvars.ContextVar[str] = contextvars.ContextVar('current_session_id', default='')

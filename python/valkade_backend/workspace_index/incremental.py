@@ -27,7 +27,7 @@ from valkade_backend.workspace_index.lifecycle import invalidate_fingerprint_cac
 from valkade_backend.workspace_index.paths import workspace_index_persist_dir
 from valkade_backend.workspace_index.walk import is_indexable_workspace_relative_path
 
-logger = logging.getLogger('clara.workspace_index.incremental')
+logger = logging.getLogger('valkade.workspace_index.incremental')
 
 # Coalesce rapid workspace-context sync batches before hitting the embeddings server.
 _BACKGROUND_INDEX_DEBOUNCE_SEC = 2.0

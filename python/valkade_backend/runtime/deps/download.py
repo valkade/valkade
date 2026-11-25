@@ -18,9 +18,11 @@ from urllib.request import Request, urlopen
 from valkade_backend.runtime.deps.cancel import current, is_cancelled, raise_if_cancelled
 from valkade_backend.runtime.deps.progress import PROGRESS
 
-logger = logging.getLogger('clara.runtime.deps.download')
+logger = logging.getLogger('valkade.runtime.deps.download')
 
-READY_MARKER = '.clara-ready'
+READY_MARKER = '.valkade-ready'
+#: Pre-rename marker; read when a directory has no :data:`READY_MARKER` yet.
+LEGACY_READY_MARKER = '.clara-ready'
 
 # Lines of child output kept for the error message when a streamed step fails.
 _STREAM_ERROR_TAIL = 40
@@ -311,17 +313,35 @@ def with_download_lock(lock_path: Path, *, ready_check: Callable[[], bool], wait
     return _Lock()
 
 
+def marker_with_legacy_fallback(dir_path: Path, name: str, legacy_name: str) -> Path:
+    """``dir_path / name``, or the pre-rename ``legacy_name`` when only that one exists."""
+
+    marker = dir_path / name
+    if not marker.is_file():
+        legacy = dir_path / legacy_name
+        if legacy.is_file():
+            return legacy
+    return marker
+
+
 def write_ready_marker(dir_path: Path, version: str) -> None:
     dir_path.mkdir(parents=True, exist_ok=True)
     (dir_path / READY_MARKER).write_text(version + '\n', encoding='utf-8')
 
 
 def read_ready_marker(dir_path: Path) -> str | None:
-    marker = dir_path / READY_MARKER
+    marker = marker_with_legacy_fallback(dir_path, READY_MARKER, LEGACY_READY_MARKER)
     if not marker.is_file():
         return None
     text = marker.read_text(encoding='utf-8').strip()
     return text or None
+
+
+def clear_ready_marker(dir_path: Path) -> None:
+    """Remove the ready marker and its pre-rename spelling, so neither marks the dir ready."""
+
+    (dir_path / READY_MARKER).unlink(missing_ok=True)
+    (dir_path / LEGACY_READY_MARKER).unlink(missing_ok=True)
 
 
 def extract_archive(archive: Path, dest: Path) -> None:

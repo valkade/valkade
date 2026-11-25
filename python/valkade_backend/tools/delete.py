@@ -33,7 +33,7 @@ from valkade_backend.workspace.meta import (
 )
 from valkade_backend.workspace.path_locks import locked_path, note_batch_replaced
 
-logger = logging.getLogger('clara.tools.delete')
+logger = logging.getLogger('valkade.tools.delete')
 
 DELETE_WORKSPACE_ENTRIES_NAME = 'delete_workspace_entries'
 

@@ -94,7 +94,7 @@ async def test_hitl_pause_lock_serializes_concurrent_waiters() -> None:
         sessions.pop(sid, None)
 
 
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_single_agent_langgraph_aborts_while_waiting_for_events(
@@ -137,7 +137,7 @@ async def test_stream_single_agent_langgraph_aborts_while_waiting_for_events(
     assert outcome.state == AgentLoopOutcome.ABORTED
 
 
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_single_agent_langgraph_allocates_nested_events_queue(
@@ -183,7 +183,7 @@ async def test_stream_single_agent_langgraph_allocates_nested_events_queue(
 
 
 @patch('valkade_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_watchdog_ends_stalled_stream(
@@ -226,7 +226,7 @@ async def test_stream_watchdog_ends_stalled_stream(
 
 
 @patch('valkade_backend.lang_agent.graph._stream_watchdog_timeout_sec', return_value=0.05)
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_stream_watchdog_does_not_fire_while_tool_running(
@@ -318,7 +318,7 @@ async def test_stop_llm_pump_closes_the_response_after_cancelling() -> None:
     assert order == ['cancel pump', 'close response'] and pump.cancelled()
 
 
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_abort_mid_step_reports_uncommitted_text_and_uses_sync_durability(
@@ -363,7 +363,7 @@ async def test_abort_mid_step_reports_uncommitted_text_and_uses_sync_durability(
     assert mock_build_graph.call_args.kwargs.get('allow_subagents') is True
 
 
-@patch('valkade_backend.lang_agent.graph.build_clara_single_outer_graph')
+@patch('valkade_backend.lang_agent.graph.build_valkade_single_outer_graph')
 @patch('valkade_backend.lang_agent.graph.build_llm')
 @patch('valkade_backend.lang_agent.graph.get_graph_checkpointer')
 async def test_open_tool_calls_of_a_stopped_turn_are_answered_before_the_new_input(

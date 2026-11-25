@@ -13,7 +13,7 @@ from valkade_backend.workspace_index.paths import (
     workspace_index_persist_dir,
 )
 
-logger = logging.getLogger('clara.workspace_index.lifecycle')
+logger = logging.getLogger('valkade.workspace_index.lifecycle')
 
 # ``root_str -> (monotonic_time, fingerprint)`` to avoid re-walking huge trees on every tool call.
 _fingerprint_cache: dict[str, tuple[float, str]] = {}

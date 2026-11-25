@@ -1,34 +1,34 @@
-app-clara-badge {
+app-valkade-badge {
   display: inline-flex;
   flex-shrink: 0;
 }
 
-app-clara-badge .clara-badge {
+app-valkade-badge .valkade-badge {
   display: block;
   width: 16px;
   height: 16px;
 }
 
-app-clara-badge .clara-badge__stem {
+app-valkade-badge .valkade-badge__stem {
   fill: currentColor;
 }
 
-app-clara-badge .clara-badge__wing {
+app-valkade-badge .valkade-badge__wing {
   fill: var(--t-secondary, currentColor);
   transform-box: fill-box;
   /* The wing hinges where it meets the stem, at the foot of the V. */
   transform-origin: 0% 100%;
 }
 
-app-clara-badge .clara-badge__tip {
+app-valkade-badge .valkade-badge__tip {
   opacity: 0.7;
 }
 
-app-clara-badge .clara-badge--live .clara-badge__wing {
-  animation: clara-badge-beat 1.2s ease-in-out infinite;
+app-valkade-badge .valkade-badge--live .valkade-badge__wing {
+  animation: valkade-badge-beat 1.2s ease-in-out infinite;
 }
 
-@keyframes clara-badge-beat {
+@keyframes valkade-badge-beat {
   0%,
   100% {
     transform: scale(1);
@@ -42,7 +42,7 @@ app-clara-badge .clara-badge--live .clara-badge__wing {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  app-clara-badge .clara-badge--live .clara-badge__wing {
+  app-valkade-badge .valkade-badge--live .valkade-badge__wing {
     animation: none;
   }
 }

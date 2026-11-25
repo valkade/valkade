@@ -165,7 +165,7 @@ fork, ownership, report delivery and the event contract live in
 `valkade_backend/lang_agent/subagents.py`.
 
 - **Where they are bound:** only the agent-mode chat turn of a main session
-  (`build_clara_single_outer_graph(..., allow_subagents=True)` from
+  (`build_valkade_single_outer_graph(..., allow_subagents=True)` from
   `stream_single_agent_langgraph`, via `worker_tools_and_map(...,
   include_subagent_tool=True)`), in Editor and Ask, together with
   `SubagentResultsMiddleware`. Never in plan mode (plan discovery shares the
@@ -243,7 +243,7 @@ already given its final answer back to write another.
   most `verify_max_fix_rounds` times per turn (Settings → Tools). After that, or when the model
   answers the feedback without calling a tool, the turn ends and the `verify_turn` pill stays in its
   error state.
-- **Where it is bound:** `build_clara_single_outer_graph` with Editor on, main sessions only (a
+- **Where it is bound:** `build_valkade_single_outer_graph` with Editor on, main sessions only (a
   sub-agent's edits are verified by the turn that started it). It is the last of the finish gates:
   the sub-agent wait, then plan execution's `PlanPendingStepsMiddleware` (`finish_middleware`), then
   verification. `FinishGatesMiddleware` runs them as one graph node, because every `after_model`

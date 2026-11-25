@@ -106,7 +106,7 @@ from valkade_backend.session import state as session_state
 from valkade_backend.session.state import current_session_id, get_active_connection, runtime_config
 from valkade_backend.workspace.paths import normalize_relative_path
 
-logger = logging.getLogger('clara.agent.compaction')
+logger = logging.getLogger('valkade.agent.compaction')
 
 #: Label of the status pill an event shows (a normal tool status on the turn's stream).
 COMPACT_PILL_LABEL = 'compact_context'

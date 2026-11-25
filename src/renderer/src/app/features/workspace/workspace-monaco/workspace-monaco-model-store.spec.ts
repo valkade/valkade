@@ -203,7 +203,7 @@ describe('WorkspaceMonacoModelStore', () => {
       const fake = fakeMonaco();
       store.setMonaco(fake.api);
       // A peek made this model; no tab owns it, so an edit here would vanish with the next peek.
-      fake.api.editor.createModel('stale', 'gdscript', fake.api.Uri.parse('clara-workspace:///src/peeked.gd'));
+      fake.api.editor.createModel('stale', 'gdscript', fake.api.Uri.parse('valkade-workspace:///src/peeked.gd'));
 
       await store.applyFileRenameEdits('C:/ws', 'a.gd', 'c.gd', { 'src/peeked.gd': [edit('bye')] });
       expect(writeWorkspaceFile).toHaveBeenCalledExactlyOnceWith('C:/ws', 'src/peeked.gd', 'bye world');

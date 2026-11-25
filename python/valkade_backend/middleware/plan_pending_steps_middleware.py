@@ -18,7 +18,7 @@ from valkade_backend.session import state as session_state
 from valkade_backend.session.state import current_session_id
 from valkade_backend.workspace.paths import truncate_text
 
-logger = logging.getLogger('clara.agent.plan_pending_steps')
+logger = logging.getLogger('valkade.agent.plan_pending_steps')
 
 _STEP_TEXT_MAX_CHARS = 160
 _MAX_LISTED_STEPS = 12

@@ -34,7 +34,7 @@ describe('EXPECTED_RG_SHA256 (bundled ripgrep assets)', () => {
   );
 
   it('verifyRgArchiveSha256 throws on a mismatch', async () => {
-    const tmp = mkdtempSync(path.join(os.tmpdir(), 'clara-rg-sha-'));
+    const tmp = mkdtempSync(path.join(os.tmpdir(), 'valkade-rg-sha-'));
     try {
       const file = path.join(tmp, 'rg.zip');
       writeFileSync(file, 'not ripgrep');
@@ -54,7 +54,7 @@ describe('sha256File / verifyArchiveSha256', () => {
   const content = 'not a real tarball, just test bytes';
 
   beforeEach(() => {
-    tmp = mkdtempSync(path.join(os.tmpdir(), 'clara-sha-'));
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'valkade-sha-'));
     file = path.join(tmp, 'archive.tar.gz');
   });
 

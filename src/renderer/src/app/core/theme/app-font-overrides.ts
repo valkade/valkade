@@ -2,7 +2,7 @@ import type { AppConfig } from '@shared/index';
 import { clampUiFontSizeRem } from '@shared/index';
 
 /** `@font-face` in styles.css that supplies only the curly quotes. */
-const NARROW_QUOTES_FONT = '"Clara Narrow Quotes"';
+const NARROW_QUOTES_FONT = '"ValkAde Narrow Quotes"';
 
 /**
  * Some fonts (Microsoft Tai Le) draw curly quotes a full em wide, so `I’ll` reads as `I’ ll`.

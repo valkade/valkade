@@ -45,11 +45,11 @@ def _tool_end_event(*, name: str, run_id: str, output: str) -> dict[str, object]
 
 
 def test_duplicate_tool_end_is_logged_once(caplog: pytest.LogCaptureFixture) -> None:
-    nemo = logging.getLogger('clara')
+    nemo = logging.getLogger('valkade')
     prev = nemo.propagate
     nemo.propagate = True
     try:
-        caplog.set_level(logging.INFO, logger='clara.tools.invoke')
+        caplog.set_level(logging.INFO, logger='valkade.tools.invoke')
         state = GraphStreamState()
         ev = _tool_end_event(
             name='run_command',
@@ -135,7 +135,7 @@ def test_outer_agent_brief_emits_status() -> None:
     assert '"label": "Planner checklist"' in lines[0]
     assert 'First step' in lines[0]
     assert 'Second step' in lines[0]
-    assert '"stream_tag": "clara"' in lines[0]
+    assert '"stream_tag": "valk"' in lines[0]
     assert '"id": "outer-brief-' in lines[0]
 
 
@@ -159,7 +159,7 @@ def test_outer_agent_brief_emits_status_for_gemma_preset(mock_conn: MagicMock) -
         llm_log_context='test',
     )
     assert len(lines) == 1
-    assert '"stream_tag": "clara"' in lines[0]
+    assert '"stream_tag": "valk"' in lines[0]
     assert 'First step' in lines[0]
 
 
