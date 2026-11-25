@@ -8,14 +8,21 @@ import sys
 import tempfile
 from pathlib import Path
 
-from valkade_backend.config import env_clara
+from valkade_backend.config import env_valkade
 
-BUNDLED_RUNTIME_MANIFEST = '.clara-runtime-manifest.json'
+BUNDLED_RUNTIME_MANIFEST = '.valkade-runtime-manifest.json'
+#: Pre-rename manifest name; read when the bundle has no :data:`BUNDLED_RUNTIME_MANIFEST`.
+LEGACY_BUNDLED_RUNTIME_MANIFEST = '.clara-runtime-manifest.json'
+_MANIFEST_NAMES = (BUNDLED_RUNTIME_MANIFEST, LEGACY_BUNDLED_RUNTIME_MANIFEST)
+
+
+def _has_manifest(root: Path) -> bool:
+    return any((root / name).is_file() for name in _MANIFEST_NAMES)
 
 
 def bundled_python_executable() -> Path | None:
-    """Absolute bundled interpreter from ``CLARA_BUNDLED_PYTHON``, if the file exists."""
-    raw = env_clara('CLARA_BUNDLED_PYTHON', '').strip()
+    """Absolute bundled interpreter from ``VALKADE_BUNDLED_PYTHON``, if the file exists."""
+    raw = env_valkade('VALKADE_BUNDLED_PYTHON', '').strip()
     if not raw:
         return None
     path = Path(raw)
@@ -23,8 +30,8 @@ def bundled_python_executable() -> Path | None:
 
 
 def bundled_runtime_dir() -> Path | None:
-    """Bundle root containing ``.clara-runtime-manifest.json``, or the exe parent."""
-    raw = env_clara('CLARA_BUNDLED_RUNTIME_DIR', '').strip()
+    """Bundle root containing the runtime manifest (new or legacy name), or the exe parent."""
+    raw = env_valkade('VALKADE_BUNDLED_RUNTIME_DIR', '').strip()
     if raw:
         path = Path(raw)
         if path.is_dir():
@@ -33,20 +40,25 @@ def bundled_runtime_dir() -> Path | None:
     if exe is None:
         return None
     parent = exe.parent
-    if (parent / BUNDLED_RUNTIME_MANIFEST).is_file():
+    if _has_manifest(parent):
         return parent
     grand = parent.parent
-    if (grand / BUNDLED_RUNTIME_MANIFEST).is_file():
+    if _has_manifest(grand):
         return grand
     return parent
 
 
 def read_bundled_runtime_manifest() -> dict | None:
-    """Load ``.clara-runtime-manifest.json``; None when missing or invalid (never raises)."""
+    """Load ``.valkade-runtime-manifest.json`` (else the legacy ``.clara-runtime-manifest.json``).
+
+    None when missing or invalid (never raises).
+    """
     root = bundled_runtime_dir()
     if root is None:
         return None
     path = root / BUNDLED_RUNTIME_MANIFEST
+    if not path.is_file():
+        path = root / LEGACY_BUNDLED_RUNTIME_MANIFEST
     try:
         data = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, TypeError, ValueError):
@@ -68,28 +80,28 @@ def venv_belongs_to_bundled(root: Path, bundled_exe: Path) -> bool:
 
 
 def get_runtime_dir() -> Path:
-    raw = env_clara('CLARA_RUNTIME_DIR', '').strip()
+    raw = env_valkade('VALKADE_RUNTIME_DIR', '').strip()
     if raw:
         return Path(raw).expanduser().resolve()
     return (Path(tempfile.gettempdir()) / 'valkade-runtime').resolve()
 
 
 def get_runtime_python_dir() -> Path:
-    raw = env_clara('CLARA_RUNTIME_PYTHON_DIR', '').strip()
+    raw = env_valkade('VALKADE_RUNTIME_PYTHON_DIR', '').strip()
     if raw:
         return Path(raw).expanduser().resolve()
     return get_runtime_dir() / 'python-venv'
 
 
 def get_runtime_bin_dir() -> Path:
-    raw = env_clara('CLARA_RUNTIME_BIN_DIR', '').strip()
+    raw = env_valkade('VALKADE_RUNTIME_BIN_DIR', '').strip()
     if raw:
         return Path(raw).expanduser().resolve()
     return get_runtime_dir() / 'bin'
 
 
 def get_runtime_java_lsp_dir() -> Path:
-    raw = env_clara('CLARA_JAVA_LSP_CACHE_DIR', '').strip()
+    raw = env_valkade('VALKADE_JAVA_LSP_CACHE_DIR', '').strip()
     if raw:
         return Path(raw).expanduser().resolve()
     return get_runtime_dir() / 'java-lsp'
@@ -202,7 +214,7 @@ def requirements_whisper_pypi() -> Path:
 
 def whisper_models_dir(custom_models_dir: str = '') -> Path:
     """Directory for faster-whisper Hub weights (``{customModelsDir}/whisper``)."""
-    raw = (custom_models_dir or env_clara('CLARA_CUSTOM_MODELS_DIR', '')).strip()
+    raw = (custom_models_dir or env_valkade('VALKADE_CUSTOM_MODELS_DIR', '')).strip()
     if not raw:
         # Same default as Electron: an existing ``~/ClaraCoder/models`` keeps being used.
         legacy = Path.home() / 'ClaraCoder' / 'models'

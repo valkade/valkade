@@ -1,9 +1,9 @@
 ---
 name: verify-app
-description: Verify a ClaraCoder change fast — type-check and targeted tests first, then drive the running dev app (main, Settings, Dependencies, Health windows) from the built-in browser through the dev browser bridge. Use when asked to verify, check, test or see a change working in the app, or before reporting a UI/IPC change as done.
+description: Verify a ValkAde change fast — type-check and targeted tests first, then drive the running dev app (main, Settings, Dependencies, Health windows) from the built-in browser through the dev browser bridge. Use when asked to verify, check, test or see a change working in the app, or before reporting a UI/IPC change as done.
 ---
 
-# Verify ClaraCoder changes
+# Verify ValkAde changes
 
 Cheapest check first; stop as soon as the change is proven. Never use computer use for this: the
 user is often away and can't approve it. Everything below goes through the bridge.
@@ -30,10 +30,10 @@ node .claude/skills/verify-app/bridge-status.mjs
 ```
 
 Prints `{ up, pid, windows: { main, settings, dependencies, health } }`. If `up` is false, call
-`preview_start` with name `clara-dev-bridge` (`.claude/launch.json`, runs `npm run dev:bridge`), then
+`preview_start` with name `valkade-dev-bridge` (`.claude/launch.json`, runs `npm run dev:bridge`), then
 `bridge-status.mjs --wait 120`. Don't start a second copy if it's up.
 
-The token is stable across restarts (`%APPDATA%\clara-coder-dev\browser-bridge-token`), so open
+The token is stable across restarts (`%APPDATA%\valkade-dev\browser-bridge-token`), so open
 tabs survive electronmon restarts: after a main-process edit they reconnect and reload themselves
 within ~5 s. No need to re-read the URLs unless a tab shows the red "token changed" banner.
 
@@ -60,7 +60,7 @@ Prefer, in order:
    navigations, so check `performance.timeOrigin` or re-test live state before blaming an old error.
 4. Screenshots at `scale: 0.5`, only for layout, theme or icon changes.
 
-Backend / model / tool behaviour: read `%APPDATA%\clara-coder-dev\logs\clara-app.log` (`clara.llm`
+Backend / model / tool behaviour: read `%APPDATA%\valkade-dev\logs\clara-app.log` (`clara.llm`
 shows each AIMessage's tool calls; `clara.tools.invoke` / `clara.tools.edit` show execution) rather
 than watching the chat UI.
 

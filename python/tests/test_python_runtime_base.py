@@ -9,12 +9,20 @@ from pathlib import Path
 
 import pytest
 
-from valkade_backend.runtime.deps.paths import venv_python, venv_unusable_reason
+from valkade_backend.runtime.deps.paths import (
+    bundled_runtime_dir,
+    read_bundled_runtime_manifest,
+    venv_python,
+    venv_unusable_reason,
+)
 from valkade_backend.runtime.deps.providers import python_runtime as pr
 
 
 @pytest.fixture(autouse=True)
 def _clear_bundled_runtime_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('VALKADE_BUNDLED_PYTHON', raising=False)
+    monkeypatch.delenv('VALKADE_BUNDLED_RUNTIME_DIR', raising=False)
+    monkeypatch.delenv('VALKADE_PYTHON', raising=False)
     monkeypatch.delenv('CLARA_BUNDLED_PYTHON', raising=False)
     monkeypatch.delenv('CLARA_BUNDLED_RUNTIME_DIR', raising=False)
     monkeypatch.delenv('NEMO_BUNDLED_PYTHON', raising=False)
@@ -137,6 +145,44 @@ def test_requirements_current_false_until_hash_written(
     pr._write_requirements_hash(venv)
     assert pr._requirements_current(venv) is True
     req.write_text('basedpyright>=1.29,<1.40\nblack\n', encoding='utf-8')
+    assert pr._requirements_current(venv) is False
+
+
+def test_requirements_hash_written_under_valkade_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    req = tmp_path / 'requirements.txt'
+    req.write_text('fastapi\n', encoding='utf-8')
+    monkeypatch.setattr(pr, 'requirements_txt', lambda: req)
+    venv = tmp_path / 'python-venv'
+    pr._write_requirements_hash(venv)
+    assert pr.REQ_HASH_MARKER == '.valkade-requirements-hash'
+    assert (venv / '.valkade-requirements-hash').read_text(encoding='utf-8').strip() == pr._requirements_fingerprint()
+    assert not (venv / '.clara-requirements-hash').exists()
+
+
+def test_requirements_current_reads_legacy_clara_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    req = tmp_path / 'requirements.txt'
+    req.write_text('fastapi\n', encoding='utf-8')
+    monkeypatch.setattr(pr, 'requirements_txt', lambda: req)
+    venv = tmp_path / 'python-venv'
+    venv.mkdir()
+    (venv / '.clara-requirements-hash').write_text(pr._requirements_fingerprint() + '\n', encoding='utf-8')
+    assert pr._requirements_current(venv) is True
+
+
+def test_requirements_current_prefers_valkade_marker_over_legacy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    req = tmp_path / 'requirements.txt'
+    req.write_text('fastapi\n', encoding='utf-8')
+    monkeypatch.setattr(pr, 'requirements_txt', lambda: req)
+    venv = tmp_path / 'python-venv'
+    venv.mkdir()
+    (venv / '.clara-requirements-hash').write_text(pr._requirements_fingerprint() + '\n', encoding='utf-8')
+    (venv / '.valkade-requirements-hash').write_text('stale\n', encoding='utf-8')
     assert pr._requirements_current(venv) is False
 
 
@@ -455,12 +501,12 @@ def test_status_bundled_installed_without_overlay_venv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     bundled = _stub_bundled_exe(tmp_path)
-    (bundled.parent / '.clara-runtime-manifest.json').write_text(
+    (bundled.parent / '.valkade-runtime-manifest.json').write_text(
         json.dumps({'schemaVersion': 1, 'pythonVersion': '3.12.11'}),
         encoding='utf-8',
     )
-    monkeypatch.setenv('CLARA_BUNDLED_PYTHON', str(bundled))
-    monkeypatch.setenv('CLARA_BUNDLED_RUNTIME_DIR', str(bundled.parent))
+    monkeypatch.setenv('VALKADE_BUNDLED_PYTHON', str(bundled))
+    monkeypatch.setenv('VALKADE_BUNDLED_RUNTIME_DIR', str(bundled.parent))
     monkeypatch.setattr(pr, 'get_runtime_python_dir', lambda: tmp_path / 'python-venv')
     monkeypatch.setattr(pr, '_base_has_core', lambda _exe: True)
 
@@ -494,6 +540,61 @@ def test_expected_requirements_hash_uses_manifest_when_bundled(
 
     assert pr._expected_requirements_hash() == digest
     assert pr._requirements_fingerprint() != digest
+
+
+def test_expected_requirements_hash_uses_valkade_manifest_when_bundled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundled = _stub_bundled_exe(tmp_path)
+    digest = 'cd' * 32
+    (bundled.parent / '.valkade-runtime-manifest.json').write_text(
+        json.dumps({'schemaVersion': 1, 'requirementsSha256': digest}),
+        encoding='utf-8',
+    )
+    monkeypatch.setenv('VALKADE_BUNDLED_PYTHON', str(bundled))
+    monkeypatch.setenv('VALKADE_BUNDLED_RUNTIME_DIR', str(bundled.parent))
+
+    assert pr._expected_requirements_hash() == digest
+
+
+def test_read_bundled_manifest_prefers_valkade_name_over_legacy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundled = _stub_bundled_exe(tmp_path)
+    (bundled.parent / '.clara-runtime-manifest.json').write_text(
+        json.dumps({'pythonVersion': 'legacy'}), encoding='utf-8'
+    )
+    (bundled.parent / '.valkade-runtime-manifest.json').write_text(
+        json.dumps({'pythonVersion': 'current'}), encoding='utf-8'
+    )
+    monkeypatch.setenv('VALKADE_BUNDLED_PYTHON', str(bundled))
+
+    assert read_bundled_runtime_manifest() == {'pythonVersion': 'current'}
+
+
+@pytest.mark.parametrize('name', ['.valkade-runtime-manifest.json', '.clara-runtime-manifest.json'])
+def test_bundled_runtime_dir_finds_manifest_in_grandparent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    root = tmp_path / 'bundle'
+    exe_dir = root / 'python'
+    exe_dir.mkdir(parents=True)
+    exe = exe_dir / ('python.exe' if sys.platform.startswith('win') else 'python3')
+    exe.write_text('', encoding='utf-8')
+    (root / name).write_text(json.dumps({'pythonVersion': '3.12.11'}), encoding='utf-8')
+    monkeypatch.setenv('VALKADE_BUNDLED_PYTHON', str(exe))
+
+    assert bundled_runtime_dir() == root
+    assert read_bundled_runtime_manifest() == {'pythonVersion': '3.12.11'}
+
+
+def test_bundled_runtime_dir_reads_legacy_clara_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bundled = _stub_bundled_exe(tmp_path)
+    monkeypatch.setenv('CLARA_BUNDLED_PYTHON', str(bundled))
+    monkeypatch.setenv('CLARA_BUNDLED_RUNTIME_DIR', str(bundled.parent))
+
+    assert pr.bundled_python_executable() == bundled
+    assert bundled_runtime_dir() == bundled.parent
 
 
 def test_registry_does_not_list_the_python_runtime() -> None:
