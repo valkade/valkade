@@ -37,6 +37,8 @@ const PALETTE: DiagramPalette = {
   noteFill: '#33301c',
   noteBorder: '#ffde82',
   series: ['#f5a826', '#a9d48b', '#6ec9c4'],
+  scale: Array.from({ length: 12 }, (_, i) => ['#f5a826', '#a9d48b', '#6ec9c4'][i % 3]!),
+  scaleFills: Array.from({ length: 12 }, (_, i) => ['#5f4419', '#43502f', '#2f4c49'][i % 3]!),
 };
 const PALETTE_THEME: DiagramTheme = { key: 'dark:test', dark: true, palette: PALETTE };
 
@@ -386,6 +388,20 @@ describe('mermaidConfig', () => {
       pie3: '#6ec9c4',
     }));
     expect(config.themeVariables.xyChart.plotColorPalette).toBe('#f5a826, #a9d48b, #6ec9c4');
+  });
+
+  it('sets every section color so timelines and mindmaps get distinct sections', () => {
+    const vars = mermaidConfig(PALETTE_THEME).themeVariables as Record<string, unknown>;
+    for (let i = 0; i < 12; i++) {
+      expect(vars[`cScale${i}`]).toBe(PALETTE.scaleFills[i]);
+      expect(vars[`cScaleInv${i}`]).toBe(PALETTE.scale[i]);
+      expect(vars[`cScalePeer${i}`]).toBe(PALETTE.scale[i]);
+      expect(vars[`cScaleLabel${i}`]).toBe(PALETTE.text);
+    }
+    expect(new Set([vars['cScale0'], vars['cScale1'], vars['cScale2']]).size).toBe(3);
+    expect(vars['fillType7']).toBe(PALETTE.scaleFills[7]);
+    expect(vars['git0']).toBe(PALETTE.scale[0]);
+    expect(vars['gitBranchLabel3']).toBe(PALETTE.background);
   });
 });
 

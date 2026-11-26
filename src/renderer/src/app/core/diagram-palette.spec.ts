@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { distinctColors, flattenColor, resolveDiagramTheme, stockDiagramTheme, withAlpha } from './diagram-palette';
+import {
+  SCALE_SIZE,
+  distinctColors,
+  flattenColor,
+  resolveDiagramTheme,
+  rotateHue,
+  sectionScale,
+  stockDiagramTheme,
+  withAlpha,
+} from './diagram-palette';
 
 /** Token table standing in for `createDomColorResolver` (jsdom cannot resolve `var()` colors). */
 function resolverFor(tokens: Record<string, string>) {
@@ -66,6 +75,33 @@ describe('diagram palette', () => {
     // Node fill is the accent tinted into the surface, never the raw accent.
     expect(palette.primaryFill).not.toBe(palette.primary);
     expect(palette.noteBorder).toBe('#ffde82');
+  });
+
+  it('turns hues while keeping saturation and lightness', () => {
+    expect(rotateHue('#ff0000', 120)).toBe('#00ff00');
+    expect(rotateHue('#ff0000', -120)).toBe('#0000ff');
+    expect(rotateHue('#f5a826', 360)).toBe('#f5a826');
+    expect(rotateHue('#808080', 90)).toBe('#808080');
+  });
+
+  it('builds a full section scale of distinct accents', () => {
+    const scale = sectionScale(['#f5a826', '#a9d48b'], '#f5a826');
+    expect(scale).toHaveLength(SCALE_SIZE);
+    expect(scale.slice(0, 2)).toEqual(['#f5a826', '#a9d48b']);
+    expect(distinctColors(scale)).toEqual(scale);
+    // A gray theme has no hues to turn: its accents repeat rather than collapse to one color.
+    expect(sectionScale(['#808080', '#404040'], '#808080')).toEqual(
+      Array.from({ length: SCALE_SIZE }, (_, i) => (i % 2 ? '#404040' : '#808080')),
+    );
+  });
+
+  it('tints the section scale into section fills', () => {
+    const palette = resolveDiagramTheme(true, resolverFor(DARK_TOKENS)).palette!;
+    expect(palette.scale).toHaveLength(SCALE_SIZE);
+    expect(palette.scale.slice(0, 4)).toEqual(palette.series);
+    expect(palette.scaleFills).toHaveLength(SCALE_SIZE);
+    expect(new Set(palette.scaleFills).size).toBe(SCALE_SIZE);
+    expect(palette.scaleFills[0]).not.toBe(palette.scale[0]);
   });
 
   it('keys the theme by its colors so a palette change re-renders diagrams', () => {

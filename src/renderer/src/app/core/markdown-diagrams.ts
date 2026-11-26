@@ -9,7 +9,7 @@
  */
 import DOMPurify from 'dompurify';
 import type { Mermaid, MermaidConfig } from 'mermaid';
-import type { DiagramTheme } from './diagram-palette';
+import type { DiagramPalette, DiagramTheme } from './diagram-palette';
 import { loadChartJs, parseChartSpec, renderChartSvg } from './markdown-charts';
 
 /** Fence languages rendered as diagrams instead of code. */
@@ -166,6 +166,29 @@ function nextRenderId(): string {
   return `md-diagram-${++renderCount}-r`;
 }
 
+function indexed(prefix: string, colors: readonly string[]): Record<string, string> {
+  return Object.fromEntries(colors.map((color, i) => [`${prefix}${i}`, color]));
+}
+
+/**
+ * Per-section colors (timeline, mindmap, kanban, treemap, journey, git graph). Set explicitly: the
+ * `base` theme derives them by hue-turning `primaryColor` and then darkening them (by 75% in dark
+ * mode), which leaves a muted node fill with near-identical, almost black sections.
+ */
+function sectionColors(p: DiagramPalette): Record<string, string> {
+  return {
+    ...indexed('cScale', p.scaleFills),
+    ...indexed('cScalePeer', p.scale),
+    ...indexed('cScaleInv', p.scale),
+    scaleLabelColor: p.text,
+    ...indexed('cScaleLabel', p.scaleFills.map(() => p.text)),
+    ...indexed('fillType', p.scaleFills.slice(0, 8)),
+    ...indexed('git', p.scale.slice(0, 8)),
+    branchLabelColor: p.background,
+    ...indexed('gitBranchLabel', p.scale.slice(0, 8).map(() => p.background)),
+  };
+}
+
 /**
  * Mermaid settings for `theme`: the `base` theme seeded with app colors (Mermaid derives the
  * remaining shades), or the stock dark/default theme when the app palette is unavailable.
@@ -218,6 +241,7 @@ export function mermaidConfig(theme: DiagramTheme): MermaidConfig {
       labelBoxBorderColor: p.primary,
       labelTextColor: p.text,
       loopTextColor: p.text,
+      ...sectionColors(p),
       ...pie,
       pieStrokeColor: p.background,
       pieOuterStrokeColor: p.border,

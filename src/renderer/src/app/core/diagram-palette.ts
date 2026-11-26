@@ -19,7 +19,14 @@ export interface DiagramPalette {
   noteBorder: string;
   /** Distinct accents for chart series, pie slices and diagram color scales. */
   series: readonly string[];
+  /** {@link SCALE_SIZE} accents for per-section colors (timeline, mindmap, kanban, git graph…). */
+  scale: readonly string[];
+  /** {@link scale} tinted into the surface: section fills that keep {@link text} readable. */
+  scaleFills: readonly string[];
 }
+
+/** Section colors Mermaid themes define (`cScale0`…`cScale11`). */
+export const SCALE_SIZE = 12;
 
 /** How diagrams are colored; equal `key`s render identically (part of the render cache key). */
 export interface DiagramTheme {
@@ -100,6 +107,41 @@ export function withAlpha(hex: string, alpha: number): string {
   return `${toHex(c[0], c[1], c[2])}${a}`;
 }
 
+/** `#rrggbb` with its HSL hue turned by `degrees` (saturation and lightness kept). */
+export function rotateHue(hex: string, degrees: number): string {
+  const c = channels(hex);
+  if (!c) {
+    return hex;
+  }
+  const [r, g, b] = [c[0] / 255, c[1] / 255, c[2] / 255];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) {
+    return toHex(c[0], c[1], c[2]);
+  }
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const hue = (((h * 60 + degrees) % 360) + 360) % 360;
+  const k = (n: number) => (n + hue / 30) % 12;
+  const f = (n: number) => l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return toHex(f(0) * 255, f(8) * 255, f(4) * 255);
+}
+
+/** Hue turns tried, in order, when the theme has fewer distinct accents than {@link SCALE_SIZE}. */
+const SCALE_HUE_STEPS = [60, 180, 300, 120, 240, 30, 210, 90, 270, 150, 330];
+
+/**
+ * {@link SCALE_SIZE} section accents: the theme's series first, then hue turns of the primary that
+ * stay distinct; a theme too gray to yield enough distinct hues repeats its accents.
+ */
+export function sectionScale(series: readonly string[], primary: string): string[] {
+  const kept = distinctColors([...series, ...SCALE_HUE_STEPS.map((step) => rotateHue(primary, step))]);
+  const scale = kept.length ? kept : [primary];
+  return Array.from({ length: SCALE_SIZE }, (_, i) => scale[i % scale.length]!);
+}
+
 /**
  * Builds the diagram theme from the live theme tokens. `resolve` maps any CSS color expression to
  * `#rrggbb[aa]` (see `createDomColorResolver`); missing core tokens fall back to the stock theme.
@@ -122,6 +164,7 @@ export function resolveDiagramTheme(dark: boolean, resolve: ThemeColorResolver):
   const series = distinctColors(SERIES_TOKENS.map((token) => opaque(`var(${token})`)).filter((c): c is string => !!c));
   const tint = (color: string, percent: number): string =>
     opaque(`color-mix(in srgb, ${color} ${percent}%, ${surface})`) ?? surface;
+  const scale = sectionScale(series, primary);
   const palette: DiagramPalette = {
     background,
     surface,
@@ -135,6 +178,8 @@ export function resolveDiagramTheme(dark: boolean, resolve: ThemeColorResolver):
     noteFill: tint(warning, 16),
     noteBorder: warning,
     series: series.length ? series : [primary],
+    scale,
+    scaleFills: scale.map((color) => tint(color, 35)),
   };
   return { key: `${dark ? 'dark' : 'light'}:${JSON.stringify(palette)}`, dark, palette };
 }
