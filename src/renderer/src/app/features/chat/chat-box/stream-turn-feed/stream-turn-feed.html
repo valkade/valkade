@@ -85,14 +85,19 @@
       }
       @case ('markdown') {
         @if (item.kind === 'markdown' && item.text) {
-          <div class="stream-turn-feed__markdown">
+          @let isFinal = isFinalResponse(index);
+          <div
+            class="stream-turn-feed__markdown"
+            [attr.data-final-response]="isFinal ? 'true' : null"
+          >
             <div
               class="assistant-md"
               appCaptureImages
-              [class.streaming-live-md]="live()"
-              [innerHTML]="item.text | markdown: markdownLayoutPass()"
+              [class.streaming-live-md]="live() && !isFinal"
+              [appStreamingMarkdown]="item.text | markdown: markdownLayoutPass()"
+              [appStreamingMarkdownAnimate]="live() && isFinal"
             ></div>
-            @if (showCursor() && isLastMarkdown(index)) {
+            @if (showCursor() && isLastMarkdown(index) && !isFinal) {
               <span class="streaming-cursor streaming-cursor--live" aria-hidden="true"></span>
             }
           </div>

@@ -48,6 +48,7 @@ import { ValkAdeBadgeComponent } from './valkade-badge/valkade-badge';
 import { PlannerChecklistComponent } from './planner-checklist/planner-checklist';
 import { RunButtonDirective } from './run-button.directive';
 import { StreamTurnFeedComponent } from './stream-turn-feed/stream-turn-feed';
+import { isFinalResponseFeedItem } from './stream-turn-feed/activity-blocks';
 import { ToolSpinnerComponent } from './tool-spinner/tool-spinner';
 import { TurnEditsFooterComponent, type TurnDiffOpenRequest } from './turn-edits-footer/turn-edits-footer';
 import type { HostedSpinnerKind } from './stream-turn-feed/stream-turn-feed';
@@ -67,6 +68,7 @@ import {
   chatBottomBufferPx,
   chatTurnUserContexts,
   decideChatScrollOnAppend,
+  decideFinalResponseScrollTop,
   decideInstantScrollOnStreamingUpdate,
   decideStickAfterUserScroll,
   hashChatToolPhaseKey,
@@ -108,6 +110,7 @@ export {
   CHAT_BOTTOM_BUFFER_RATIO,
   chatBottomBufferPx,
   decideChatScrollOnAppend,
+  decideFinalResponseScrollTop,
   decideInstantScrollOnStreamingUpdate,
   decideStickAfterUserScroll,
   extractLatestBriefLine,
@@ -150,6 +153,7 @@ export {
   type ArtifactMessage,
   type ChatDisplayRow,
   type ChatMessage,
+  type FinalResponseScrollStop,
   type ToolChainGroup,
   type TurnActivity,
   type TurnActivityView,
@@ -343,6 +347,20 @@ export class ChatBox implements OnDestroy {
   private prevHadStreamingFinalText = false;
   /** After `[DONE]`, follow the persisted markdown layout pass once it takes height. */
   private followFinalResponseAfterMdPass = false;
+  /** Last live feed index that held the final response (re-arms top-stop after tools split a brief). */
+  private prevLiveFinalResponseIndex = -1;
+  /**
+   * Armed (`false`) at the start of a live turn: once the top of the final response reaches the
+   * top of `#chatScroll`, auto-scroll stops there, unsticks, and consumes this lock (`true`) so
+   * an explicit Jump-to-Bottom or re-stick can freely follow the rest of the turn.
+   */
+  private finalResponseTopLockConsumed = true;
+  /**
+   * True after auto-scroll stopped at the top of the current turn's final response and before the
+   * user scrolls manually: keeps the persisted reply's first line aligned if folding work pills at
+   * `[DONE]` shifts the reply upward.
+   */
+  private pinnedFinalResponseTop = false;
   /** Last `liveAwaitingHitlReview` seen by the HITL layout-follow effect. */
   private prevLiveAwaitingHitl = false;
   /** Fingerprint tail for streaming scroll dedupe (unified turn feed). */
@@ -762,6 +780,8 @@ export class ChatBox implements OnDestroy {
           this.scrollTrackedConvId = id;
           this.scrollTrackedMsgLen = msgs.length;
           this.prevLiveAwaitingHitl = false;
+          this.finalResponseTopLockConsumed = true;
+          this.pinnedFinalResponseTop = false;
           this.enterStickMode();
           if (this.convScrollTimeout != null) {
             clearTimeout(this.convScrollTimeout);
@@ -797,11 +817,26 @@ export class ChatBox implements OnDestroy {
     // During streaming: follow unified feed growth while stick is on.
     effect(() => {
       const loading = this.loading();
-      const feedKey = turnFeedScrollKey(this.liveTurnFeed());
+      const feed = this.liveTurnFeed();
+      const feedKey = turnFeedScrollKey(feed);
       untracked(() => {
         if (!loading) {
+          this.prevLiveFinalResponseIndex = -1;
           return;
         }
+        let liveFinalIdx = -1;
+        for (let i = feed.length - 1; i >= 0; i--) {
+          if (isFinalResponseFeedItem(feed, i)) {
+            liveFinalIdx = i;
+            break;
+          }
+        }
+        if (liveFinalIdx >= 0 && liveFinalIdx !== this.prevLiveFinalResponseIndex) {
+          this.finalResponseTopLockConsumed = false;
+          this.pinnedFinalResponseTop = false;
+        }
+        this.prevLiveFinalResponseIndex = liveFinalIdx;
+
         const decision = decideInstantScrollOnStreamingUpdate(
           {
             primaryKey: feedKey,
@@ -830,12 +865,21 @@ export class ChatBox implements OnDestroy {
         if (loading && !this.prevLoadingForCompletionScroll) {
           this.prevStreamFeedKey = '';
           this.prevHadStreamingFinalText = false;
+          this.finalResponseTopLockConsumed = false;
+          this.pinnedFinalResponseTop = false;
         }
         if (this.prevLoadingForCompletionScroll && !loading) {
-          this.followFinalResponseAfterMdPass = this.stickMode();
+          this.followFinalResponseAfterMdPass = this.stickMode() || this.pinnedFinalResponseTop;
           afterNextRender(
             () => {
-              if (this.chatDestroyed || !shouldFollowStreamComplete(this.stickMode())) {
+              if (this.chatDestroyed) {
+                return;
+              }
+              if (this.pinnedFinalResponseTop) {
+                this.realignPinnedFinalResponseTop();
+                return;
+              }
+              if (!shouldFollowStreamComplete(this.stickMode())) {
                 return;
               }
               this.scrollToBottom('smooth');
@@ -918,7 +962,15 @@ export class ChatBox implements OnDestroy {
             this.followFinalResponseAfterMdPass = false;
             afterNextRender(
               () => {
-                if (this.chatDestroyed || !shouldFollowFinalResponse(this.stickMode())) {
+                if (this.chatDestroyed) {
+                  return;
+                }
+                if (this.pinnedFinalResponseTop) {
+                  this.realignPinnedFinalResponseTop();
+                  this.pinnedFinalResponseTop = false;
+                  return;
+                }
+                if (!shouldFollowFinalResponse(this.stickMode())) {
                   return;
                 }
                 this.scrollToBottom('smooth');
@@ -1009,6 +1061,9 @@ export class ChatBox implements OnDestroy {
 
   /** Wheel-up leaves stick immediately so a live stream cannot yank the viewport back down. */
   onChatWheel(event: WheelEvent): void {
+    if (event.deltaY !== 0) {
+      this.pinnedFinalResponseTop = false;
+    }
     const box = this.chatScroll()?.nativeElement;
     if (
       event.deltaY < 0 &&
@@ -1021,6 +1076,8 @@ export class ChatBox implements OnDestroy {
 
   /** Jump-to-bottom FAB: re-enter stick and smooth-scroll to the latest content. */
   onJumpToBottom(): void {
+    this.pinnedFinalResponseTop = false;
+    this.finalResponseTopLockConsumed = true;
     this.enterStickMode();
     this.scrollToBottom('smooth');
   }
@@ -1040,6 +1097,7 @@ export class ChatBox implements OnDestroy {
 
   /** User scroll-up: freeze the viewport and abort any in-flight stick follow. */
   private enterRoamFromUser(): void {
+    this.pinnedFinalResponseTop = false;
     const box = this.chatScroll()?.nativeElement;
     if (!box || !isChatTranscriptScrollable(box.scrollHeight, box.clientHeight)) {
       this.enterStickMode();
@@ -1123,6 +1181,9 @@ export class ChatBox implements OnDestroy {
    */
   private applyStickFromViewport(box: HTMLElement): void {
     const top = box.scrollTop;
+    if (!this.programmaticScroll && Math.abs(top - this.lastScrollTop) > 1) {
+      this.pinnedFinalResponseTop = false;
+    }
     this.syncScrollMetrics(box);
     const slack = scrollSlackPx(box.scrollHeight, top, box.clientHeight);
     const intent = decideStickAfterUserScroll({
@@ -1204,6 +1265,109 @@ export class ChatBox implements OnDestroy {
     }, 80);
   }
 
+  /** Final response element of the active turn (live bubble while streaming, else last persisted row). */
+  private activeFinalResponseElement(box: HTMLElement): HTMLElement | null {
+    if (this.loading()) {
+      return box.querySelector<HTMLElement>('.chat-row--live [data-final-response="true"]');
+    }
+    const lastIdx = this.persistedRows().length - 1;
+    if (lastIdx < 0) {
+      return null;
+    }
+    return box.querySelector<HTMLElement>(`[data-chat-row="${lastIdx}"] [data-final-response="true"]`);
+  }
+
+  /** Top offset of `target` in `box`'s scrollable coordinate space, plus `box`'s top padding inset. */
+  private finalResponseTopMetrics(box: HTMLElement): { targetContentTop: number; topInsetPx: number } | null {
+    const target = this.activeFinalResponseElement(box);
+    if (!target) {
+      return null;
+    }
+    const boxRect = box.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const topInsetPx = parseFloat(getComputedStyle(box).paddingTop) || 0;
+    return {
+      targetContentTop: box.scrollTop + (targetRect.top - boxRect.top),
+      topInsetPx,
+    };
+  }
+
+  /**
+   * Decide where stick-mode auto-scroll should land: the bottom of the transcript, or the top of
+   * the current turn's final response if scrolling further would push its first line off the top.
+   */
+  private resolveStickScrollTarget(box: HTMLElement): { top: number; stoppedAtFinalTop: boolean } {
+    if (!this.finalResponseTopLockConsumed) {
+      const metrics = this.finalResponseTopMetrics(box);
+      if (metrics) {
+        const stop = decideFinalResponseScrollTop({
+          scrollHeight: box.scrollHeight,
+          clientHeight: box.clientHeight,
+          targetContentTop: metrics.targetContentTop,
+          topInsetPx: metrics.topInsetPx,
+        });
+        if (stop.stoppedAtTop) {
+          return { top: stop.scrollTop, stoppedAtFinalTop: true };
+        }
+      }
+    }
+    return { top: box.scrollHeight, stoppedAtFinalTop: false };
+  }
+
+  /**
+   * Stop auto-scrolling at the top of the final response, unstick scroll so the jump-to-bottom
+   * button displays, and consume this turn's top-stop lock.
+   */
+  private stopAtFinalResponseTop(box: HTMLElement, top: number, behavior: ScrollBehavior): void {
+    this.finalResponseTopLockConsumed = true;
+    this.pinnedFinalResponseTop = true;
+    this.stickMode.set(false);
+    if (this.scrollSmoothDebounceTimer != null) {
+      clearTimeout(this.scrollSmoothDebounceTimer);
+      this.scrollSmoothDebounceTimer = null;
+    }
+    // Never smooth-scroll upward on a clamp (avoid triggering `isUserScrollUp` mid-animation).
+    const effectiveBehavior: ScrollBehavior = behavior === 'instant' || top < box.scrollTop ? 'instant' : behavior;
+    this.beginProgrammaticScrollLock(effectiveBehavior);
+    if (effectiveBehavior === 'instant') {
+      box.scrollTop = top;
+    } else {
+      try {
+        box.scrollTo({ top, behavior: effectiveBehavior });
+      } catch {
+        box.scrollTop = top;
+      }
+    }
+    this.lastScrollTop = box.scrollTop;
+    this.syncScrollMetrics(box);
+  }
+
+  /**
+   * Re-align `scrollTop` to the persisted final response's top when `[DONE]` folds work pills above
+   * it, so the first line stays pinned at the top of the frame without jumping off-screen.
+   */
+  private realignPinnedFinalResponseTop(): void {
+    if (this.chatDestroyed || !this.pinnedFinalResponseTop || this.stickMode()) {
+      return;
+    }
+    const box = this.chatScroll()?.nativeElement ?? this.el.nativeElement.querySelector('.chat-box');
+    if (!(box instanceof HTMLElement)) {
+      return;
+    }
+    this.syncScrollMetrics(box);
+    const metrics = this.finalResponseTopMetrics(box);
+    if (!metrics) {
+      return;
+    }
+    const targetTop = Math.max(0, Math.floor(metrics.targetContentTop - metrics.topInsetPx));
+    const maxReachable = Math.max(0, box.scrollHeight - box.clientHeight);
+    const clamped = Math.min(targetTop, maxReachable);
+    this.beginProgrammaticScrollLock('instant');
+    box.scrollTop = clamped;
+    this.lastScrollTop = box.scrollTop;
+    this.syncScrollMetrics(box);
+  }
+
   /**
    * Synchronous instant pin used from the `ResizeObserver` while stick is on. Runs inside the
    * observer callback (after layout, before paint) so a scrollport that is mid-transition never
@@ -1215,8 +1379,14 @@ export class ChatBox implements OnDestroy {
     if (this.chatDestroyed || !this.stickMode()) {
       return;
     }
+    this.syncScrollMetrics(box);
+    const { top, stoppedAtFinalTop } = this.resolveStickScrollTarget(box);
+    if (stoppedAtFinalTop) {
+      this.stopAtFinalResponseTop(box, top, 'instant');
+      return;
+    }
     this.beginProgrammaticScrollLock('instant');
-    box.scrollTop = box.scrollHeight;
+    box.scrollTop = top;
     this.lastScrollTop = box.scrollTop;
     this.syncScrollMetrics(box);
   }
@@ -1234,14 +1404,19 @@ export class ChatBox implements OnDestroy {
       }
       const box = this.chatScroll()?.nativeElement ?? this.el.nativeElement.querySelector('.chat-box');
       if (box instanceof HTMLElement) {
-        const top = box.scrollHeight;
-        try {
-          box.scrollTo({ top, behavior });
-        } catch {
-          box.scrollTop = top;
-        }
-        this.lastScrollTop = box.scrollTop;
         this.syncScrollMetrics(box);
+        const { top, stoppedAtFinalTop } = this.resolveStickScrollTarget(box);
+        if (stoppedAtFinalTop) {
+          this.stopAtFinalResponseTop(box, top, behavior);
+        } else {
+          try {
+            box.scrollTo({ top, behavior });
+          } catch {
+            box.scrollTop = top;
+          }
+          this.lastScrollTop = box.scrollTop;
+          this.syncScrollMetrics(box);
+        }
       }
       this.scheduleMeasureVisibleRows();
     });
