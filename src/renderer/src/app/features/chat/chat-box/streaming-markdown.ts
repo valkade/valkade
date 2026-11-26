@@ -5,6 +5,8 @@
  * while newly arriving text deltas and blocks fade in softly via `.stream-md-fade`.
  */
 
+import { isHydratedDiagram, isHydratedDiagramFor } from '../../../core/markdown-diagrams';
+
 /** CSS class applied to newly arriving text spans and elements while streaming. */
 export const STREAM_FADE_CLASS = 'stream-md-fade';
 
@@ -327,8 +329,15 @@ function reconcileChildren(
       continue;
     }
 
-    // Matching element tag: sync attributes and recurse into children.
-    if (t.kind === 'element' && s.kind === 'element' && t.el.tagName === s.el.tagName) {
+    // A rendered diagram keeps its SVG while its source is unchanged.
+    if (t.kind === 'element' && s.kind === 'element' && isHydratedDiagramFor(t.el, s.el)) {
+      shortenedPriorTextTail = false;
+      continue;
+    }
+
+    // Matching element tag: sync attributes and recurse into children. A rendered diagram whose
+    // source changed is replaced whole so the fresh placeholder renders again.
+    if (t.kind === 'element' && s.kind === 'element' && t.el.tagName === s.el.tagName && !isHydratedDiagram(t.el)) {
       syncAttributes(t.el, s.el, nowMs);
       reconcileChildren(t.el, s.el, doc, nowMs);
       shortenedPriorTextTail = false;

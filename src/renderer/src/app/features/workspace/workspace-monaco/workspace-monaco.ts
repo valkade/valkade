@@ -29,6 +29,7 @@ import {
 } from '@shared/index';
 import { normalizeMonacoWorkspaceEditorSettings } from '@shared/index';
 import { ElectronService } from '../../../core/electron.service';
+import { MarkdownDiagramsDirective } from '../../../core/markdown-diagrams.directive';
 import { ThemeEngineService } from '../../../core/theme/theme-engine.service';
 import { defineMonacoAppTheme, resolveMonacoThemeName } from '../../../core/theme/monaco-app-theme';
 import { normalizePathSlashes } from '../../../utils/workspace-relative-path';
@@ -85,7 +86,7 @@ const MAX_REVEAL_WAIT_FRAMES = 60;
 @Component({
   selector: 'app-workspace-monaco',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MarkdownDiagramsDirective],
   templateUrl: './workspace-monaco.html',
   styleUrl: './workspace-monaco.css',
   // Markdown preview HTML is injected via [innerHTML]; emulated encapsulation cannot

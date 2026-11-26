@@ -839,8 +839,10 @@ async def test_event_reaches_the_stream_through_the_runner(session: SessionState
 async def test_notes_call_differs_on_the_wire_only_as_allowed(session: SessionState) -> None:
     window = small_window(session)
     set_window(window)
-    # Small rounds: when the soft trigger fires, the current view still has room for the notes.
-    server = MockServer(read_script(30, 2000))
+    # Small rounds: when the soft trigger fires, the current view still has room for the notes. Keep them
+    # well under the notes headroom so the step that crosses the trigger cannot overshoot it, whatever the
+    # system prompt's size (the window scales with it).
+    server = MockServer(read_script(60, 1000))
     graph = fake_graph(server, session, model=build_model(server, max_tokens=8192))
 
     await run_graph(graph, thread(), user_turn())

@@ -21,6 +21,13 @@
             "baseHref": "./",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": [
+              "@braintree/sanitize-url",
+              "cytoscape-cose-bilkent",
+              "cytoscape-fcose",
+              "dayjs",
+              "elkjs"
+            ],
             "loader": {
               ".ttf": "file",
               ".woff": "file",

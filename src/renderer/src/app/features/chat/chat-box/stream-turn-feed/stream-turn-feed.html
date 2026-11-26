@@ -93,6 +93,7 @@
             <div
               class="assistant-md"
               appCaptureImages
+              appMarkdownDiagrams
               [class.streaming-live-md]="live() && !isFinal"
               [appStreamingMarkdown]="item.text | markdown: markdownLayoutPass()"
               [appStreamingMarkdownAnimate]="live() && isFinal"
