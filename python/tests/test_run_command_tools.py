@@ -12,6 +12,7 @@ from valkade_backend.hitl.accept_command import ACCEPT_COMMAND_KIND_DEFERRED_TOO
 from valkade_backend.hitl.deferred_tool_hitl import DEFERRED_HITL_TOOL_NAMES
 from valkade_backend.session.state import current_session_id, get_session
 from valkade_backend.hitl.tool_registry import hitl_accept_command_pause_tools
+from valkade_backend.runtime.agent_shell import agent_shell
 from valkade_backend.tools.run_command import (
     RUN_COMMAND_NAME,
     STATUS_RUNNING,
@@ -50,11 +51,17 @@ async def _cleanup(session_id: str) -> None:
 def _python_command(code: str) -> str:
     """Shell command running ``code`` in this interpreter.
 
-    Long-running test commands go through Python because the tool uses the platform shell: ``cmd.exe`` on
-    Windows has neither ``sleep`` nor ``;`` chaining. ``code`` must not contain double quotes.
+    Long-running test commands go through Python so they behave the same in every agent shell (PowerShell
+    on Windows, ``/bin/sh`` elsewhere). The leading quoted path also covers PowerShell's call-operator
+    insertion. ``code`` must not contain double quotes.
     """
     py = sys.executable.replace('\\', '/')
     return f'"{py}" -c "{code}"'
+
+
+def _python_step(code: str) -> str:
+    """:func:`_python_command` for a later step of a bundle, where PowerShell needs the explicit ``&``."""
+    return f'& {_python_command(code)}' if agent_shell().is_powershell else _python_command(code)
 
 
 def test_run_command_in_accept_command_pause_registry() -> None:
@@ -69,6 +76,47 @@ async def test_run_command_completes_within_wait(command_session) -> None:
         assert 'exited with code 0' in out
         assert 'hello-clara' in out
         assert not [j for j in background_command_jobs().values() if j.session_id == 'run-command-test-session']
+    finally:
+        await _cleanup('run-command-test-session')
+
+
+@pytest.mark.asyncio(loop_scope='function')
+async def test_run_command_runs_bundled_steps(command_session) -> None:
+    """Agents may bundle steps with separators and new lines; the report shows a one-line preview."""
+    first = _python_command("print('step-one')")
+    second = _python_step("print('step-two')")
+    try:
+        out = await run_command_tool.ainvoke({'command': f'{first}; {second}\r\necho step-three', 'wait_seconds': 30})
+        assert 'exited with code 0' in out, out
+        body = out.split('New output:')[1]
+        assert body.index('step-one') < body.index('step-two') < body.index('step-three')
+        assert '(+1 more lines)' in out.split('New output:')[0]
+    finally:
+        await _cleanup('run-command-test-session')
+
+
+@pytest.mark.asyncio(loop_scope='function')
+async def test_run_command_reports_the_last_steps_exit_code(command_session) -> None:
+    try:
+        out = await run_command_tool.ainvoke(
+            {'command': f"echo before; {_python_step('import sys; sys.exit(4)')}", 'wait_seconds': 30}
+        )
+        assert 'exited with code 4' in out, out
+        assert 'before' in out
+    finally:
+        await _cleanup('run-command-test-session')
+
+
+@pytest.mark.skipif(not agent_shell().is_powershell, reason='PowerShell agent shell (Windows) only')
+@pytest.mark.asyncio(loop_scope='function')
+async def test_run_command_report_hints_at_rejected_bash(command_session) -> None:
+    try:
+        out = await run_command_tool.ainvoke({'command': 'rm -rf does-not-exist-valkade', 'wait_seconds': 30})
+        assert 'exited with code 1' in out, out
+        hints = out.split('Shell hints:')[1]
+        assert 'Remove-Item -Recurse -Force' in hints
+        clean = await run_command_tool.ainvoke({'command': 'echo all-good', 'wait_seconds': 30})
+        assert 'Shell hints:' not in clean
     finally:
         await _cleanup('run-command-test-session')
 
@@ -278,10 +326,8 @@ async def test_granted_session_still_hitl_when_auto_apply_off(command_session) -
 @pytest.mark.asyncio(loop_scope='function')
 async def test_exit_is_reported_when_a_grandchild_keeps_the_pipe_open(command_session) -> None:
     """A shell that starts a background child (dev server style) must not stay "running" forever."""
-    import sys
     import time
 
-    py = sys.executable.replace('\\', '/')
     child = "import time; time.sleep(8)"
     # The grandchild runs outside the temp workspace so its cwd does not block the fixture's cleanup on Windows.
     parent = (
@@ -291,7 +337,7 @@ async def test_exit_is_reported_when_a_grandchild_keeps_the_pipe_open(command_se
     )
     started = time.monotonic()
     try:
-        out = await run_command_tool.ainvoke({'command': f'"{py}" -c "{parent}"', 'wait_seconds': 15})
+        out = await run_command_tool.ainvoke({'command': _python_command(parent), 'wait_seconds': 15})
         assert 'exited with code 0' in out, out
         assert 'parent-done' in out
         assert time.monotonic() - started < 7
