@@ -7,6 +7,7 @@ Modules
 ``python_interpreter_select`` — choose interpreter for tools/LSP
 ``subprocess_smoke`` — short subprocess smoke checks
 ``http_url_normalize`` — normalize OpenAI-compatible base URLs
+``agent_shell`` — the shell agent commands run in (PowerShell 7 → 5.1 → cmd on Windows, ``/bin/sh`` elsewhere)
 ``admin_exec`` / ``admin_broker`` — elevated ``run_command`` helper (Windows UAC / Linux pkexec)
 ``deps`` — managed app dependencies (llama-server, JDT LS, Kokoro, Whisper)
 """
