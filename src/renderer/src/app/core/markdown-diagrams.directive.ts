@@ -1,5 +1,6 @@
 import { AfterViewInit, Directive, ElementRef, NgZone, OnDestroy, effect, inject, untracked } from '@angular/core';
 import { DiagramThemeService } from './diagram-theme.service';
+import { installDiagramTooltips } from './diagram-tooltips';
 import { DiagramViewerService } from './diagram-viewer.service';
 import {
   DIAGRAM_CLASS,
@@ -14,6 +15,7 @@ import {
  * Works with any writer of the host's content (`[innerHTML]`, the streaming reconciler): a
  * MutationObserver picks up new placeholders, and a theme change re-renders the diagrams in the
  * new colors. A rendered diagram's expand button opens it in the full-window {@link DiagramViewerService}.
+ * Pie slices show their value and share on hover/focus (see `diagram-tooltips.ts`).
  */
 @Directive({
   selector: '[appMarkdownDiagrams]',
@@ -50,6 +52,8 @@ export class MarkdownDiagramsDirective implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.zone.runOutsideAngular(() => {
+      // Document-wide, so the expanded viewer's copy gets slice tooltips too.
+      installDiagramTooltips(this.host.ownerDocument);
       this.host.addEventListener('click', this.onClick);
       this.observer = new MutationObserver(() => this.scan());
       this.observer.observe(this.host, { childList: true, subtree: true });

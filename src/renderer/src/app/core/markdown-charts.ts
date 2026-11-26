@@ -1,9 +1,12 @@
 /**
  * ```chart fences: a Chart.js config written as JSON, rendered to an image wrapped in SVG so it
  * shares the diagram pipeline (cache, streaming, expand/viewer). See `markdown-diagrams.ts`.
+ * Pie, doughnut and polarArea slices get invisible SVG hit areas over the image that carry
+ * hover/focus tooltips (see `diagram-tooltips.ts`).
  */
 import type { Chart as ChartJs } from 'chart.js';
 import { withAlpha, type DiagramPalette, type DiagramTheme } from './diagram-palette';
+import { markTipTarget } from './diagram-tooltips';
 
 type ChartClass = typeof ChartJs;
 
@@ -107,6 +110,143 @@ function renderOptions(spec: ChartSpec): JsonObject {
   };
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Final geometry of a Chart.js arc element, in canvas CSS pixels. */
+export interface ArcGeometry {
+  x: number;
+  y: number;
+  startAngle: number;
+  endAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+}
+
+const ARC_PROPS = ['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'];
+
+/** The parts of a live Chart.js chart the hit layer reads (`legendHitBoxes` is not in the typings). */
+interface ChartLike {
+  data?: { labels?: unknown[]; datasets?: Array<Record<string, unknown>> };
+  getDatasetMeta?(index: number): {
+    hidden?: boolean | null;
+    data: Array<{ getProps(keys: string[], final?: boolean): Record<string, unknown> }>;
+  };
+  legend?: {
+    legendItems?: Array<{ index?: number }>;
+    legendHitBoxes?: Array<{ left: number; top: number; width: number; height: number }>;
+  };
+}
+
+function round(n: number): string {
+  return String(Math.round(n * 100) / 100);
+}
+
+/**
+ * SVG path of a Chart.js arc (canvas angles: 0 at 3 o'clock, growing clockwise). Each edge is drawn
+ * as two half arcs so a single full-circle slice still has a well-defined path.
+ */
+export function arcPath(arc: ArcGeometry): string {
+  const { x, y, startAngle, endAngle, innerRadius, outerRadius } = arc;
+  const mid = (startAngle + endAngle) / 2;
+  const at = (r: number, angle: number): string => `${round(x + r * Math.cos(angle))} ${round(y + r * Math.sin(angle))}`;
+  const outer = round(outerRadius);
+  let d = `M${at(outerRadius, startAngle)}A${outer} ${outer} 0 0 1 ${at(outerRadius, mid)}`
+    + `A${outer} ${outer} 0 0 1 ${at(outerRadius, endAngle)}`;
+  if (innerRadius > 0) {
+    const inner = round(innerRadius);
+    d += `L${at(innerRadius, endAngle)}A${inner} ${inner} 0 0 0 ${at(innerRadius, mid)}`
+      + `A${inner} ${inner} 0 0 0 ${at(innerRadius, startAngle)}`;
+  } else {
+    d += `L${round(x)} ${round(y)}`;
+  }
+  return `${d}Z`;
+}
+
+function isAmount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function pointLabel(labels: unknown[] | undefined, dataset: Record<string, unknown>, index: number, multi: boolean): string {
+  const raw = labels?.[index];
+  const name = Array.isArray(raw) ? raw.join(' ') : raw != null && raw !== '' ? String(raw) : `Item ${index + 1}`;
+  const series = dataset['label'];
+  return multi && typeof series === 'string' && series ? `${series} · ${name}` : name;
+}
+
+function pointColor(dataset: Record<string, unknown>, index: number): string | null {
+  const fill = dataset['backgroundColor'];
+  const color = Array.isArray(fill) ? fill[index % fill.length] : fill;
+  return typeof color === 'string' ? color : null;
+}
+
+/**
+ * Transparent hit areas over the chart image for pie / doughnut / polarArea slices (and, for a
+ * single dataset, the legend rows), carrying tooltip data. Empty markup for other chart types.
+ */
+function chartHitLayer(chart: ChartLike, type: string, doc: Document): string {
+  const datasets = chart.data?.datasets ?? [];
+  if (typeof chart.getDatasetMeta !== 'function' || !datasets.length) {
+    return '';
+  }
+  const labels = chart.data?.labels;
+  const multi = datasets.length > 1;
+  const group = doc.createElementNS(SVG_NS, 'g');
+  group.setAttribute('class', 'md-chart-hits');
+  const totals = datasets.map((dataset) =>
+    (Array.isArray(dataset['data']) ? dataset['data'] : []).reduce<number>((sum, v) => sum + (isAmount(v) ? v : 0), 0));
+  datasets.forEach((dataset, d) => {
+    const kind = typeof dataset['type'] === 'string' ? dataset['type'] : type;
+    const values = Array.isArray(dataset['data']) ? dataset['data'] : [];
+    const meta = chart.getDatasetMeta!(d);
+    if (!PER_POINT_TYPES.has(kind) || meta.hidden) {
+      return;
+    }
+    meta.data.forEach((element, j) => {
+      const value = values[j];
+      const arc = element.getProps(ARC_PROPS, true) as unknown as ArcGeometry;
+      if (!isAmount(value) || !(arc.endAngle - arc.startAngle > 1e-6) || !(arc.outerRadius > 0)) {
+        return;
+      }
+      const path = doc.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', 'md-chart-hit');
+      path.setAttribute('d', arcPath(arc));
+      const tip = { label: pointLabel(labels, dataset, j, multi), value, total: totals[d]!, key: String(j) };
+      markTipTarget(path, { ...tip, color: pointColor(dataset, j) }, true);
+      group.append(path);
+    });
+  });
+  // Legend rows map to data points only for a single per-point dataset.
+  const only = datasets.length === 1 ? datasets[0]! : null;
+  const items = chart.legend?.legendItems ?? [];
+  const boxes = chart.legend?.legendHitBoxes ?? [];
+  if (only && group.childNodes.length && items.length === boxes.length) {
+    const values = Array.isArray(only['data']) ? only['data'] : [];
+    items.forEach((item, i) => {
+      const j = item.index;
+      const value = typeof j === 'number' ? values[j] : undefined;
+      const box = boxes[i]!;
+      if (typeof j !== 'number' || !isAmount(value)) {
+        return;
+      }
+      const rect = doc.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('class', 'md-chart-legend-hit');
+      for (const [name, n] of [['x', box.left], ['y', box.top], ['width', box.width], ['height', box.height]] as const) {
+        rect.setAttribute(name, round(n));
+      }
+      const tip = { label: pointLabel(labels, only, j, false), value, total: totals[0]!, key: String(j) };
+      markTipTarget(rect, { ...tip, color: pointColor(only, j) }, false);
+      group.append(rect);
+    });
+  }
+  if (!group.childNodes.length) {
+    return '';
+  }
+  // Serialized through the DOM so labels from the chart JSON are escaped.
+  const holder = doc.createElement('div');
+  holder.append(group);
+  return holder.innerHTML;
+}
+
 const importChart = (): Promise<ChartClass> => import('chart.js/auto').then((m) => m.default);
 let loadChart: () => Promise<ChartClass> = importChart;
 let chartReady: Promise<ChartClass> | null = null;
@@ -152,9 +292,9 @@ export function renderChartSvg(Chart: ChartClass, spec: ChartSpec, theme: Diagra
   try {
     chart = new Chart(canvas, { ...config, options: renderOptions(spec) } as never);
     const png = canvas.toDataURL('image/png');
-    return `<svg xmlns="http://www.w3.org/2000/svg" id="${id}" viewBox="0 0 ${spec.width} ${spec.height}" `
+    return `<svg xmlns="${SVG_NS}" id="${id}" viewBox="0 0 ${spec.width} ${spec.height}" `
       + `width="${spec.width}" height="${spec.height}"><image href="${png}" width="${spec.width}" `
-      + `height="${spec.height}"></image></svg>`;
+      + `height="${spec.height}"></image>${chartHitLayer(chart as unknown as ChartLike, config.type, doc)}</svg>`;
   } finally {
     chart?.destroy();
     canvas.remove();

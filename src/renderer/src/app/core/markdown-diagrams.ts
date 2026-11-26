@@ -10,6 +10,7 @@
 import DOMPurify from 'dompurify';
 import type { Mermaid, MermaidConfig } from 'mermaid';
 import type { DiagramPalette, DiagramTheme } from './diagram-palette';
+import { annotateMermaidPie, hasTipTargets } from './diagram-tooltips';
 import { loadChartJs, parseChartSpec, renderChartSvg } from './markdown-charts';
 
 /** Fence languages rendered as diagrams instead of code. */
@@ -133,7 +134,8 @@ export function isHydratedDiagramFor(target: Element, source: Element): boolean 
     && state.language === placeholderLanguage(source);
 }
 
-function sanitizeSvg(svg: string): string {
+/** `annotate` runs on the sanitized markup (our own attributes, e.g. pie tooltips, are added after). */
+function sanitizeSvg(svg: string, annotate?: (root: HTMLElement) => void): string {
   const fragment = DOMPurify.sanitize(svg, {
     USE_PROFILES: { svg: true, svgFilters: true, html: true },
     // Mermaid draws HTML labels inside <foreignObject> and reuses symbols via <use> (checked below).
@@ -152,6 +154,7 @@ function sanitizeSvg(svg: string): string {
   }
   const wrapper = document.createElement('div');
   wrapper.append(fragment);
+  annotate?.(wrapper);
   return wrapper.innerHTML;
 }
 
@@ -282,7 +285,7 @@ async function renderMermaid(source: string, theme: DiagramTheme): Promise<Diagr
       initializedThemeKey = theme.key;
     }
     const { svg } = await mermaid.render(id, source);
-    return { svg: sanitizeSvg(svg), id };
+    return { svg: sanitizeSvg(svg, (root) => annotateMermaidPie(root, source)), id };
   } catch (error) {
     // Mermaid can leave its scratch container behind when parsing fails.
     document.getElementById(id)?.remove();
@@ -361,9 +364,10 @@ function applyResult(el: Element, source: string, language: DiagramLanguage, res
   if ('svg' in result) {
     const canvas = doc.createElement('div');
     canvas.className = 'md-diagram__canvas';
-    canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', language === 'chart' ? 'Chart' : 'Diagram');
     canvas.innerHTML = instantiateSvg(result);
+    // An `img` hides its children from assistive tech; keep focusable slices reachable.
+    canvas.setAttribute('role', hasTipTargets(canvas) ? 'group' : 'img');
+    canvas.setAttribute('aria-label', language === 'chart' ? 'Chart' : 'Diagram');
     // Clicks are handled by the host's MarkdownDiagramsDirective (see expandedDiagramSvg).
     const expand = doc.createElement('button');
     expand.type = 'button';

@@ -192,6 +192,24 @@ describe('hydrateMarkdownDiagrams', () => {
     );
   });
 
+  it('marks rendered pie slices for tooltips after sanitizing', async () => {
+    mermaid.render.mockImplementation(async (id: string) => ({
+      svg: `<svg id="${id}" xmlns="http://www.w3.org/2000/svg" aria-roledescription="pie"><g><g>`
+        + '<path class="pieCircle" fill="#f5a826" d="M0 0"></path><path class="pieCircle" fill="#a9d48b" d="M0 0"></path>'
+        + '<text class="slice">75%</text><text class="slice">25%</text></g>'
+        + '<g class="legend"><rect style="fill: #f5a826;"></rect><text>Done</text></g>'
+        + '<g class="legend"><rect style="fill: #a9d48b;"></rect><text>Open</text></g></g></svg>',
+    }));
+    const host = placeholderHost('pie\n  "Done" : 3\n  "Open" : 1');
+    hydrateMarkdownDiagrams(host, DARK);
+    await settle();
+
+    const slices = Array.from(host.querySelectorAll('path.pieCircle'));
+    expect(slices.map((s) => s.getAttribute('aria-label'))).toEqual(['Done: 3 (75.0%)', 'Open: 1 (25.0%)']);
+    expect(host.querySelector('.md-diagram__canvas')?.getAttribute('role')).toBe('group');
+    expect(expandedDiagramSvg(host.querySelector(`.${DIAGRAM_CLASS}`)!)).toContain('data-md-tip-detail="1 (25.0%)"');
+  });
+
   it('adds an expand button and hands out independent copies for the viewer', async () => {
     const host = placeholderHost(FLOW, 'graph TD\n  broken');
     hydrateMarkdownDiagrams(host, DARK);
@@ -354,6 +372,59 @@ describe('chart fences', () => {
     expect(unquoted!.querySelector('pre code.language-chart')?.textContent).toBe('{"type": "bar", data: {}}');
     expect(untyped!.querySelector('.md-diagram__error')?.textContent).toContain('Chart needs a "type"');
     expect(array!.querySelector('.md-diagram__error')?.textContent).toContain('JSON object');
+  });
+
+  it('lays invisible tooltip hit areas over doughnut slices and legend rows', async () => {
+    const arcs = [
+      { x: 360, y: 190, startAngle: -Math.PI / 2, endAngle: Math.PI, innerRadius: 80, outerRadius: 160 },
+      { x: 360, y: 190, startAngle: Math.PI, endAngle: 1.5 * Math.PI, innerRadius: 80, outerRadius: 160 },
+    ];
+    class PieChart {
+      static defaults = { color: '', borderColor: '' };
+      readonly data: { labels: unknown[]; datasets: Record<string, unknown>[] };
+      readonly legend = {
+        legendItems: [{ index: 0 }, { index: 1 }],
+        legendHitBoxes: [{ left: 300, top: 10, width: 40, height: 12 }, { left: 350, top: 10, width: 60, height: 12 }],
+      };
+      constructor(_canvas: HTMLCanvasElement, config: { data: PieChart['data'] }) {
+        this.data = config.data;
+      }
+      getDatasetMeta() {
+        return { hidden: false, data: arcs.map((arc) => ({ getProps: () => arc })) };
+      }
+      destroy(): void {}
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+    setChartLoaderForTests(() => Promise.resolve(PieChart as never));
+    const host = chartHost(JSON.stringify({
+      type: 'doughnut',
+      data: { labels: ['Done', '<b>Open</b>'], datasets: [{ data: [3, 1] }] },
+    }));
+    hydrateMarkdownDiagrams(host, PALETTE_THEME);
+    await settle();
+
+    const slices = Array.from(host.querySelectorAll('.md-chart-hit'));
+    expect(slices.map((s) => s.getAttribute('data-md-tip'))).toEqual(['Done', '<b>Open</b>']);
+    expect(host.querySelector('b')).toBeNull();
+    expect(slices[0]!.getAttribute('data-md-tip-detail')).toBe('3 (75.0%)');
+    expect(slices[0]!.getAttribute('data-md-tip-color')).toBe('#f5a826');
+    expect(slices[0]!.getAttribute('tabindex')).toBe('0');
+    expect(slices[0]!.getAttribute('d')).toBe('M360 30A160 160 0 0 1 473.14 303.14A160 160 0 0 1 200 190L280 190A80 80 0 0 0 416.57 246.57A80 80 0 0 0 360 110Z');
+    const legend = Array.from(host.querySelectorAll('.md-chart-legend-hit'));
+    expect(legend.map((r) => [r.getAttribute('x'), r.getAttribute('data-md-tip-key')])).toEqual([['300', '0'], ['350', '1']]);
+    expect(host.querySelector('.md-diagram__canvas')?.getAttribute('role')).toBe('group');
+    // The viewer copy keeps the hit areas.
+    expect(expandedDiagramSvg(host.querySelector(`.${DIAGRAM_CLASS}`)!)).toContain('data-md-tip="Done"');
+  });
+
+  it('adds no hit areas to charts that are not pie-like', async () => {
+    stubChartJs();
+    const host = chartHost('{"type": "bar", "data": {"labels": ["a"], "datasets": [{"data": [1]}]}}');
+    hydrateMarkdownDiagrams(host, PALETTE_THEME);
+    await settle();
+    expect(host.querySelector('.md-diagram__canvas svg image')).not.toBeNull();
+    expect(host.querySelector('.md-chart-hits')).toBeNull();
+    expect(host.querySelector('.md-diagram__canvas')?.getAttribute('role')).toBe('img');
   });
 
   it('chat pipe keeps a still-streaming chart fence as code', () => {
