@@ -11,7 +11,7 @@ import {
 import {
   attachBrowserWindowRevealFallbacks,
   returnFocusToParentOnClose,
-  settingsWindowParentOptions,
+  settingsModalParentOptions,
 } from '../utils/reveal-browser-window';
 import { broadcastThemePreview } from '../ipc/handlers/theme-broadcast';
 import { isSettingsTab, type SettingsTab as SettingsWindowTab } from '../../shared/settings-tabs';
@@ -70,9 +70,19 @@ export function notifySettingsRendererReady(sender: WebContents): void {
 
 const SETTINGS_WINDOW_WIDTH = 1680;
 const SETTINGS_WINDOW_HEIGHT = 980;
+const SETTINGS_MAIN_INSET_PX = 48;
+const SETTINGS_MIN_WIDTH = 960;
+const SETTINGS_MIN_HEIGHT = 600;
+
+export type WindowRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 /**
- * The Settings window's one size. It cannot be resized, so on a display smaller than the design
+ * The Settings window's base size. It cannot be resized, so on a display smaller than the design
  * size it takes the display's work area instead of hanging off the screen.
  */
 export function settingsWindowSize(workArea: { width: number; height: number } | null): {
@@ -88,18 +98,66 @@ export function settingsWindowSize(workArea: { width: number; height: number } |
   };
 }
 
-/** Work area of the display the main window is on (Settings opens over it); null when unknown. */
-function workAreaOf(win: BrowserWindow): { width: number; height: number } | null {
+/**
+ * Fixed bounds centered over `mainBounds`, inset slightly so the blurred main window frames the
+ * dialog and clamped to `workArea` so it never clips off-screen.
+ */
+export function settingsWindowBounds(
+  mainBounds: WindowRect | null,
+  workArea: WindowRect | null,
+): { x?: number; y?: number; width: number; height: number } {
+  let { width, height } = settingsWindowSize(workArea);
+  if (!mainBounds || mainBounds.width <= 0 || mainBounds.height <= 0) {
+    return { width, height };
+  }
+
+  const mainW = Math.floor(mainBounds.width);
+  const mainH = Math.floor(mainBounds.height);
+  const insetW = Math.max(Math.min(SETTINGS_MIN_WIDTH, mainW), mainW - SETTINGS_MAIN_INSET_PX * 2);
+  const insetH = Math.max(Math.min(SETTINGS_MIN_HEIGHT, mainH), mainH - SETTINGS_MAIN_INSET_PX * 2);
+  width = Math.min(width, insetW);
+  height = Math.min(height, insetH);
+
+  let x = Math.round(mainBounds.x + (mainBounds.width - width) / 2);
+  let y = Math.round(mainBounds.y + (mainBounds.height - height) / 2);
+
+  if (workArea && workArea.width > 0 && workArea.height > 0) {
+    const maxX = workArea.x + Math.max(0, Math.floor(workArea.width) - width);
+    const maxY = workArea.y + Math.max(0, Math.floor(workArea.height) - height);
+    x = Math.min(maxX, Math.max(workArea.x, x));
+    y = Math.min(maxY, Math.max(workArea.y, y));
+  }
+
+  return { x, y, width, height };
+}
+
+function safeGetBounds(win: BrowserWindow): WindowRect | null {
   try {
-    return screen.getDisplayMatching(win.getBounds()).workAreaSize;
+    return win.getBounds();
+  } catch {
+    return null;
+  }
+}
+
+/** Work area of the display the main window is on (Settings opens centered over it); null when unknown. */
+function workAreaOf(win: BrowserWindow): WindowRect | null {
+  try {
+    const display = screen.getDisplayMatching(win.getBounds());
+    if (display.workArea && display.workArea.width > 0 && display.workArea.height > 0) {
+      return display.workArea;
+    }
+    if (display.workAreaSize && display.workAreaSize.width > 0 && display.workAreaSize.height > 0) {
+      return { x: 0, y: 0, width: display.workAreaSize.width, height: display.workAreaSize.height };
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Non-modal settings surface of a fixed size (Angular `#/settings`). Reuses preload; notifies renderer
- * when shown/hidden. The main window stays interactive and undimmed while this is open.
+ * Modal, fixed-center settings dialog (Angular `#/settings`). Reuses preload; notifies the main
+ * window when shown/hidden so it blurs and blocks input while Settings is open.
  * Optional `tab` opens (or switches) a settings category from the titlebar menu.
  */
 export function createSettingsWindow(tab?: SettingsWindowTab): void {
@@ -112,8 +170,17 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
     mainWindow.webContents.send('settings-window-visibility-changed', isOpen);
   };
 
+  const centerOnMain = (sw: BrowserWindow): void => {
+    if (sw.isDestroyed() || mainWindow.isDestroyed()) return;
+    const next = settingsWindowBounds(safeGetBounds(mainWindow), workAreaOf(mainWindow));
+    if (typeof next.x === 'number' && typeof next.y === 'number' && typeof sw.setBounds === 'function') {
+      sw.setBounds({ x: next.x, y: next.y, width: next.width, height: next.height });
+    }
+  };
+
   if (mainState.settingsWindow) {
     notifyVisibility(true);
+    centerOnMain(mainState.settingsWindow);
     if (tab) {
       queueSettingsWindowTab(mainState.settingsWindow, tab);
     }
@@ -124,13 +191,17 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
   resetSettingsTabDelivery();
 
   const icon = resolveAppIconPath();
+  const parentOpts = settingsModalParentOptions(mainWindow);
+  const initialBounds = settingsWindowBounds(safeGetBounds(mainWindow), workAreaOf(mainWindow));
   mainState.settingsWindow = new BrowserWindow({
-    ...settingsWindowSize(workAreaOf(mainWindow)),
-    ...settingsWindowParentOptions(mainWindow),
+    ...initialBounds,
+    ...parentOpts,
     frame: false,
     ...framelessWindowShapeOptions(),
+    movable: false,
     resizable: false,
     maximizable: false,
+    minimizable: false,
     fullscreenable: false,
     show: false,
     backgroundColor: '#0a0a0a',
@@ -140,11 +211,43 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
   });
 
   const sw = mainState.settingsWindow;
+  let closing = false;
   hardenBrowserWindow(sw);
   sw.removeMenu();
   attachBrowserWindowRevealFallbacks(sw);
+  // Mark closing before returnFocusToParentOnClose runs on `close` so focus redirection does not
+  // bounce focus back onto the closing Settings window.
+  sw.on('close', () => {
+    closing = true;
+  });
   returnFocusToParentOnClose(sw, mainWindow);
   notifyVisibility(true);
+
+  // Silent modal lock: block keyboard input to the main window, keep Settings centered over it,
+  // and immediately redirect any main-window focus back to Settings without triggering the OS
+  // disabled-window beep.
+  const blockMainInput = (event: Electron.Event): void => {
+    if (!closing && mainState.settingsWindow === sw && !sw.isDestroyed()) {
+      event.preventDefault();
+    }
+  };
+  const onMainGeometryChanged = (): void => centerOnMain(sw);
+  const onMainFocus = (): void => {
+    if (!closing && !parentOpts.modal && mainState.settingsWindow === sw && !sw.isDestroyed()) {
+      sw.focus();
+    }
+  };
+
+  if (!mainWindow.webContents.isDestroyed() && typeof mainWindow.webContents.on === 'function') {
+    mainWindow.webContents.on('before-input-event', blockMainInput);
+  }
+  if (typeof mainWindow.on === 'function') {
+    mainWindow.on('move', onMainGeometryChanged);
+    mainWindow.on('resize', onMainGeometryChanged);
+    if (!parentOpts.modal) {
+      mainWindow.on('focus', onMainFocus);
+    }
+  }
 
   const hash = settingsHash(tab);
   if (DEV_SERVER_URL) {
@@ -154,6 +257,16 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
   }
 
   sw.on('closed', () => {
+    if (!mainWindow.isDestroyed()) {
+      if (!mainWindow.webContents.isDestroyed() && typeof mainWindow.webContents.removeListener === 'function') {
+        mainWindow.webContents.removeListener('before-input-event', blockMainInput);
+      }
+      if (typeof mainWindow.removeListener === 'function') {
+        mainWindow.removeListener('move', onMainGeometryChanged);
+        mainWindow.removeListener('resize', onMainGeometryChanged);
+        mainWindow.removeListener('focus', onMainFocus);
+      }
+    }
     resetSettingsTabDelivery();
     notifyVisibility(false);
     mainState.settingsWindow = null;

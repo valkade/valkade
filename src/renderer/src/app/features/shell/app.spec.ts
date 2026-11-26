@@ -1684,4 +1684,39 @@ describe('App', () => {
       expect(app.conversationSession.composerFor('gone').modelId).toBe('model-a');
     });
   });
+
+  it('blurs and locks the main window while the Settings modal is open', async () => {
+    refs = stubElectronApi([]);
+    let onVisibility: ((_event: unknown, isOpen: boolean) => void) | undefined;
+    const api = (window as unknown as { electronAPI: Record<string, unknown> }).electronAPI;
+    api['onSettingsWindowVisibilityChanged'] = (cb: (_event: unknown, isOpen: boolean) => void) => {
+      onVisibility = cb;
+    };
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const layout = root.querySelector('.app-layout')!;
+    const content = root.querySelector('.app-content')!;
+
+    expect(layout.classList.contains('app-layout--settings-open')).toBe(false);
+    expect(root.querySelector('.app-settings-backdrop')).toBeNull();
+    expect(content.hasAttribute('inert')).toBe(false);
+
+    onVisibility?.({}, true);
+    fixture.detectChanges();
+
+    expect(layout.classList.contains('app-layout--settings-open')).toBe(true);
+    expect(root.querySelector('.app-settings-backdrop')).not.toBeNull();
+    expect(content.hasAttribute('inert')).toBe(true);
+
+    onVisibility?.({}, false);
+    fixture.detectChanges();
+
+    expect(layout.classList.contains('app-layout--settings-open')).toBe(false);
+    expect(root.querySelector('.app-settings-backdrop')).toBeNull();
+    expect(content.hasAttribute('inert')).toBe(false);
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -10,6 +11,7 @@ import {
   OnDestroy,
   output,
   signal,
+  viewChild,
   ViewEncapsulation,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -23,29 +25,92 @@ import { buildWorkspaceImageAssetUrl } from './image-viewer-asset-url';
 import {
   absolutePathForWorkspaceRelative,
   AUTO_PLAY_INTERVAL_OPTIONS_MS,
+  clampZoom,
+  computeFilmstripVirtualWindow,
+  computeFitScale,
+  computeGridVirtualWindow,
+  computeZoomPanForPointer,
+  formatImageExtension,
   galleryIndexForPath,
   galleryNextIndex,
   galleryPreviousIndex,
+  IMAGE_VIEWER_MAX_ZOOM,
+  IMAGE_VIEWER_MIN_ZOOM,
+  imageFileName,
+  isVectorOrIconImagePath,
   parentFolderAbsolutePath,
   parentFolderRelativePath,
   pickGalleryPathAfterRefresh,
+  shouldCollapseToolbarToRibbon,
   viewableImagesInDirectory,
   workspaceChangeAffectsGalleryFolder,
 } from './image-viewer-gallery';
 import { isViewableImagePath } from './image-viewer-formats';
+import { ImagePreloadCache } from './image-viewer-preloader';
 
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 16;
 const ZOOM_STEP = 1.25;
+const WHEEL_ZOOM_SENSITIVITY = 0.0018;
 
 /** Default / clamp range for the thumbnail gallery strip height (px). */
-const DEFAULT_GALLERY_HEIGHT_PX = 72;
-const MIN_GALLERY_HEIGHT_PX = 56;
-const MAX_GALLERY_HEIGHT_PX = 280;
-/** Vertical padding inside `.image-viewer-thumbs` (0.45rem × 2 at 16px root). */
-const GALLERY_THUMBS_PADDING_Y_PX = 14;
-const MIN_THUMB_SIZE_PX = 40;
-const MAX_THUMB_SIZE_PX = 256;
+const DEFAULT_GALLERY_HEIGHT_PX = 84;
+const MIN_GALLERY_HEIGHT_PX = 60;
+const MAX_GALLERY_HEIGHT_PX = 240;
+/** Vertical padding inside `.image-viewer-thumbs` (10px top + 10px bottom). */
+const GALLERY_THUMBS_PADDING_Y_PX = 20;
+const MIN_THUMB_SIZE_PX = 44;
+const MAX_THUMB_SIZE_PX = 216;
+const THUMB_GAP_PX = 8;
+const THUMB_PAD_X_PX = 12;
+
+/** Contact-sheet grid layout metrics. */
+const GRID_PAD_PX = 16;
+const GRID_GAP_PX = 10;
+const GRID_LABEL_HEIGHT_PX = 28;
+const GRID_TILE_TARGET_WIDTH: Record<GridTilePreset, number> = {
+  sm: 132,
+  md: 178,
+  lg: 244,
+};
+
+const MAX_FOLDER_CACHE_ENTRIES = 10;
+
+/** Minimum comfortable width reserved for file badge + filename + dimensions before ribbon collapse. */
+const TOOLBAR_FILE_MIN_WIDTH_PX = 180;
+const TOOLBAR_CHROME_ALLOWANCE_PX = 36;
+const TOOLBAR_RIBBON_GAP_PX = 8;
+const TOOLBAR_OVERFLOW_HYSTERESIS_PX = 14;
+
+export type StageBackdropMode = 'checker' | 'dark' | 'light';
+export type GalleryViewMode = 'viewer' | 'grid';
+export type GridTilePreset = 'sm' | 'md' | 'lg';
+
+export interface GalleryItem {
+  index: number;
+  path: string;
+  normalizedPath: string;
+  name: string;
+  ext: string;
+  thumbUrl: string;
+  isIconLike: boolean;
+}
+
+export interface PositionedFilmstripItem extends GalleryItem {
+  offsetX: number;
+}
+
+export interface PositionedGridItem extends GalleryItem {
+  gridThumbUrl: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const AUTO_PLAY_SELECT_OPTIONS: readonly { id: string; label: string }[] =
+  AUTO_PLAY_INTERVAL_OPTIONS_MS.map((intervalMs) => ({
+    id: String(intervalMs),
+    label: `${intervalMs / 1000}s`,
+  }));
 
 @Component({
   selector: 'app-image-viewer',
@@ -53,12 +118,20 @@ const MAX_THUMB_SIZE_PX = 256;
   templateUrl: './image-viewer.html',
   styleUrl: './image-viewer.css',
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageViewerComponent implements OnDestroy {
   private readonly electron = inject(ElectronService);
-  private readonly host = inject(ElementRef<HTMLElement>);
   private readonly zone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
+
+  private readonly toolbarRef = viewChild<ElementRef<HTMLElement>>('toolbarHeader');
+  private readonly toolbarUtilitiesRef = viewChild<ElementRef<HTMLElement>>('toolbarUtilities');
+  private readonly ribbonInnerRef = viewChild<ElementRef<HTMLElement>>('ribbonInner');
+  private readonly stageRef = viewChild<ElementRef<HTMLElement>>('stageViewport');
+  private readonly filmstripRef = viewChild<ElementRef<HTMLElement>>('filmstripViewport');
+  private readonly gridRef = viewChild<ElementRef<HTMLElement>>('gridViewport');
+  private readonly gridSearchInputRef = viewChild<ElementRef<HTMLInputElement>>('gridSearchInput');
 
   readonly workspacePath = input<string>('');
   readonly relativePath = input<string | null>(null);
@@ -67,48 +140,162 @@ export class ImageViewerComponent implements OnDestroy {
 
   readonly navigateTo = output<{ relativePath: string }>();
 
-  protected readonly autoPlayIntervalOptions = AUTO_PLAY_INTERVAL_OPTIONS_MS;
+  protected readonly intervalOptions = AUTO_PLAY_SELECT_OPTIONS;
 
   /** null = fit to window; a number = explicit zoom factor (1 === actual size). */
   protected readonly zoom = signal<number | null>(null);
+  protected readonly panX = signal(0);
+  protected readonly panY = signal(0);
+  protected readonly backdrop = signal<StageBackdropMode>('checker');
+  protected readonly viewMode = signal<GalleryViewMode>('viewer');
+  protected readonly filmstripVisible = signal(true);
+  protected readonly isPanning = signal(false);
+  protected readonly isResizingGallery = signal(false);
+  protected readonly copiedPath = signal(false);
+  protected readonly toolbarOverflowing = signal(false);
+  protected readonly ribbonExpanded = signal(false);
+
   protected readonly loadError = signal(false);
+  protected readonly imageLoading = signal(false);
+  protected readonly displayedSrc = signal('');
   protected readonly naturalWidth = signal(0);
   protected readonly naturalHeight = signal(0);
+
   protected readonly galleryPaths = signal<string[]>([]);
   protected readonly galleryLoading = signal(false);
+  protected readonly galleryRevision = signal(0);
   protected readonly autoPlayEnabled = signal(false);
   protected readonly autoPlayIntervalMs = signal(3000);
   protected readonly galleryHeightPx = signal(DEFAULT_GALLERY_HEIGHT_PX);
 
+  protected readonly gridFilter = signal('');
+  protected readonly gridTilePreset = signal<GridTilePreset>('md');
+
+  // Viewport geometry updated outside NgZone via ResizeObserver / rAF-coalesced scroll listeners.
+  protected readonly stageWidthPx = signal(0);
+  protected readonly stageHeightPx = signal(0);
+  protected readonly filmstripViewportWidth = signal(0);
+  protected readonly filmstripScrollLeft = signal(0);
+  protected readonly gridViewportWidth = signal(0);
+  protected readonly gridViewportHeight = signal(0);
+  protected readonly gridScrollTop = signal(0);
+
+  private readonly preloader = new ImagePreloadCache(8);
+  private readonly folderPathsCache = new Map<string, string[]>();
+
   private galleryFolderKey: string | null = null;
   private galleryLoadGeneration = 0;
+  private imageSwapGeneration = 0;
   private autoPlayTimer: ReturnType<typeof setInterval> | null = null;
   private autoPlayTimerGeneration = 0;
-  private galleryDrag: { startY: number; startH: number } | null = null;
-  private galleryDragListenersActive = false;
-  private readonly keydownHandler = (event: KeyboardEvent) => this.onWindowKeydown(event);
-  private readonly boundGalleryDragMove = (e: MouseEvent) => this.onGalleryResizeHandleMove(e);
-  private readonly boundGalleryDragUp = () => this.endGalleryDrag();
+  private copiedPathTimer: ReturnType<typeof setTimeout> | null = null;
+  private loadingIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
 
-  protected readonly fileName = computed(() => {
+  private galleryDrag: { startY: number; startH: number } | null = null;
+  private galleryDragRaf: number | null = null;
+  private pendingGalleryHeight: number | null = null;
+
+  private panDrag: {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null = null;
+  private panRaf: number | null = null;
+  private pendingPan: { x: number; y: number } | null = null;
+
+  private filmstripScrollRaf: number | null = null;
+  private gridScrollRaf: number | null = null;
+  private toolbarMeasureRaf: number | null = null;
+  private toolbarResizeObserver: ResizeObserver | null = null;
+  private stageResizeObserver: ResizeObserver | null = null;
+  private filmstripResizeObserver: ResizeObserver | null = null;
+  private gridResizeObserver: ResizeObserver | null = null;
+  private toolbarElAttached: HTMLElement | null = null;
+  private stageElAttached: HTMLElement | null = null;
+  private filmstripElAttached: HTMLElement | null = null;
+  private gridElAttached: HTMLElement | null = null;
+
+  private readonly keydownHandler = (event: KeyboardEvent) => this.onWindowKeydown(event);
+  private readonly boundGalleryDragMove = (e: PointerEvent) => this.onGalleryResizeMove(e);
+  private readonly boundGalleryDragUp = () => this.endGalleryDrag();
+  private readonly boundStageWheel = (e: WheelEvent) => this.onStageWheel(e);
+  private readonly boundStagePointerDown = (e: PointerEvent) => this.onStagePointerDown(e);
+  private readonly boundStagePointerMove = (e: PointerEvent) => this.onStagePointerMove(e);
+  private readonly boundStagePointerUp = (e: PointerEvent) => this.onStagePointerUp(e);
+  private readonly boundFilmstripScroll = () => this.onFilmstripScroll();
+  private readonly boundFilmstripWheel = (e: WheelEvent) => this.onFilmstripWheel(e);
+  private readonly boundGridScroll = () => this.onGridScroll();
+
+  protected readonly normalizedRelativePath = computed(() => {
     const rel = this.relativePath();
-    if (!rel) {
-      return '';
-    }
-    const norm = normalizePathSlashes(rel);
-    const i = norm.lastIndexOf('/');
-    return i >= 0 ? norm.slice(i + 1) : norm;
+    return rel ? normalizePathSlashes(rel) : '';
   });
 
-  protected readonly imageSrc = computed(() => this.assetUrlForPath(this.relativePath()));
+  protected readonly fileName = computed(() => imageFileName(this.relativePath()));
+
+  protected readonly fileExtLabel = computed(() => formatImageExtension(this.relativePath()));
+
+  protected readonly folderBreadcrumb = computed(() => {
+    const rel = this.relativePath();
+    return rel ? parentFolderRelativePath(rel) : '';
+  });
+
+  protected readonly imageSrc = computed(() =>
+    buildWorkspaceImageAssetUrl(this.workspacePath(), this.relativePath(), {
+      revision: this.galleryRevision(),
+    }),
+  );
 
   protected readonly isFit = computed(() => this.zoom() === null);
+
+  protected readonly fitScale = computed(() =>
+    computeFitScale(
+      this.naturalWidth(),
+      this.naturalHeight(),
+      Math.max(1, this.stageWidthPx() - 48),
+      Math.max(1, this.stageHeightPx() - 48),
+    ),
+  );
+
+  /** True when the main image is rendered via GPU `translate3d + scale`. */
+  protected readonly usesGpuTransform = computed(
+    () => this.naturalWidth() > 0 && this.naturalHeight() > 0 && !this.isFit(),
+  );
+
+  protected readonly effectiveZoom = computed(() => {
+    const explicit = this.zoom();
+    return explicit !== null ? explicit : this.fitScale();
+  });
+
   protected readonly zoomPercent = computed(() => {
     const z = this.zoom();
     return z === null ? null : Math.round(z * 100);
   });
 
+  protected readonly zoomReadoutLabel = computed(() => {
+    const pct = this.zoomPercent();
+    if (pct !== null) {
+      return `${pct}%`;
+    }
+    const fitPct = Math.round(this.fitScale() * 100);
+    return this.naturalWidth() > 0 && fitPct < 100 ? `Fit · ${fitPct}%` : 'Fit';
+  });
+
+  protected readonly imageTransformStyle = computed(() => {
+    if (!this.usesGpuTransform()) {
+      return null;
+    }
+    const x = Math.round(this.panX() * 100) / 100;
+    const y = Math.round(this.panY() * 100) / 100;
+    const scale = this.effectiveZoom();
+    return `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+  });
+
   protected readonly hasGallery = computed(() => this.galleryPaths().length > 1);
+
+  protected readonly showThumbCaptions = computed(() => this.thumbSizePx() >= 96);
 
   protected readonly thumbSizePx = computed(() => {
     const raw = this.galleryHeightPx() - GALLERY_THUMBS_PADDING_Y_PX;
@@ -125,6 +312,31 @@ export class ImageViewerComponent implements OnDestroy {
       return 256;
     }
     return 512;
+  });
+
+  protected readonly gridThumbMaxEdge = computed(() =>
+    this.gridTilePreset() === 'lg' ? 512 : 256,
+  );
+
+  /** Precomputed gallery items — avoids repeated URL/path formatting inside templates. */
+  protected readonly galleryItems = computed<readonly GalleryItem[]>(() => {
+    const paths = this.galleryPaths();
+    const root = this.workspacePath();
+    const maxEdge = this.thumbMaxEdge();
+    const revision = this.galleryRevision();
+    return paths.map((path, index) => ({
+      index,
+      path,
+      normalizedPath: normalizePathSlashes(path),
+      name: imageFileName(path),
+      ext: formatImageExtension(path),
+      thumbUrl: buildWorkspaceImageAssetUrl(root, path, {
+        thumb: true,
+        maxEdge,
+        revision,
+      }),
+      isIconLike: isVectorOrIconImagePath(path),
+    }));
   });
 
   protected readonly currentGalleryIndex = computed(() => {
@@ -144,41 +356,240 @@ export class ImageViewerComponent implements OnDestroy {
     return `${index + 1} / ${total}`;
   });
 
+  /** Horizontal virtual window for the bottom filmstrip. */
+  protected readonly filmstripWindow = computed(() =>
+    computeFilmstripVirtualWindow({
+      itemCount: this.galleryItems().length,
+      itemSizePx: this.thumbSizePx(),
+      gapPx: THUMB_GAP_PX,
+      viewportWidthPx: Math.max(0, this.filmstripViewportWidth() - THUMB_PAD_X_PX * 2),
+      scrollLeftPx: this.filmstripScrollLeft(),
+      overscan: 8,
+    }),
+  );
+
+  protected readonly visibleFilmstripItems = computed<readonly PositionedFilmstripItem[]>(() => {
+    const items = this.galleryItems();
+    const win = this.filmstripWindow();
+    const stride = this.thumbSizePx() + THUMB_GAP_PX;
+    const out: PositionedFilmstripItem[] = [];
+    for (let i = win.start; i < win.end; i++) {
+      const item = items[i];
+      if (!item) continue;
+      out.push({
+        ...item,
+        offsetX: i * stride,
+      });
+    }
+    return out;
+  });
+
+  /** Filtered items for the contact-sheet grid view. */
+  protected readonly filteredGridItems = computed<readonly GalleryItem[]>(() => {
+    const items = this.galleryItems();
+    const needle = this.gridFilter().trim().toLowerCase();
+    if (!needle) {
+      return items;
+    }
+    return items.filter((item) => item.name.toLowerCase().includes(needle));
+  });
+
+  protected readonly gridLayout = computed(() => {
+    const availW = Math.max(200, this.gridViewportWidth() - GRID_PAD_PX * 2);
+    const target = GRID_TILE_TARGET_WIDTH[this.gridTilePreset()];
+    const columns = Math.max(1, Math.floor((availW + GRID_GAP_PX) / (target + GRID_GAP_PX)));
+    const cellWidth = Math.floor((availW - (columns - 1) * GRID_GAP_PX) / columns);
+    const cellHeight = Math.round(cellWidth * 0.78) + GRID_LABEL_HEIGHT_PX;
+    return { columns, cellWidth, cellHeight };
+  });
+
+  protected readonly gridWindow = computed(() => {
+    const { columns, cellHeight } = this.gridLayout();
+    return computeGridVirtualWindow({
+      itemCount: this.filteredGridItems().length,
+      columns,
+      rowHeightPx: cellHeight,
+      gapPx: GRID_GAP_PX,
+      viewportHeightPx: Math.max(200, this.gridViewportHeight() - GRID_PAD_PX * 2),
+      scrollTopPx: this.gridScrollTop(),
+      overscanRows: 3,
+    });
+  });
+
+  protected readonly visibleGridItems = computed<readonly PositionedGridItem[]>(() => {
+    const items = this.filteredGridItems();
+    const win = this.gridWindow();
+    const { columns, cellWidth, cellHeight } = this.gridLayout();
+    const root = this.workspacePath();
+    const maxEdge = this.gridThumbMaxEdge();
+    const revision = this.galleryRevision();
+    const colStride = cellWidth + GRID_GAP_PX;
+    const rowStride = cellHeight + GRID_GAP_PX;
+    const out: PositionedGridItem[] = [];
+    for (let i = win.startIndex; i < win.endIndex; i++) {
+      const item = items[i];
+      if (!item) continue;
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      out.push({
+        ...item,
+        gridThumbUrl:
+          maxEdge === this.thumbMaxEdge()
+            ? item.thumbUrl
+            : buildWorkspaceImageAssetUrl(root, item.path, {
+                thumb: true,
+                maxEdge,
+                revision,
+              }),
+        x: col * colStride,
+        y: row * rowStride,
+        width: cellWidth,
+        height: cellHeight,
+      });
+    }
+    return out;
+  });
+
+  protected readonly backdropLabel = computed(() => {
+    switch (this.backdrop()) {
+      case 'checker':
+        return 'Checker';
+      case 'dark':
+        return 'Dark';
+      case 'light':
+        return 'Light';
+    }
+  });
+
+  /** Short status badge shown on the collapsed ribbon toggle when a non-default mode is active. */
+  protected readonly ribbonStatusBadge = computed(() => {
+    if (this.viewMode() === 'grid') {
+      return 'Grid';
+    }
+    const pct = this.zoomPercent();
+    if (pct !== null) {
+      return `${pct}%`;
+    }
+    return '';
+  });
+
   constructor() {
+    // Reset per-image view transforms whenever the target file changes.
     effect(() => {
-      // Reset view state whenever the displayed file changes.
       this.relativePath();
       this.zoom.set(null);
+      this.panX.set(0);
+      this.panY.set(0);
       this.loadError.set(false);
-      this.naturalWidth.set(0);
-      this.naturalHeight.set(0);
     });
 
+    // Zero-flicker image swap & decode orchestration.
+    effect(() => {
+      const targetUrl = this.imageSrc();
+      this.syncDisplayedImage(targetUrl);
+    });
+
+    // Load / refresh directory listing when workspace or folder changes.
     effect(() => {
       const root = this.workspacePath().trim();
       const rel = this.relativePath();
       void this.loadGalleryForImage(root, rel);
     });
 
+    // Return to viewer mode if the folder no longer has multiple images.
+    effect(() => {
+      if (!this.hasGallery() && this.viewMode() === 'grid') {
+        this.viewMode.set('viewer');
+      }
+    });
+
+    // Preload immediate adjacent full-res images for instant next/prev & slideshow transitions.
+    effect(() => {
+      if (!this.hasGallery() || this.viewMode() !== 'viewer') {
+        return;
+      }
+      const paths = this.galleryPaths();
+      const idx = this.currentGalleryIndex();
+      if (idx < 0 || paths.length <= 1) {
+        return;
+      }
+      const root = this.workspacePath();
+      const rev = this.galleryRevision();
+      const nextIdx = galleryNextIndex(idx, paths.length);
+      const prevIdx = galleryPreviousIndex(idx, paths.length);
+      const targets = [paths[nextIdx], paths[prevIdx]];
+      if (this.autoPlayEnabled() && paths.length > 2) {
+        targets.push(paths[galleryNextIndex(nextIdx, paths.length)]);
+      }
+      for (const p of targets) {
+        if (!p) continue;
+        const url = buildWorkspaceImageAssetUrl(root, p, { revision: rev });
+        if (url) {
+          void this.preloader.preload(url);
+        }
+      }
+    });
+
+    // Keyboard shortcut listener synced to tab activation.
     effect(() => {
       this.active();
       this.syncKeyboardListener();
     });
 
+    // Auto-play timer synced to state.
     effect(() => {
       this.autoPlayEnabled();
       this.autoPlayIntervalMs();
       this.relativePath();
       this.loadError();
       this.hasGallery();
+      this.viewMode();
       this.syncAutoPlayTimer();
     });
 
+    // Center active thumbnail in the virtualized filmstrip whenever selection changes.
     effect(() => {
       const index = this.currentGalleryIndex();
-      if (index >= 0) {
-        queueMicrotask(() => this.scrollActiveThumbnailIntoView());
+      const visible = this.filmstripVisible();
+      const mode = this.viewMode();
+      if (index >= 0 && visible && mode === 'viewer') {
+        queueMicrotask(() => this.scrollActiveThumbnailIntoView(index));
       }
+    });
+
+    // Attach/detach toolbar ResizeObserver outside NgZone to detect control overflow.
+    effect(() => {
+      const el = this.toolbarRef()?.nativeElement ?? null;
+      this.attachToolbarListeners(el);
+    });
+
+    // Re-measure toolbar overflow whenever control clusters appear/disappear or change labels.
+    effect(() => {
+      this.hasGallery();
+      this.galleryLoading();
+      this.viewMode();
+      this.relativePath();
+      this.zoomReadoutLabel();
+      this.backdropLabel();
+      this.scheduleToolbarOverflowCheck();
+    });
+
+    // Attach/detach stage ResizeObserver & pointer/wheel listeners outside NgZone.
+    effect(() => {
+      const el = this.stageRef()?.nativeElement ?? null;
+      this.attachStageListeners(el);
+    });
+
+    // Attach/detach filmstrip ResizeObserver & scroll/wheel listeners outside NgZone.
+    effect(() => {
+      const el = this.filmstripRef()?.nativeElement ?? null;
+      this.attachFilmstripListeners(el);
+    });
+
+    // Attach/detach contact-sheet grid ResizeObserver & scroll listeners outside NgZone.
+    effect(() => {
+      const el = this.gridRef()?.nativeElement ?? null;
+      this.attachGridListeners(el);
     });
 
     this.electron.workspaceFilesChanged$
@@ -188,93 +599,109 @@ export class ImageViewerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.galleryLoadGeneration += 1;
+    this.imageSwapGeneration += 1;
     this.stopAutoPlay();
     this.endGalleryDrag();
+    this.clearTimers();
+    this.detachToolbarListeners();
+    this.detachStageListeners();
+    this.detachFilmstripListeners();
+    this.detachGridListeners();
     window.removeEventListener('keydown', this.keydownHandler);
   }
 
-  protected assetUrlForPath(relativePath: string | null | undefined): string {
-    return buildWorkspaceImageAssetUrl(this.workspacePath(), relativePath);
-  }
-
-  /** Downscaled static PNG for the gallery strip (avoids decoding full / animated images). */
-  protected thumbAssetUrlForPath(relativePath: string | null | undefined): string {
-    return buildWorkspaceImageAssetUrl(this.workspacePath(), relativePath, {
-      thumb: true,
-      maxEdge: this.thumbMaxEdge(),
-    });
-  }
-
-  protected onGalleryResizeHandleDown(ev: MouseEvent): void {
-    if (!this.hasGallery()) {
-      return;
-    }
-    ev.preventDefault();
-    this.endGalleryDrag();
-    this.galleryDrag = { startY: ev.clientY, startH: this.galleryHeightPx() };
-    this.galleryDragListenersActive = true;
-    window.addEventListener('mousemove', this.boundGalleryDragMove);
-    window.addEventListener('mouseup', this.boundGalleryDragUp);
-  }
-
-  private onGalleryResizeHandleMove(ev: MouseEvent): void {
-    const drag = this.galleryDrag;
-    if (!drag) {
-      return;
-    }
-    const delta = drag.startY - ev.clientY;
-    const next = Math.min(
-      MAX_GALLERY_HEIGHT_PX,
-      Math.max(MIN_GALLERY_HEIGHT_PX, drag.startH + delta),
-    );
-    this.galleryHeightPx.set(next);
-  }
-
-  private endGalleryDrag(): void {
-    if (!this.galleryDragListenersActive) {
-      this.galleryDrag = null;
-      return;
-    }
-    window.removeEventListener('mousemove', this.boundGalleryDragMove);
-    window.removeEventListener('mouseup', this.boundGalleryDragUp);
-    this.galleryDragListenersActive = false;
-    this.galleryDrag = null;
-  }
-
-  protected isActiveGalleryPath(path: string): boolean {
-    const rel = this.relativePath();
-    return !!rel && normalizePathSlashes(rel) === normalizePathSlashes(path);
-  }
-
-  protected onImageLoad(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    this.naturalWidth.set(img.naturalWidth);
-    this.naturalHeight.set(img.naturalHeight);
-    this.loadError.set(false);
-  }
-
-  protected onImageError(): void {
-    this.loadError.set(true);
-    this.autoPlayEnabled.set(false);
-  }
+  // ── View & Transform Actions ──────────────────────────────────────────────
 
   protected fitToWindow(): void {
     this.zoom.set(null);
+    this.panX.set(0);
+    this.panY.set(0);
   }
 
   protected actualSize(): void {
     this.zoom.set(1);
+    this.panX.set(0);
+    this.panY.set(0);
+  }
+
+  protected toggleFitOrActual(): void {
+    if (this.isFit()) {
+      const target = this.fitScale() >= 0.98 ? 2 : 1;
+      this.zoom.set(target);
+      this.panX.set(0);
+      this.panY.set(0);
+    } else {
+      this.fitToWindow();
+    }
   }
 
   protected zoomIn(): void {
-    const current = this.zoom() ?? 1;
-    this.zoom.set(Math.min(MAX_ZOOM, current * ZOOM_STEP));
+    const base = this.zoom() ?? this.fitScale();
+    this.zoom.set(clampZoom(base * ZOOM_STEP, IMAGE_VIEWER_MIN_ZOOM, IMAGE_VIEWER_MAX_ZOOM));
   }
 
   protected zoomOut(): void {
-    const current = this.zoom() ?? 1;
-    this.zoom.set(Math.max(MIN_ZOOM, current / ZOOM_STEP));
+    const base = this.zoom() ?? this.fitScale();
+    const next = clampZoom(base / ZOOM_STEP, IMAGE_VIEWER_MIN_ZOOM, IMAGE_VIEWER_MAX_ZOOM);
+    this.zoom.set(next);
   }
+
+  protected cycleBackdrop(): void {
+    this.backdrop.update((current) => {
+      if (current === 'checker') return 'dark';
+      if (current === 'dark') return 'light';
+      return 'checker';
+    });
+  }
+
+  protected setViewMode(mode: GalleryViewMode): void {
+    if (mode === 'grid' && !this.hasGallery()) {
+      return;
+    }
+    this.viewMode.set(mode);
+    if (mode === 'grid') {
+      this.autoPlayEnabled.set(false);
+    }
+  }
+
+  protected toggleFilmstrip(): void {
+    this.filmstripVisible.update((v) => !v);
+  }
+
+  protected toggleRibbon(): void {
+    if (!this.toolbarOverflowing()) {
+      return;
+    }
+    this.ribbonExpanded.update((open) => !open);
+  }
+
+  protected setGridTilePreset(preset: GridTilePreset): void {
+    this.gridTilePreset.set(preset);
+  }
+
+  protected onGridFilterInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.gridFilter.set(input?.value ?? '');
+    const gridEl = this.gridRef()?.nativeElement;
+    if (gridEl) {
+      gridEl.scrollTop = 0;
+      this.gridScrollTop.set(0);
+    }
+  }
+
+  protected clearGridFilter(): void {
+    this.gridFilter.set('');
+    this.gridSearchInputRef()?.nativeElement.focus();
+  }
+
+  protected onStageDoubleClick(): void {
+    if (this.loadError() || !this.imageSrc()) {
+      return;
+    }
+    this.toggleFitOrActual();
+  }
+
+  // ── Gallery Navigation & Auto-play ────────────────────────────────────────
 
   protected showPrevious(): void {
     this.navigateGalleryByOffset(-1);
@@ -288,7 +715,62 @@ export class ImageViewerComponent implements OnDestroy {
     this.navigateToPath(path);
   }
 
-  /** Drag main image or gallery thumb onto chat using the shared workspace-path mime. */
+  protected onGridCardClick(path: string): void {
+    this.viewMode.set('viewer');
+    this.navigateToPath(path);
+  }
+
+  protected toggleAutoPlay(): void {
+    if (!this.hasGallery()) {
+      return;
+    }
+    if (this.viewMode() === 'grid') {
+      this.viewMode.set('viewer');
+    }
+    this.autoPlayEnabled.update((enabled) => !enabled);
+    if (!this.autoPlayEnabled()) {
+      this.stopAutoPlay();
+    }
+  }
+
+  protected onAutoPlayIntervalChange(id: string): void {
+    const value = Number(id);
+    if (Number.isFinite(value) && value > 0) {
+      this.autoPlayIntervalMs.set(value);
+    }
+  }
+
+  // ── Utility Actions ───────────────────────────────────────────────────────
+
+  protected async revealInFileManager(): Promise<void> {
+    const abs = absolutePathForWorkspaceRelative(this.workspacePath(), this.relativePath());
+    if (!abs) {
+      return;
+    }
+    await this.electron.showWorkspacePathInFileManager(abs);
+  }
+
+  protected async copyRelativePath(): Promise<void> {
+    const rel = this.normalizedRelativePath();
+    if (!rel) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(rel);
+      this.copiedPath.set(true);
+      if (this.copiedPathTimer !== null) {
+        clearTimeout(this.copiedPathTimer);
+      }
+      this.copiedPathTimer = setTimeout(() => {
+        this.copiedPathTimer = null;
+        this.copiedPath.set(false);
+      }, 1500);
+    } catch {
+      // Clipboard API unavailable in headless / restricted contexts.
+    }
+  }
+
+  /** Drag main image (in Fit mode) or gallery thumb onto chat using shared workspace-path mime. */
   protected onWorkspaceImageDragStart(
     event: DragEvent,
     relativePath: string | null | undefined,
@@ -301,29 +783,537 @@ export class ImageViewerComponent implements OnDestroy {
     populateWorkspacePathDragData(event.dataTransfer, absolutePath);
   }
 
-  protected toggleAutoPlay(): void {
+  // ── Image Element Callbacks ───────────────────────────────────────────────
+
+  protected onImageLoad(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      this.naturalWidth.set(img.naturalWidth);
+      this.naturalHeight.set(img.naturalHeight);
+    }
+    this.loadError.set(false);
+    this.finishLoadingIndicator();
+  }
+
+  protected onImageError(): void {
+    this.loadError.set(true);
+    this.finishLoadingIndicator();
+    this.autoPlayEnabled.set(false);
+  }
+
+  // ── Filmstrip Resize Handle (outside NgZone + rAF coalesced) ──────────────
+
+  protected onGalleryResizeHandleDown(ev: PointerEvent): void {
     if (!this.hasGallery()) {
       return;
     }
-    this.autoPlayEnabled.update((enabled) => !enabled);
-    if (!this.autoPlayEnabled()) {
-      this.stopAutoPlay();
+    ev.preventDefault();
+    this.endGalleryDrag();
+    this.galleryDrag = { startY: ev.clientY, startH: this.galleryHeightPx() };
+    this.isResizingGallery.set(true);
+    this.zone.runOutsideAngular(() => {
+      window.addEventListener('pointermove', this.boundGalleryDragMove);
+      window.addEventListener('pointerup', this.boundGalleryDragUp);
+      window.addEventListener('pointercancel', this.boundGalleryDragUp);
+    });
+  }
+
+  private onGalleryResizeMove(ev: PointerEvent): void {
+    const drag = this.galleryDrag;
+    if (!drag) {
+      return;
+    }
+    const delta = drag.startY - ev.clientY;
+    this.pendingGalleryHeight = Math.min(
+      MAX_GALLERY_HEIGHT_PX,
+      Math.max(MIN_GALLERY_HEIGHT_PX, Math.round(drag.startH + delta)),
+    );
+    if (this.galleryDragRaf === null) {
+      this.galleryDragRaf = requestAnimationFrame(() => {
+        this.galleryDragRaf = null;
+        if (this.pendingGalleryHeight !== null) {
+          this.galleryHeightPx.set(this.pendingGalleryHeight);
+        }
+      });
     }
   }
 
-  protected intervalOptions(): { id: string; label: string }[] {
-    return this.autoPlayIntervalOptions.map((intervalMs) => ({
-      id: String(intervalMs),
-      label: `${intervalMs / 1000}s`,
-    }));
-  }
-
-  protected onAutoPlayIntervalChange(id: string): void {
-    const value = Number(id);
-    if (Number.isFinite(value) && value > 0) {
-      this.autoPlayIntervalMs.set(value);
+  private endGalleryDrag(): void {
+    if (this.galleryDragRaf !== null) {
+      cancelAnimationFrame(this.galleryDragRaf);
+      this.galleryDragRaf = null;
+    }
+    if (this.galleryDrag) {
+      window.removeEventListener('pointermove', this.boundGalleryDragMove);
+      window.removeEventListener('pointerup', this.boundGalleryDragUp);
+      window.removeEventListener('pointercancel', this.boundGalleryDragUp);
+      this.galleryDrag = null;
+      this.pendingGalleryHeight = null;
+      this.isResizingGallery.set(false);
     }
   }
+
+  // ── Toolbar Overflow & Expandable Ribbon Measurement (outside NgZone) ────
+
+  private attachToolbarListeners(el: HTMLElement | null): void {
+    if (this.toolbarElAttached === el) {
+      return;
+    }
+    this.detachToolbarListeners();
+    if (!el) {
+      return;
+    }
+    this.toolbarElAttached = el;
+    this.zone.runOutsideAngular(() => {
+      if (typeof ResizeObserver !== 'undefined') {
+        this.toolbarResizeObserver = new ResizeObserver(() => {
+          this.scheduleToolbarOverflowCheck();
+        });
+        this.toolbarResizeObserver.observe(el);
+      }
+      this.scheduleToolbarOverflowCheck();
+    });
+  }
+
+  private detachToolbarListeners(): void {
+    if (this.toolbarMeasureRaf !== null) {
+      cancelAnimationFrame(this.toolbarMeasureRaf);
+      this.toolbarMeasureRaf = null;
+    }
+    this.toolbarResizeObserver?.disconnect();
+    this.toolbarResizeObserver = null;
+    this.toolbarElAttached = null;
+  }
+
+  private scheduleToolbarOverflowCheck(): void {
+    if (!this.toolbarElAttached || typeof requestAnimationFrame === 'undefined') {
+      return;
+    }
+    if (this.toolbarMeasureRaf !== null) {
+      return;
+    }
+    this.zone.runOutsideAngular(() => {
+      this.toolbarMeasureRaf = requestAnimationFrame(() => {
+        this.toolbarMeasureRaf = null;
+        this.measureToolbarOverflow();
+      });
+    });
+  }
+
+  private measureToolbarOverflow(): void {
+    const toolbarEl = this.toolbarElAttached;
+    const ribbonInner = this.ribbonInnerRef()?.nativeElement;
+    if (!toolbarEl || !ribbonInner) {
+      return;
+    }
+    const toolbarWidthPx = toolbarEl.clientWidth;
+    if (toolbarWidthPx <= 0) {
+      return;
+    }
+
+    let controlsWidthPx = 0;
+    let visibleGroups = 0;
+    for (const child of Array.from(ribbonInner.children)) {
+      const w = (child as HTMLElement).offsetWidth;
+      if (w > 0) {
+        controlsWidthPx += w;
+        visibleGroups += 1;
+      }
+    }
+    if (visibleGroups > 1) {
+      controlsWidthPx += (visibleGroups - 1) * TOOLBAR_RIBBON_GAP_PX;
+    }
+
+    const utilitiesWidthPx = this.toolbarUtilitiesRef()?.nativeElement.offsetWidth ?? 0;
+    const totalInlineControlsPx =
+      controlsWidthPx + (utilitiesWidthPx > 0 ? utilitiesWidthPx + TOOLBAR_RIBBON_GAP_PX : 0);
+
+    const currentlyOverflowing = this.toolbarOverflowing();
+    const shouldOverflow = shouldCollapseToolbarToRibbon({
+      toolbarWidthPx,
+      fileMinWidthPx: TOOLBAR_FILE_MIN_WIDTH_PX,
+      controlsWidthPx: totalInlineControlsPx,
+      chromeAllowancePx: TOOLBAR_CHROME_ALLOWANCE_PX,
+      hysteresisPx: TOOLBAR_OVERFLOW_HYSTERESIS_PX,
+      currentlyOverflowing,
+    });
+
+    if (shouldOverflow !== currentlyOverflowing) {
+      this.toolbarOverflowing.set(shouldOverflow);
+      if (!shouldOverflow) {
+        this.ribbonExpanded.set(false);
+      }
+    }
+  }
+
+  // ── Stage Wheel-to-Zoom & Drag-to-Pan (outside NgZone + rAF) ─────────────
+
+  private attachStageListeners(el: HTMLElement | null): void {
+    if (this.stageElAttached === el) {
+      return;
+    }
+    this.detachStageListeners();
+    if (!el) {
+      return;
+    }
+    this.stageElAttached = el;
+    this.zone.runOutsideAngular(() => {
+      el.addEventListener('wheel', this.boundStageWheel, { passive: false });
+      el.addEventListener('pointerdown', this.boundStagePointerDown);
+      if (typeof ResizeObserver !== 'undefined') {
+        this.stageResizeObserver = new ResizeObserver((entries) => {
+          const rect = entries[0]?.contentRect;
+          if (!rect) return;
+          const w = Math.round(rect.width);
+          const h = Math.round(rect.height);
+          if (w !== this.stageWidthPx() || h !== this.stageHeightPx()) {
+            this.stageWidthPx.set(w);
+            this.stageHeightPx.set(h);
+          }
+        });
+        this.stageResizeObserver.observe(el);
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 || rect.height > 0) {
+        this.stageWidthPx.set(Math.round(rect.width));
+        this.stageHeightPx.set(Math.round(rect.height));
+      }
+    });
+  }
+
+  private detachStageListeners(): void {
+    const el = this.stageElAttached;
+    if (el) {
+      el.removeEventListener('wheel', this.boundStageWheel);
+      el.removeEventListener('pointerdown', this.boundStagePointerDown);
+      this.stageElAttached = null;
+    }
+    this.endPanDrag();
+    this.stageResizeObserver?.disconnect();
+    this.stageResizeObserver = null;
+  }
+
+  private onStageWheel(ev: WheelEvent): void {
+    if (this.loadError() || !this.imageSrc() || this.naturalWidth() <= 0) {
+      return;
+    }
+    ev.preventDefault();
+    const el = this.stageElAttached;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const pointerOffsetX = ev.clientX - (rect.left + rect.width / 2);
+    const pointerOffsetY = ev.clientY - (rect.top + rect.height / 2);
+
+    const currentZoom = this.effectiveZoom();
+    // Normalize line-based wheel deltas so mice & trackpads feel consistent.
+    const deltaY = ev.deltaMode === 1 ? ev.deltaY * 24 : ev.deltaY;
+    const factor = Math.exp(-deltaY * WHEEL_ZOOM_SENSITIVITY);
+    const nextZoom = clampZoom(currentZoom * factor, IMAGE_VIEWER_MIN_ZOOM, IMAGE_VIEWER_MAX_ZOOM);
+    if (Math.abs(nextZoom - currentZoom) < 0.0005) {
+      return;
+    }
+    const nextPan = computeZoomPanForPointer({
+      currentZoom,
+      nextZoom,
+      panX: this.panX(),
+      panY: this.panY(),
+      pointerOffsetX,
+      pointerOffsetY,
+    });
+    this.zoom.set(nextZoom);
+    this.panX.set(nextPan.panX);
+    this.panY.set(nextPan.panY);
+  }
+
+  private onStagePointerDown(ev: PointerEvent): void {
+    // Only pan with primary mouse button when zoomed in; in Fit mode native drag-to-chat works.
+    if (ev.button !== 0 || this.isFit() || this.loadError()) {
+      return;
+    }
+    const target = ev.target as HTMLElement | null;
+    if (target?.closest('button')) {
+      return;
+    }
+    ev.preventDefault();
+    const el = this.stageElAttached;
+    try {
+      el?.setPointerCapture(ev.pointerId);
+    } catch {
+      // Ignore synthetic events without active pointer id.
+    }
+    this.panDrag = {
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      startPanX: this.panX(),
+      startPanY: this.panY(),
+    };
+    this.isPanning.set(true);
+    window.addEventListener('pointermove', this.boundStagePointerMove);
+    window.addEventListener('pointerup', this.boundStagePointerUp);
+    window.addEventListener('pointercancel', this.boundStagePointerUp);
+  }
+
+  private onStagePointerMove(ev: PointerEvent): void {
+    const drag = this.panDrag;
+    if (!drag || ev.pointerId !== drag.pointerId) {
+      return;
+    }
+    this.pendingPan = {
+      x: drag.startPanX + (ev.clientX - drag.startX),
+      y: drag.startPanY + (ev.clientY - drag.startY),
+    };
+    if (this.panRaf === null) {
+      this.panRaf = requestAnimationFrame(() => {
+        this.panRaf = null;
+        if (this.pendingPan) {
+          this.panX.set(this.pendingPan.x);
+          this.panY.set(this.pendingPan.y);
+        }
+      });
+    }
+  }
+
+  private onStagePointerUp(ev: PointerEvent): void {
+    if (!this.panDrag || ev.pointerId !== this.panDrag.pointerId) {
+      return;
+    }
+    this.endPanDrag();
+  }
+
+  private endPanDrag(): void {
+    if (this.panRaf !== null) {
+      cancelAnimationFrame(this.panRaf);
+      this.panRaf = null;
+    }
+    if (this.panDrag) {
+      try {
+        this.stageElAttached?.releasePointerCapture(this.panDrag.pointerId);
+      } catch {
+        // Ignore if capture was already released.
+      }
+      window.removeEventListener('pointermove', this.boundStagePointerMove);
+      window.removeEventListener('pointerup', this.boundStagePointerUp);
+      window.removeEventListener('pointercancel', this.boundStagePointerUp);
+      this.panDrag = null;
+      this.pendingPan = null;
+      this.isPanning.set(false);
+    }
+  }
+
+  // ── Filmstrip Virtual Scroll Listeners (outside NgZone) ──────────────────
+
+  private attachFilmstripListeners(el: HTMLElement | null): void {
+    if (this.filmstripElAttached === el) {
+      return;
+    }
+    this.detachFilmstripListeners();
+    if (!el) {
+      return;
+    }
+    this.filmstripElAttached = el;
+    this.zone.runOutsideAngular(() => {
+      el.addEventListener('scroll', this.boundFilmstripScroll, { passive: true });
+      el.addEventListener('wheel', this.boundFilmstripWheel, { passive: false });
+      if (typeof ResizeObserver !== 'undefined') {
+        this.filmstripResizeObserver = new ResizeObserver((entries) => {
+          const w = Math.round(entries[0]?.contentRect.width ?? el.clientWidth);
+          if (w !== this.filmstripViewportWidth()) {
+            this.filmstripViewportWidth.set(w);
+          }
+        });
+        this.filmstripResizeObserver.observe(el);
+      }
+      this.filmstripViewportWidth.set(el.clientWidth);
+      this.filmstripScrollLeft.set(el.scrollLeft);
+    });
+    const idx = this.currentGalleryIndex();
+    if (idx >= 0) {
+      queueMicrotask(() => this.scrollActiveThumbnailIntoView(idx, 'instant'));
+    }
+  }
+
+  private detachFilmstripListeners(): void {
+    if (this.filmstripScrollRaf !== null) {
+      cancelAnimationFrame(this.filmstripScrollRaf);
+      this.filmstripScrollRaf = null;
+    }
+    const el = this.filmstripElAttached;
+    if (el) {
+      el.removeEventListener('scroll', this.boundFilmstripScroll);
+      el.removeEventListener('wheel', this.boundFilmstripWheel);
+      this.filmstripElAttached = null;
+    }
+    this.filmstripResizeObserver?.disconnect();
+    this.filmstripResizeObserver = null;
+  }
+
+  private onFilmstripScroll(): void {
+    if (this.filmstripScrollRaf !== null) {
+      return;
+    }
+    this.filmstripScrollRaf = requestAnimationFrame(() => {
+      this.filmstripScrollRaf = null;
+      const el = this.filmstripElAttached;
+      if (el) {
+        this.filmstripScrollLeft.set(el.scrollLeft);
+      }
+    });
+  }
+
+  /** Translate vertical mouse wheel over the filmstrip into smooth horizontal scrolling. */
+  private onFilmstripWheel(ev: WheelEvent): void {
+    const el = this.filmstripElAttached;
+    if (!el) {
+      return;
+    }
+    if (Math.abs(ev.deltaY) > Math.abs(ev.deltaX) && ev.deltaY !== 0) {
+      ev.preventDefault();
+      el.scrollLeft += ev.deltaY;
+    }
+  }
+
+  // ── Contact-Sheet Grid Virtual Scroll Listeners (outside NgZone) ─────────
+
+  private attachGridListeners(el: HTMLElement | null): void {
+    if (this.gridElAttached === el) {
+      return;
+    }
+    this.detachGridListeners();
+    if (!el) {
+      return;
+    }
+    this.gridElAttached = el;
+    this.zone.runOutsideAngular(() => {
+      el.addEventListener('scroll', this.boundGridScroll, { passive: true });
+      if (typeof ResizeObserver !== 'undefined') {
+        this.gridResizeObserver = new ResizeObserver((entries) => {
+          const rect = entries[0]?.contentRect;
+          if (!rect) return;
+          const w = Math.round(rect.width);
+          const h = Math.round(rect.height);
+          if (w !== this.gridViewportWidth() || h !== this.gridViewportHeight()) {
+            this.gridViewportWidth.set(w);
+            this.gridViewportHeight.set(h);
+          }
+        });
+        this.gridResizeObserver.observe(el);
+      }
+      this.gridViewportWidth.set(el.clientWidth);
+      this.gridViewportHeight.set(el.clientHeight);
+      this.gridScrollTop.set(el.scrollTop);
+    });
+  }
+
+  private detachGridListeners(): void {
+    if (this.gridScrollRaf !== null) {
+      cancelAnimationFrame(this.gridScrollRaf);
+      this.gridScrollRaf = null;
+    }
+    const el = this.gridElAttached;
+    if (el) {
+      el.removeEventListener('scroll', this.boundGridScroll);
+      this.gridElAttached = null;
+    }
+    this.gridResizeObserver?.disconnect();
+    this.gridResizeObserver = null;
+  }
+
+  private onGridScroll(): void {
+    if (this.gridScrollRaf !== null) {
+      return;
+    }
+    this.gridScrollRaf = requestAnimationFrame(() => {
+      this.gridScrollRaf = null;
+      const el = this.gridElAttached;
+      if (el) {
+        this.gridScrollTop.set(el.scrollTop);
+      }
+    });
+  }
+
+  // ── Zero-Flicker Image Swap ──────────────────────────────────────────────
+
+  private syncDisplayedImage(targetUrl: string): void {
+    const gen = ++this.imageSwapGeneration;
+    this.finishLoadingIndicator();
+
+    if (!targetUrl) {
+      this.displayedSrc.set('');
+      this.naturalWidth.set(0);
+      this.naturalHeight.set(0);
+      this.loadError.set(false);
+      return;
+    }
+
+    const cached = this.preloader.get(targetUrl);
+    if (cached) {
+      this.displayedSrc.set(targetUrl);
+      this.naturalWidth.set(cached.naturalWidth);
+      this.naturalHeight.set(cached.naturalHeight);
+      this.loadError.set(false);
+      return;
+    }
+
+    // First image on an empty stage: mount directly onto <img>.
+    if (!this.displayedSrc()) {
+      this.naturalWidth.set(0);
+      this.naturalHeight.set(0);
+      this.displayedSrc.set(targetUrl);
+      this.scheduleLoadingIndicator();
+      return;
+    }
+
+    // Switching from an already-displayed image: decode off-DOM first to eliminate blank flashes.
+    this.scheduleLoadingIndicator();
+    void this.preloader.preload(targetUrl).then((record) => {
+      if (gen !== this.imageSwapGeneration) {
+        return;
+      }
+      this.finishLoadingIndicator();
+      if (record) {
+        this.displayedSrc.set(targetUrl);
+        this.naturalWidth.set(record.naturalWidth);
+        this.naturalHeight.set(record.naturalHeight);
+        this.loadError.set(false);
+      } else {
+        this.displayedSrc.set(targetUrl);
+        this.naturalWidth.set(0);
+        this.naturalHeight.set(0);
+        this.loadError.set(true);
+        this.autoPlayEnabled.set(false);
+      }
+    });
+  }
+
+  private scheduleLoadingIndicator(): void {
+    this.finishLoadingIndicator();
+    // Only show the subtle loading bar if decoding takes longer than 140ms.
+    this.loadingIndicatorTimer = setTimeout(() => {
+      this.loadingIndicatorTimer = null;
+      this.imageLoading.set(true);
+    }, 140);
+  }
+
+  private finishLoadingIndicator(): void {
+    if (this.loadingIndicatorTimer !== null) {
+      clearTimeout(this.loadingIndicatorTimer);
+      this.loadingIndicatorTimer = null;
+    }
+    this.imageLoading.set(false);
+  }
+
+  private clearTimers(): void {
+    this.finishLoadingIndicator();
+    if (this.copiedPathTimer !== null) {
+      clearTimeout(this.copiedPathTimer);
+      this.copiedPathTimer = null;
+    }
+  }
+
+  // ── Directory & Workspace File Watcher Sync ──────────────────────────────
 
   private onWorkspaceFilesChanged(event: WorkspaceFilesChangedMessage): void {
     const root = this.workspacePath().trim();
@@ -335,6 +1325,8 @@ export class ImageViewerComponent implements OnDestroy {
     if (!workspaceChangeAffectsGalleryFolder(galleryFolder, event.paths, event.previousPaths)) {
       return;
     }
+    this.preloader.invalidate();
+    this.galleryRevision.update((v) => v + 1);
     void this.loadGalleryForImage(root, rel, { force: true });
   }
 
@@ -342,6 +1334,18 @@ export class ImageViewerComponent implements OnDestroy {
     const x = normalizePathSlashes(a).replace(/\/+$/, '').toLowerCase();
     const y = normalizePathSlashes(b).replace(/\/+$/, '').toLowerCase();
     return x.length > 0 && x === y;
+  }
+
+  private rememberFolderPaths(folderKey: string, paths: string[]): void {
+    if (this.folderPathsCache.has(folderKey)) {
+      this.folderPathsCache.delete(folderKey);
+    }
+    this.folderPathsCache.set(folderKey, paths);
+    while (this.folderPathsCache.size > MAX_FOLDER_CACHE_ENTRIES) {
+      const oldest = this.folderPathsCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.folderPathsCache.delete(oldest);
+    }
   }
 
   private async loadGalleryForImage(
@@ -370,10 +1374,19 @@ export class ImageViewerComponent implements OnDestroy {
     this.galleryFolderKey = folderKey;
     if (previousFolderKey !== null && previousFolderKey !== folderKey) {
       this.autoPlayEnabled.set(false);
+      this.gridFilter.set('');
+    }
+
+    // Instant hydration when returning to a previously visited folder (e.g. switching tabs).
+    const cachedPaths = !options?.force ? this.folderPathsCache.get(folderKey) : undefined;
+    if (cachedPaths) {
+      this.galleryPaths.set(cachedPaths);
     }
 
     const generation = ++this.galleryLoadGeneration;
-    this.galleryLoading.set(true);
+    if (!cachedPaths) {
+      this.galleryLoading.set(true);
+    }
     try {
       const parentAbs = parentFolderAbsolutePath(root, rel);
       const entries = await this.electron.readDirectory(parentAbs);
@@ -386,13 +1399,12 @@ export class ImageViewerComponent implements OnDestroy {
       if (parentFolderRelativePath(currentRel) !== parentRel) {
         return;
       }
+      this.rememberFolderPaths(folderKey, paths);
       this.galleryPaths.set(paths);
 
       // Only auto-navigate to a sibling image when the active file is itself a
-      // viewable image. When a non-image file (e.g. a .ts/.md source file) is
-      // open in a folder that also contains images, the viewer is hidden but
-      // still mounted; navigating away here would hijack the active text tab
-      // and replace it with a sibling image.
+      // viewable image. When a non-image file is open in a folder that also
+      // contains images, the viewer is hidden but still mounted.
       if (!isViewableImagePath(currentRel)) {
         return;
       }
@@ -443,6 +1455,8 @@ export class ImageViewerComponent implements OnDestroy {
     this.restartAutoPlayTimer();
   }
 
+  // ── Keyboard Shortcuts ───────────────────────────────────────────────────
+
   private syncKeyboardListener(): void {
     window.removeEventListener('keydown', this.keydownHandler);
     if (this.active()) {
@@ -451,33 +1465,133 @@ export class ImageViewerComponent implements OnDestroy {
   }
 
   private onWindowKeydown(event: KeyboardEvent): void {
-    if (!this.active() || !this.hasGallery()) {
+    if (!this.active()) {
       return;
     }
     const target = event.target;
-    if (
+    const inEditable =
       target instanceof HTMLElement &&
       (target.isContentEditable ||
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT')
-    ) {
+        target.tagName === 'SELECT');
+
+    if (event.key === 'Escape') {
+      if (this.toolbarOverflowing() && this.ribbonExpanded()) {
+        event.preventDefault();
+        this.ribbonExpanded.set(false);
+      } else if (this.viewMode() === 'grid') {
+        event.preventDefault();
+        this.viewMode.set('viewer');
+      } else if (this.autoPlayEnabled()) {
+        event.preventDefault();
+        this.autoPlayEnabled.set(false);
+      } else if (!this.isFit()) {
+        event.preventDefault();
+        this.fitToWindow();
+      }
       return;
     }
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.showPrevious();
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      this.showNext();
+
+    if (inEditable || event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.showPrevious();
+        }
+        break;
+      case 'ArrowRight':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.showNext();
+        }
+        break;
+      case 'Home':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          const first = this.galleryPaths()[0];
+          if (first) {
+            event.preventDefault();
+            this.navigateToPath(first);
+          }
+        }
+        break;
+      case 'End':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          const paths = this.galleryPaths();
+          const last = paths[paths.length - 1];
+          if (last) {
+            event.preventDefault();
+            this.navigateToPath(last);
+          }
+        }
+        break;
+      case '+':
+      case '=':
+        if (this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.zoomIn();
+        }
+        break;
+      case '-':
+        if (this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.zoomOut();
+        }
+        break;
+      case '0':
+        if (this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.fitToWindow();
+        }
+        break;
+      case '1':
+        if (this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.actualSize();
+        }
+        break;
+      case ' ':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.toggleAutoPlay();
+        }
+        break;
+      case 'g':
+      case 'G':
+        if (this.hasGallery()) {
+          event.preventDefault();
+          this.setViewMode(this.viewMode() === 'grid' ? 'viewer' : 'grid');
+        }
+        break;
+      case 'f':
+      case 'F':
+        if (this.hasGallery() && this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.toggleFilmstrip();
+        }
+        break;
+      case 'b':
+      case 'B':
+        if (this.viewMode() === 'viewer') {
+          event.preventDefault();
+          this.cycleBackdrop();
+        }
+        break;
     }
   }
+
+  // ── Slideshow Timer ──────────────────────────────────────────────────────
 
   private syncAutoPlayTimer(): void {
     this.stopAutoPlay();
     if (
       !this.autoPlayEnabled() ||
       !this.hasGallery() ||
+      this.viewMode() !== 'viewer' ||
       this.loadError() ||
       !this.relativePath()
     ) {
@@ -507,9 +1621,30 @@ export class ImageViewerComponent implements OnDestroy {
     }
   }
 
-  private scrollActiveThumbnailIntoView(): void {
-    const host = this.host.nativeElement;
-    const active = host.querySelector('.image-viewer-thumb--active') as HTMLElement | null;
-    active?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  /** Mathematically center the active thumbnail inside the virtualized filmstrip. */
+  private scrollActiveThumbnailIntoView(index: number, behavior: ScrollBehavior = 'smooth'): void {
+    const el = this.filmstripElAttached ?? this.filmstripRef()?.nativeElement;
+    if (!el || index < 0) {
+      return;
+    }
+    const thumbSize = this.thumbSizePx();
+    const stride = thumbSize + THUMB_GAP_PX;
+    const itemCenter = THUMB_PAD_X_PX + index * stride + thumbSize / 2;
+    const targetLeft = Math.max(0, itemCenter - el.clientWidth / 2);
+    const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    const clamped = Math.min(maxLeft, targetLeft);
+    // Avoid micro-scrolling if the active tile is already comfortably within the middle 60%.
+    const margin = el.clientWidth * 0.2;
+    const itemLeft = THUMB_PAD_X_PX + index * stride;
+    const itemRight = itemLeft + thumbSize;
+    if (itemLeft >= el.scrollLeft + margin && itemRight <= el.scrollLeft + el.clientWidth - margin) {
+      return;
+    }
+    if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ left: clamped, behavior });
+    } else {
+      el.scrollLeft = clamped;
+    }
+    this.filmstripScrollLeft.set(clamped);
   }
 }

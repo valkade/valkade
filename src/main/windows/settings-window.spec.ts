@@ -28,7 +28,7 @@ vi.mock('../utils/harden-browser-window', () => ({
 vi.mock('../utils/reveal-browser-window', () => ({
   attachBrowserWindowRevealFallbacks: vi.fn(),
   returnFocusToParentOnClose: vi.fn(),
-  settingsWindowParentOptions: () => ({}),
+  settingsModalParentOptions: (parent: unknown) => ({ parent, modal: false }),
 }));
 
 import { BrowserWindow } from 'electron';
@@ -39,17 +39,44 @@ import {
   notifySettingsRendererReady,
   parseSettingsWindowTab,
   resetSettingsTabDelivery,
+  settingsWindowBounds,
   settingsWindowSize,
   SETTINGS_WINDOW_TABS,
 } from './settings-window';
 
-function fakeWin() {
+function fakeWin(bounds = { x: 0, y: 0, width: 1920, height: 1080 }) {
   const send = vi.fn();
+  const wcListeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  const winListeners = new Map<string, Set<(...args: unknown[]) => void>>();
   return {
     isDestroyed: () => false,
     focus: vi.fn(),
-    getBounds: () => ({ x: 0, y: 0, width: 1200, height: 800 }),
-    webContents: { send, isDestroyed: () => false },
+    getBounds: () => bounds,
+    setBounds: vi.fn(),
+    on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+      if (!winListeners.has(event)) winListeners.set(event, new Set());
+      winListeners.get(event)!.add(cb);
+    }),
+    removeListener: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+      winListeners.get(event)?.delete(cb);
+    }),
+    emit: (event: string, ...args: unknown[]) => {
+      for (const cb of winListeners.get(event) ?? []) cb(...args);
+    },
+    webContents: {
+      send,
+      isDestroyed: () => false,
+      on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        if (!wcListeners.has(event)) wcListeners.set(event, new Set());
+        wcListeners.get(event)!.add(cb);
+      }),
+      removeListener: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        wcListeners.get(event)?.delete(cb);
+      }),
+      emit: (event: string, ...args: unknown[]) => {
+        for (const cb of wcListeners.get(event) ?? []) cb(...args);
+      },
+    },
   };
 }
 
@@ -169,10 +196,10 @@ describe('parseSettingsWindowTab', () => {
   });
 });
 
-describe('settings window size', () => {
+describe('settings window size, centering, and modal input lock', () => {
   beforeEach(() => {
     resetSettingsTabDelivery();
-    mainState.mainWindow = fakeWin() as never;
+    mainState.mainWindow = fakeWin({ x: 0, y: 0, width: 1920, height: 1080 }) as never;
     mainState.settingsWindow = null as never;
     workArea.width = 1920;
     workArea.height = 1040;
@@ -187,20 +214,89 @@ describe('settings window size', () => {
     return vi.mocked(BrowserWindow).mock.calls[0][0] as Record<string, unknown>;
   }
 
-  it('opens at its one size and cannot be resized or maximized', () => {
+  it('opens parented without OS modal beep, fixed in the center of the main window', () => {
     expect(createdOptions()).toMatchObject({
+      parent: mainState.mainWindow,
+      modal: false,
+      x: 120,
+      y: 50,
       width: 1680,
       height: 980,
+      movable: false,
       resizable: false,
       maximizable: false,
+      minimizable: false,
       fullscreenable: false,
+    });
+  });
+
+  it('centers inside a smaller main window with a blurred inset halo', () => {
+    mainState.mainWindow = fakeWin({ x: 200, y: 100, width: 1200, height: 800 }) as never;
+    expect(createdOptions()).toMatchObject({
+      width: 1104,
+      height: 704,
+      x: 248,
+      y: 148,
+      movable: false,
+      resizable: false,
     });
   });
 
   it('fits a display smaller than its design size', () => {
     workArea.width = 1366;
     workArea.height = 728;
-    expect(createdOptions()).toMatchObject({ width: 1366, height: 728, resizable: false });
+    mainState.mainWindow = fakeWin({ x: 0, y: 0, width: 1366, height: 728 }) as never;
+    expect(createdOptions()).toMatchObject({
+      width: 1270,
+      height: 632,
+      x: 48,
+      y: 48,
+      resizable: false,
+    });
+  });
+
+  it('blocks main-window keyboard input while Settings is open and restores it on close', () => {
+    const main = fakeWin({ x: 0, y: 0, width: 1920, height: 1080 });
+    mainState.mainWindow = main as never;
+    const handlers = new Map<string, () => void>();
+    const created = {
+      ...fakeWin(),
+      on: vi.fn((event: string, cb: () => void) => void handlers.set(event, cb)),
+      removeMenu: vi.fn(),
+      loadFile: vi.fn(),
+      loadURL: vi.fn(),
+    };
+    vi.mocked(BrowserWindow).mockImplementationOnce(function () {
+      return created as never;
+    });
+
+    createSettingsWindow();
+    const inputEvt = { preventDefault: vi.fn() };
+    main.webContents.emit('before-input-event', inputEvt);
+    expect(inputEvt.preventDefault).toHaveBeenCalledTimes(1);
+
+    // Clicking / focusing the main window silently redirects focus back to Settings.
+    main.emit('focus');
+    expect(created.focus).toHaveBeenCalledTimes(1);
+
+    // Once Settings begins closing, focus is allowed to return to the main window.
+    handlers.get('close')!();
+    main.emit('focus');
+    expect(created.focus).toHaveBeenCalledTimes(1);
+
+    handlers.get('closed')!();
+    const afterCloseEvt = { preventDefault: vi.fn() };
+    main.webContents.emit('before-input-event', afterCloseEvt);
+    expect(afterCloseEvt.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('clamps centered bounds to multi-monitor workArea coordinates', () => {
+    expect(
+      settingsWindowBounds(
+        { x: -1200, y: 0, width: 1200, height: 800 },
+        { x: -1280, y: 0, width: 1280, height: 1024 },
+      ),
+    ).toEqual({ x: -1152, y: 48, width: 1104, height: 704 });
   });
 
   it('falls back to the design size when the display is unknown', () => {

@@ -323,6 +323,33 @@ app-llama-status-indicator .llama-status__dot {
   border-radius: 50% !important;
 }
 
+/* Media gallery / image viewer (IDE flat): subtle corners on controls, thumbnails, and grid cards. */
+app-image-viewer .image-viewer-segment,
+app-image-viewer .image-viewer-btn,
+app-image-viewer .image-viewer-ribbon-toggle,
+app-image-viewer .image-viewer-stage-nav,
+app-image-viewer .image-viewer-stage-hud,
+app-image-viewer .image-viewer-message,
+app-image-viewer .image-viewer-thumb,
+app-image-viewer .image-viewer-grid-card,
+app-image-viewer .image-viewer-grid-search {
+  border-radius: var(--chat-radius) !important;
+}
+
+app-image-viewer .image-viewer-seg-btn,
+app-image-viewer .image-viewer-badge,
+app-image-viewer .image-viewer-seg-count,
+app-image-viewer .image-viewer-ribbon-badge,
+app-image-viewer .image-viewer-mini-btn,
+app-image-viewer .image-viewer-grid-card-ext,
+app-image-viewer .image-viewer-grid-search-clear {
+  border-radius: var(--chat-radius-sm) !important;
+}
+
+app-image-viewer .image-viewer-gallery-grip {
+  border-radius: 999px !important;
+}
+
 html, body {
   height: 100%;
   margin: 0;

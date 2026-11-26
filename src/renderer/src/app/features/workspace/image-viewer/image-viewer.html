@@ -1,155 +1,499 @@
-<div class='image-viewer' data-theme-group='editor.image-viewer'>
-  <div class='image-viewer-toolbar'>
-    <div class='image-viewer-toolbar-group'>
-      <button
-        type='button'
-        class='image-viewer-btn'
-        [class.image-viewer-btn--active]='isFit()'
-        (click)='fitToWindow()'
-        title='Fit to window'
-      >
-        <lucide-icon name='maximize' [size]='15' />
-        <span>Fit</span>
-      </button>
-      <button
-        type='button'
-        class='image-viewer-btn'
-        [class.image-viewer-btn--active]='zoomPercent() === 100'
-        (click)='actualSize()'
-        title='Actual size (100%)'
-      >
-        <lucide-icon name='scan' [size]='15' />
-        <span>1:1</span>
-      </button>
-      <button type='button' class='image-viewer-btn' (click)='zoomOut()' title='Zoom out'>
-        <lucide-icon name='zoom-out' [size]='15' />
-      </button>
-      <button type='button' class='image-viewer-btn' (click)='zoomIn()' title='Zoom in'>
-        <lucide-icon name='zoom-in' [size]='15' />
-      </button>
-      <span class='image-viewer-zoom-label'>{{ isFit() ? 'Fit' : zoomPercent() + '%' }}</span>
+<div
+  class='image-viewer'
+  data-theme-group='editor.image-viewer'
+  [class.image-viewer--grid-mode]='viewMode() === "grid"'
+  [class.image-viewer--resizing]='isResizingGallery()'
+>
+  <header
+    #toolbarHeader
+    class='image-viewer-toolbar'
+    [class.image-viewer-toolbar--overflow]='toolbarOverflowing()'
+    [class.image-viewer-toolbar--ribbon-open]='toolbarOverflowing() && ribbonExpanded()'
+  >
+    <div class='image-viewer-toolbar-row'>
+      <div class='image-viewer-file'>
+        @if (fileExtLabel()) {
+          <span class='image-viewer-badge'>{{ fileExtLabel() }}</span>
+        }
+        <div class='image-viewer-file-meta'>
+          <span class='image-viewer-name' [title]='normalizedRelativePath() || fileName()'>
+            {{ fileName() }}
+          </span>
+          @if (naturalWidth() > 0 && !loadError()) {
+            <span class='image-viewer-dims'>{{ naturalWidth() }} &times; {{ naturalHeight() }}</span>
+          }
+        </div>
+      </div>
+
+      <div class='image-viewer-toolbar-end'>
+        @if (toolbarOverflowing()) {
+          <button
+            type='button'
+            class='image-viewer-ribbon-toggle'
+            [class.is-open]='ribbonExpanded()'
+            [class.has-status]='!ribbonExpanded() && !!ribbonStatusBadge()'
+            [attr.aria-expanded]='ribbonExpanded()'
+            aria-controls='image-viewer-controls-ribbon'
+            (click)='toggleRibbon()'
+            [title]='ribbonExpanded() ? "Collapse controls ribbon" : "Expand controls ribbon"'
+          >
+            <lucide-icon name='sliders-horizontal' [size]='13' />
+            <span>Controls</span>
+            @if (!ribbonExpanded() && ribbonStatusBadge()) {
+              <span class='image-viewer-ribbon-badge'>{{ ribbonStatusBadge() }}</span>
+            }
+            <lucide-icon name='chevron-down' [size]='13' class='image-viewer-ribbon-chevron' />
+          </button>
+        }
+
+        @if ((hasGallery() && viewMode() === 'viewer') || relativePath()) {
+          <div #toolbarUtilities class='image-viewer-utility-group'>
+            @if (hasGallery() && viewMode() === 'viewer') {
+              <button
+                type='button'
+                class='image-viewer-btn image-viewer-btn--icon'
+                [class.is-active]='filmstripVisible()'
+                (click)='toggleFilmstrip()'
+                [title]='filmstripVisible() ? "Hide filmstrip (F)" : "Show filmstrip (F)"'
+                aria-label='Toggle filmstrip'
+              >
+                <lucide-icon name='panel-bottom' [size]='14' />
+              </button>
+            }
+
+            @if (relativePath()) {
+              <button
+                type='button'
+                class='image-viewer-btn image-viewer-btn--icon'
+                [class.is-confirmed]='copiedPath()'
+                (click)='copyRelativePath()'
+                [title]='copiedPath() ? "Copied path" : "Copy relative path"'
+                aria-label='Copy relative path'
+              >
+                <lucide-icon [name]='copiedPath() ? "check" : "copy"' [size]='14' />
+              </button>
+              <button
+                type='button'
+                class='image-viewer-btn image-viewer-btn--icon'
+                (click)='revealInFileManager()'
+                title='Reveal in file manager'
+                aria-label='Reveal in file manager'
+              >
+                <lucide-icon name='folder-open' [size]='14' />
+              </button>
+            }
+          </div>
+        }
+      </div>
     </div>
 
-    @if (hasGallery()) {
-      <div class='image-viewer-toolbar-group image-viewer-toolbar-group--gallery'>
+    <div
+      id='image-viewer-controls-ribbon'
+      class='image-viewer-ribbon'
+      [class.image-viewer-ribbon--collapsible]='toolbarOverflowing()'
+      [class.image-viewer-ribbon--open]='!toolbarOverflowing() || ribbonExpanded()'
+      [attr.inert]='toolbarOverflowing() && !ribbonExpanded() ? "" : null'
+      [attr.aria-hidden]='toolbarOverflowing() && !ribbonExpanded() ? "true" : null'
+    >
+      <div class='image-viewer-ribbon-clip'>
+        <div #ribbonInner class='image-viewer-ribbon-inner'>
+          @if (hasGallery()) {
+            <div class='image-viewer-segment' role='group' aria-label='View mode'>
+              <button
+                type='button'
+                class='image-viewer-seg-btn'
+                [class.is-active]='viewMode() === "viewer"'
+                (click)='setViewMode("viewer")'
+                title='Single image viewer (G)'
+              >
+                <lucide-icon name='image' [size]='14' />
+                <span>Viewer</span>
+              </button>
+              <button
+                type='button'
+                class='image-viewer-seg-btn'
+                [class.is-active]='viewMode() === "grid"'
+                (click)='setViewMode("grid")'
+                title='Contact sheet grid (G)'
+              >
+                <lucide-icon name='layout-grid' [size]='14' />
+                <span>Grid</span>
+                <span class='image-viewer-seg-count'>{{ galleryPaths().length }}</span>
+              </button>
+            </div>
+          } @else if (galleryLoading()) {
+            <span class='image-viewer-gallery-loading'>Scanning folder…</span>
+          }
+
+          @if (viewMode() === 'viewer') {
+            <div class='image-viewer-segment' role='group' aria-label='Zoom controls'>
+              <button
+                type='button'
+                class='image-viewer-seg-btn image-viewer-seg-btn--icon'
+                (click)='zoomOut()'
+                title='Zoom out (-)'
+                aria-label='Zoom out'
+              >
+                <lucide-icon name='zoom-out' [size]='14' />
+              </button>
+              <button
+                type='button'
+                class='image-viewer-seg-btn image-viewer-zoom-readout'
+                [class.is-active]='!isFit()'
+                (click)='toggleFitOrActual()'
+                title='Toggle Fit / 100% (0 / 1)'
+              >
+                {{ zoomReadoutLabel() }}
+              </button>
+              <button
+                type='button'
+                class='image-viewer-seg-btn image-viewer-seg-btn--icon'
+                (click)='zoomIn()'
+                title='Zoom in (+)'
+                aria-label='Zoom in'
+              >
+                <lucide-icon name='zoom-in' [size]='14' />
+              </button>
+              <span class='image-viewer-seg-divider' aria-hidden='true'></span>
+              <button
+                type='button'
+                class='image-viewer-seg-btn'
+                [class.is-active]='isFit()'
+                (click)='fitToWindow()'
+                title='Fit to window (0)'
+              >
+                <lucide-icon name='maximize' [size]='13' />
+                <span>Fit</span>
+              </button>
+              <button
+                type='button'
+                class='image-viewer-seg-btn'
+                [class.is-active]='zoomPercent() === 100'
+                (click)='actualSize()'
+                title='Actual size 100% (1)'
+              >
+                <lucide-icon name='scan' [size]='13' />
+                <span>1:1</span>
+              </button>
+            </div>
+
+            <button
+              type='button'
+              class='image-viewer-btn'
+              (click)='cycleBackdrop()'
+              [title]='"Canvas backdrop: " + backdropLabel() + " (B)"'
+            >
+              <lucide-icon name='contrast' [size]='13' />
+              <span>{{ backdropLabel() }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </header>
+
+  @if (viewMode() === 'viewer') {
+    <div
+      #stageViewport
+      class='image-viewer-stage'
+      [class.image-viewer-stage--checker]='backdrop() === "checker"'
+      [class.image-viewer-stage--dark]='backdrop() === "dark"'
+      [class.image-viewer-stage--light]='backdrop() === "light"'
+      [class.image-viewer-stage--zoomed]='!isFit()'
+      [class.image-viewer-stage--panning]='isPanning()'
+      (dblclick)='onStageDoubleClick()'
+    >
+      @if (imageLoading()) {
+        <div class='image-viewer-loading-bar' aria-hidden='true'></div>
+      }
+
+      @if (!imageSrc()) {
+        <div class='image-viewer-empty'>
+          <lucide-icon name='image' [size]='28' />
+          <span>No image selected.</span>
+        </div>
+      } @else if (loadError()) {
+        <div class='image-viewer-message'>
+          <lucide-icon name='circle-alert' [size]='20' />
+          <div>
+            <div class='image-viewer-message-title'>Unable to display image</div>
+            <div class='image-viewer-message-sub'>
+              The file may be missing, corrupt, or an unsupported format.
+            </div>
+          </div>
+        </div>
+      } @else {
+        <img
+          class='image-viewer-img'
+          [class.image-viewer-img--fit]='!usesGpuTransform()'
+          [class.image-viewer-img--transformed]='usesGpuTransform()'
+          [src]='displayedSrc()'
+          [style.width.px]='usesGpuTransform() ? naturalWidth() : null'
+          [style.height.px]='usesGpuTransform() ? naturalHeight() : null'
+          [style.transform]='imageTransformStyle()'
+          [alt]='fileName()'
+          [attr.draggable]='isFit() ? "true" : "false"'
+          decoding='async'
+          (dragstart)='onWorkspaceImageDragStart($event, relativePath())'
+          (load)='onImageLoad($event)'
+          (error)='onImageError()'
+        />
+      }
+
+      @if (hasGallery()) {
         <button
           type='button'
-          class='image-viewer-btn'
+          class='image-viewer-stage-nav image-viewer-stage-nav--prev'
           (click)='showPrevious()'
-          title='Previous image'
+          title='Previous image (←)'
+          aria-label='Previous image'
         >
-          <lucide-icon name='chevron-left' [size]='15' />
+          <lucide-icon name='chevron-left' [size]='20' />
         </button>
-        <span class='image-viewer-gallery-counter'>{{ galleryCounterLabel() }}</span>
-        <button type='button' class='image-viewer-btn' (click)='showNext()' title='Next image'>
-          <lucide-icon name='chevron-right' [size]='15' />
+        <button
+          type='button'
+          class='image-viewer-stage-nav image-viewer-stage-nav--next'
+          (click)='showNext()'
+          title='Next image (→)'
+          aria-label='Next image'
+        >
+          <lucide-icon name='chevron-right' [size]='20' />
         </button>
-        <span class='image-viewer-toolbar-divider' aria-hidden='true'></span>
-        @if (autoPlayEnabled()) {
-          <button
-            type='button'
-            class='image-viewer-btn image-viewer-btn--active'
-            (click)='toggleAutoPlay()'
-            title='Pause auto-play'
-          >
-            <lucide-icon name='pause' [size]='15' />
-            <span>Pause</span>
-          </button>
-        } @else {
-          <button
-            type='button'
-            class='image-viewer-btn'
-            (click)='toggleAutoPlay()'
-            title='Start auto-play'
-          >
-            <lucide-icon name='play' [size]='15' />
-            <span>Start</span>
-          </button>
-        }
-        <app-pill-select
-          class='image-viewer-interval-select'
-          [options]='intervalOptions()'
-          [value]="autoPlayIntervalMs() + ''"
-          (valueChange)='onAutoPlayIntervalChange($event)'
-          ariaLabel='Auto-play interval'
-        />
-      </div>
-    } @else if (galleryLoading()) {
-      <div class='image-viewer-toolbar-group image-viewer-toolbar-group--gallery'>
-        <span class='image-viewer-gallery-loading'>Loading gallery…</span>
-      </div>
-    }
 
-    <div class='image-viewer-toolbar-info'>
-      <span class='image-viewer-name' [title]='fileName()'>{{ fileName() }}</span>
-      @if (naturalWidth() > 0 && !loadError()) {
-        <span class='image-viewer-dims'>{{ naturalWidth() }} &times; {{ naturalHeight() }}</span>
+        @if (!filmstripVisible()) {
+          <div class='image-viewer-stage-hud'>
+            <span class='image-viewer-stage-hud-count'>{{ galleryCounterLabel() }}</span>
+            @if (folderBreadcrumb()) {
+              <span class='image-viewer-stage-hud-sep'>·</span>
+              <span class='image-viewer-stage-hud-folder'>{{ folderBreadcrumb() }}</span>
+            }
+          </div>
+        }
+      }
+
+      @if (autoPlayEnabled()) {
+        <div
+          class='image-viewer-autoplay-progress'
+          [style.--autoplay-duration.ms]='autoPlayIntervalMs()'
+          aria-hidden='true'
+        >
+          @for (slideKey of [normalizedRelativePath()]; track slideKey) {
+            <span class='image-viewer-autoplay-progress-fill'></span>
+          }
+        </div>
       }
     </div>
-  </div>
 
-  <div class='image-viewer-stage' [class.image-viewer-stage--fit]='isFit()'>
-    @if (!imageSrc()) {
-      <div class='image-viewer-message'>No image selected.</div>
-    } @else if (loadError()) {
-      <div class='image-viewer-message'>
-        Unable to display this image. The file may be missing, corrupt, or an unsupported format.
-      </div>
-    } @else {
-      <img
-        class='image-viewer-img'
-        [class.image-viewer-img--fit]='isFit()'
-        [src]='imageSrc()'
-        [style.width.px]='isFit() ? null : naturalWidth() * (zoom() ?? 1)'
-        [alt]='fileName()'
-        draggable='true'
-        (dragstart)='onWorkspaceImageDragStart($event, relativePath())'
-        (load)='onImageLoad($event)'
-        (error)='onImageError()'
-      />
+    @if (hasGallery() && filmstripVisible()) {
+      <section class='image-viewer-gallery' aria-label='Folder filmstrip'>
+        <div
+          class='image-viewer-gallery-resize-handle'
+          (pointerdown)='onGalleryResizeHandleDown($event)'
+          title='Drag to resize filmstrip'
+          role='separator'
+          aria-orientation='horizontal'
+          aria-label='Resize thumbnail filmstrip'
+        >
+          <span class='image-viewer-gallery-grip' aria-hidden='true'></span>
+        </div>
+
+        <div class='image-viewer-slideshow-bar' role='toolbar' aria-label='Slideshow controls'>
+          <div class='image-viewer-slideshow-group'>
+            <button
+              type='button'
+              class='image-viewer-mini-btn'
+              (click)='showPrevious()'
+              title='Previous image (←)'
+              aria-label='Previous image'
+            >
+              <lucide-icon name='chevron-left' [size]='14' />
+            </button>
+            <span class='image-viewer-gallery-counter'>{{ galleryCounterLabel() }}</span>
+            <button
+              type='button'
+              class='image-viewer-mini-btn'
+              (click)='showNext()'
+              title='Next image (→)'
+              aria-label='Next image'
+            >
+              <lucide-icon name='chevron-right' [size]='14' />
+            </button>
+
+            <span class='image-viewer-slideshow-divider' aria-hidden='true'></span>
+
+            <button
+              type='button'
+              class='image-viewer-btn image-viewer-slideshow-btn'
+              [class.is-active]='autoPlayEnabled()'
+              (click)='toggleAutoPlay()'
+              [title]='autoPlayEnabled() ? "Pause slideshow (Space)" : "Start slideshow (Space)"'
+            >
+              <lucide-icon [name]='autoPlayEnabled() ? "pause" : "play"' [size]='13' />
+              <span>{{ autoPlayEnabled() ? 'Pause' : 'Play' }}</span>
+            </button>
+            <app-pill-select
+              class='image-viewer-interval-select'
+              [options]='intervalOptions'
+              [value]="autoPlayIntervalMs() + ''"
+              (valueChange)='onAutoPlayIntervalChange($event)'
+              ariaLabel='Slideshow interval'
+            />
+          </div>
+        </div>
+
+        <div
+          #filmstripViewport
+          class='image-viewer-thumbs'
+          role='listbox'
+          aria-label='Images in folder'
+          [style.height.px]='galleryHeightPx()'
+          [style.--image-viewer-thumb-size.px]='thumbSizePx()'
+        >
+          <div
+            class='image-viewer-thumbs-track'
+            [style.width.px]='filmstripWindow().totalWidthPx'
+          >
+            @for (item of visibleFilmstripItems(); track item.path) {
+              <button
+                type='button'
+                class='image-viewer-thumb'
+                [class.image-viewer-thumb--active]='item.normalizedPath === normalizedRelativePath()'
+                [class.image-viewer-thumb--icon]='item.isIconLike'
+                [style.transform]="'translate3d(' + item.offsetX + 'px, 0, 0)'"
+                role='option'
+                [attr.aria-selected]='item.normalizedPath === normalizedRelativePath()'
+                [title]='item.name'
+                draggable='true'
+                (dragstart)='onWorkspaceImageDragStart($event, item.path)'
+                (click)='onThumbnailClick(item.path)'
+              >
+                <img
+                  class='image-viewer-thumb-img'
+                  [src]='item.thumbUrl'
+                  [alt]='item.name'
+                  draggable='false'
+                  loading='lazy'
+                  decoding='async'
+                />
+                @if (showThumbCaptions()) {
+                  <span class='image-viewer-thumb-caption'>{{ item.name }}</span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+      </section>
     }
-  </div>
+  } @else {
+    <section class='image-viewer-grid-pane' aria-label='Contact sheet'>
+      <div class='image-viewer-grid-toolbar'>
+        <div class='image-viewer-grid-search'>
+          <lucide-icon name='search' [size]='13' class='image-viewer-grid-search-icon' />
+          <input
+            #gridSearchInput
+            type='text'
+            class='image-viewer-grid-search-input'
+            [value]='gridFilter()'
+            (input)='onGridFilterInput($event)'
+            [placeholder]='"Filter " + galleryPaths().length + " images…"'
+            aria-label='Filter images by filename'
+          />
+          @if (gridFilter()) {
+            <button
+              type='button'
+              class='image-viewer-grid-search-clear'
+              (click)='clearGridFilter()'
+              title='Clear filter'
+              aria-label='Clear filter'
+            >
+              <lucide-icon name='x' [size]='12' />
+            </button>
+          }
+        </div>
 
-  @if (hasGallery()) {
-    <div class='image-viewer-gallery'>
-      <div
-        class='image-viewer-gallery-resize-handle'
-        (mousedown)='onGalleryResizeHandleDown($event)'
-        title='Drag to resize'
-        role='separator'
-        aria-orientation='horizontal'
-        aria-label='Resize thumbnail gallery'
-      ></div>
-      <div
-        class='image-viewer-thumbs'
-        role='listbox'
-        aria-label='Images in folder'
-        [style.height.px]='galleryHeightPx()'
-        [style.--image-viewer-thumb-size]='thumbSizePx() + "px"'
-      >
-        @for (path of galleryPaths(); track path) {
+        <span class='image-viewer-grid-count'>
+          @if (gridFilter().trim()) {
+            {{ filteredGridItems().length }} / {{ galleryPaths().length }}
+          } @else {
+            {{ galleryPaths().length }} images
+          }
+        </span>
+
+        <div class='image-viewer-segment' role='group' aria-label='Thumbnail size'>
           <button
             type='button'
-            class='image-viewer-thumb'
-            [class.image-viewer-thumb--active]='isActiveGalleryPath(path)'
-            role='option'
-            [attr.aria-selected]='isActiveGalleryPath(path)'
-            [title]='path'
-            draggable='true'
-            (dragstart)='onWorkspaceImageDragStart($event, path)'
-            (click)='onThumbnailClick(path)'
+            class='image-viewer-seg-btn'
+            [class.is-active]='gridTilePreset() === "sm"'
+            (click)='setGridTilePreset("sm")'
+            title='Compact tiles'
           >
-            <img
-              class='image-viewer-thumb-img'
-              [src]='thumbAssetUrlForPath(path)'
-              [alt]='path'
-              draggable='false'
-              loading='lazy'
-              decoding='async'
-            />
+            S
           </button>
+          <button
+            type='button'
+            class='image-viewer-seg-btn'
+            [class.is-active]='gridTilePreset() === "md"'
+            (click)='setGridTilePreset("md")'
+            title='Medium tiles'
+          >
+            M
+          </button>
+          <button
+            type='button'
+            class='image-viewer-seg-btn'
+            [class.is-active]='gridTilePreset() === "lg"'
+            (click)='setGridTilePreset("lg")'
+            title='Large tiles'
+          >
+            L
+          </button>
+        </div>
+      </div>
+
+      <div #gridViewport class='image-viewer-grid-scroll'>
+        @if (filteredGridItems().length === 0) {
+          <div class='image-viewer-empty'>
+            <lucide-icon name='search' [size]='24' />
+            <span>No images match "{{ gridFilter() }}"</span>
+          </div>
+        } @else {
+          <div
+            class='image-viewer-grid-track'
+            [style.height.px]='gridWindow().totalHeightPx'
+          >
+            @for (item of visibleGridItems(); track item.path) {
+              <button
+                type='button'
+                class='image-viewer-grid-card'
+                [class.image-viewer-grid-card--active]='item.normalizedPath === normalizedRelativePath()'
+                [class.image-viewer-grid-card--icon]='item.isIconLike'
+                [style.width.px]='item.width'
+                [style.height.px]='item.height'
+                [style.transform]="'translate3d(' + item.x + 'px, ' + item.y + 'px, 0)'"
+                [title]='item.path'
+                draggable='true'
+                (dragstart)='onWorkspaceImageDragStart($event, item.path)'
+                (click)='onGridCardClick(item.path)'
+              >
+                <span class='image-viewer-grid-card-media'>
+                  <img
+                    class='image-viewer-grid-card-img'
+                    [src]='item.gridThumbUrl'
+                    [alt]='item.name'
+                    draggable='false'
+                    loading='lazy'
+                    decoding='async'
+                  />
+                  @if (item.ext) {
+                    <span class='image-viewer-grid-card-ext'>{{ item.ext }}</span>
+                  }
+                </span>
+                <span class='image-viewer-grid-card-label'>{{ item.name }}</span>
+              </button>
+            }
+          </div>
         }
       </div>
-    </div>
+    </section>
   }
 </div>
