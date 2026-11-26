@@ -282,6 +282,8 @@ export function startPythonServer(): ChildProcess {
     // binary in Node mode (ELECTRON_RUN_AS_NODE=1) without requiring a system Node install.
     ELECTRON_EXEC_PATH: process.execPath,
     RG_PATH: getBundledRipgrep() ?? '',
+    // Lets the agent's system prompt say which ValkAde build it runs on (installed vs this checkout).
+    APP_VERSION: app.getVersion(),
   };
   // An inherited legacy spelling would win the fallback whenever our value is empty (RG_PATH, SCREENSHOT_URL).
   for (const suffix of Object.keys(sidecarWiring)) {

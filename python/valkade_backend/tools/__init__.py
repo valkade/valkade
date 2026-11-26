@@ -13,5 +13,6 @@ Modules
 ``lsp_tools`` — LSP reads and diagnostics
 ``user_terminals`` — ``check_user_terminals`` (mirrored interactive user ``node-pty`` sessions)
 ``run_command`` — managed background shell jobs (``wait_for_command`` / kill / list)
+``terminal_text`` — command output as plain text for the model (no ANSI escapes or progress redraws)
 ``project_review_tools`` — shared subprocess streaming helpers (``RollingTextBuffer``)
 """

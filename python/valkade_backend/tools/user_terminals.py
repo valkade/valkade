@@ -8,7 +8,6 @@ terminals with :data:`check_user_terminals_tool` in both read-only and Editor mo
 from __future__ import annotations
 
 import os
-import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -18,6 +17,7 @@ from typing import Annotated
 from langchain_core.tools import tool
 
 from valkade_backend.session.state import current_session_id, get_session
+from valkade_backend.tools.terminal_text import plain_terminal_lines
 from valkade_backend.tools.tool_conventions import (
     clip_line,
     describe,
@@ -31,13 +31,6 @@ _MAX_PTY_CAPTURE_CHARS = 200_000
 _DEFAULT_TAIL_LINES = 80
 _MAX_TAIL_LINES = 500
 _EXITED_TTL_SEC = 10 * 60
-
-# ANSI / VT100 escape sequences and OSC 7 working-directory escapes.
-_ANSI_ESCAPE_RE = re.compile(
-    r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)'
-    r'|\x1b\[[0-?]*[ -/]*[@-~]'
-    r'|\x1b[@-_]'
-)
 
 __all__ = [
     'CHECK_USER_TERMINALS_NAME',
@@ -232,25 +225,8 @@ def _format_cwd_label(workspace_root: str, cwd: str) -> str:
 
 
 def clean_terminal_output(raw: str) -> list[str]:
-    """Strip ANSI escape sequences and replay carriage-return overwrites into clean lines."""
-    if not raw:
-        return []
-    stripped = _ANSI_ESCAPE_RE.sub('', raw)
-    stripped = stripped.replace('\r\n', '\n')
-    out_lines: list[str] = []
-    for raw_line in stripped.split('\n'):
-        if '\r' in raw_line:
-            segments = raw_line.split('\r')
-            # Keep the last non-empty segment when carriage return overwrote a progress bar/prompt.
-            chosen = ''
-            for seg in reversed(segments):
-                if seg:
-                    chosen = seg
-                    break
-            raw_line = chosen
-        # Strip remaining non-printable control chars except tab.
-        cleaned = ''.join(ch for ch in raw_line if ch == '\t' or ord(ch) >= 32)
-        out_lines.append(clip_line(cleaned.rstrip()))
+    """Strip ANSI escape sequences and replay carriage-return overwrites into clean, clipped lines."""
+    out_lines = [clip_line(line) for line in plain_terminal_lines(raw)]
     while out_lines and not out_lines[-1].strip():
         out_lines.pop()
     return out_lines

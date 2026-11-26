@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -14,6 +13,7 @@ from typing import Any
 from valkade_backend.lsp.diagnostics import diagnostic_error_keys, format_diagnostics_summary
 from valkade_backend.lsp.file_policy import lsp_server_for_path
 from valkade_backend.session.state import runtime_config
+from valkade_backend.tools.terminal_text import plain_terminal_text
 from valkade_backend.verify.checks_config import WorkspaceCheck, WorkspaceChecks, check_applies
 from valkade_backend.workspace.meta import CHECKS_RELATIVE_PATH
 from valkade_backend.workspace.paths import truncate_text_head_tail
@@ -41,7 +41,6 @@ _FEEDBACK_CHECK_OUTPUT_CHARS = 4_000
 _FEEDBACK_MAX_CHARS = 12_000
 #: First line of the message that hands a failed verification back to the model (also how it is recognized).
 FEEDBACK_HEADER = 'Automatic verification (from the app, not from the user) found problems after your changes this turn.'
-_ANSI_ESCAPE_RE = re.compile(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-_]')
 
 
 @dataclass
@@ -199,7 +198,7 @@ async def collect_diagnostics(
 
 
 def _clean_output(text: str) -> str:
-    return _ANSI_ESCAPE_RE.sub('', text or '').replace('\r\n', '\n').strip()
+    return plain_terminal_text(text).strip()
 
 
 async def run_checks(

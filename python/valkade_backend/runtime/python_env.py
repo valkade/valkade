@@ -465,19 +465,33 @@ def apply_extra_user_path(raw: str | None) -> None:
         os.environ['PATH'] = merged
 
 
-#: Sidecar wiring Electron hands to this process alone (``server.ts``): the running app's state files
-#: and its bearer tokens. A command the agent runs must not inherit them: the backend's own pytest suite
+#: Sidecar wiring Electron hands to this process alone (``server.ts`` ``sidecarWiring`` and
+#: ``pythonIsolationEnv``): the running app's state files, its bearer tokens, and where it keeps its
+#: managed dependencies. A command the agent runs must not inherit them: the backend's own pytest suite
 #: would otherwise open the live checkpoint DB (its writes lock out the app's turns: "database is
-#: locked"), log into the app's log, and could call the sidecar or the screenshot broker.
-#: ``VALKADE_*`` and the legacy ``CLARA_*`` / ``NEMO_*`` spellings are all dropped (see :func:`env_valkade`).
+#: locked"), log into the app's log, call the sidecar or the screenshot broker, and run its dependency
+#: tests against the installed language servers (starting the real gdls, deleting old versions).
+#: Without them the backend falls back to a temp runtime dir. ``VALKADE_*`` and the legacy ``CLARA_*`` /
+#: ``NEMO_*`` spellings are all dropped (see :func:`env_valkade`).
 SIDECAR_PRIVATE_ENV_SUFFIXES: tuple[str, ...] = (
     'SIDECAR_TOKEN',
     'SCREENSHOT_URL',
     'SCREENSHOT_TOKEN',
+    'PYTHON_PORT',
     'CHECKPOINT_DB',
     'LOG_DIR',
     'STAGING_DIR',
     'WORKSPACE_INDEX_DIR',
+    'JAVA_LSP_CACHE_DIR',
+    'RUNTIME_DIR',
+    'RUNTIME_PYTHON_DIR',
+    'RUNTIME_BIN_DIR',
+    'CUSTOM_MODELS_DIR',
+    'ELECTRON_EXEC_PATH',
+    'RG_PATH',
+    'BUNDLED_PYTHON',
+    'BUNDLED_RUNTIME_DIR',
+    'APP_VERSION',
 )
 
 

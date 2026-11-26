@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import re
 import json
+import os
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
-from valkade_backend.config import CLARA_CONTEXT_WINDOW_FALLBACK
+from valkade_backend.config import CLARA_CONTEXT_WINDOW_FALLBACK, env_valkade
 from valkade_backend.domain import SessionState
 from valkade_backend.llm.gemma_output import (
     gemma_content_needs_parsing,
@@ -598,6 +600,52 @@ def _os_hint_line() -> str:
     )
 
 
+#: ``python/`` of the backend this process runs (``python/valkade_backend/llm/messages.py``).
+_RUNNING_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _is_same_or_inside(path: Path, root: Path) -> bool:
+    child = os.path.normcase(str(path))
+    parent = os.path.normcase(str(root))
+    return child == parent or child.startswith(parent.rstrip('\\/') + os.sep)
+
+
+def _running_build_line(session: SessionState) -> str:
+    """Which ValkAde build runs this agent, when the workspace is ValkAde's own source (else empty).
+
+    Editing the backend in a workspace changes the agent's own tools only when that workspace *is* the
+    running backend, and only after the sidecar restarts; an installed build never picks the edits up.
+    """
+    workspace = (session.workspace_path or '').strip()
+    if not workspace:
+        return ''
+    try:
+        workspace_root = Path(workspace).resolve()
+        is_valkade_source = (workspace_root / 'python' / 'valkade_backend' / '__init__.py').is_file()
+    except OSError:
+        return ''
+    runs_from_workspace = _is_same_or_inside(_RUNNING_BACKEND_ROOT, workspace_root)
+    if not (is_valkade_source or runs_from_workspace):
+        return ''
+    version = env_valkade('APP_VERSION')
+    label = f'ValkAde {version}' if version else 'ValkAde'
+    if runs_from_workspace:
+        return (
+            f'Running build: {label} development build on this workspace\'s backend. Backend edits take effect '
+            'only after ValkAde (its Python sidecar) restarts, never mid-conversation.'
+        )
+    if env_valkade('BUNDLED_PYTHON'):
+        return (
+            f'Running build: installed {label} (backend at `{_RUNNING_BACKEND_ROOT}`), not this workspace. '
+            'Edits here do not change your own tools or prompt, even after a restart, until a build with them '
+            'is installed; test backend changes with their own tests, `npm run dev`, or a packaged build.'
+        )
+    return (
+        f'Running build: {label} development build from another checkout (backend at `{_RUNNING_BACKEND_ROOT}`). '
+        'Edits in this workspace do not change your own tools until ValkAde runs from it.'
+    )
+
+
 def _web_access_operational_bullet() -> str:
     """One-line guidance when Settings → Allow web access is on."""
     if not getattr(runtime_config.tools, 'allow_web_access', False):
@@ -675,6 +723,9 @@ def build_system_prompt(
         sections.append(source_code_formatting_guidance())
     sections.append(_os_hint_line())
     sections.append(_workspace_hint(session))
+    running_build = _running_build_line(session)
+    if running_build:
+        sections.append(running_build)
     workspace_system = _workspace_system_prompt_block(session)
     if workspace_system:
         sections.append(workspace_system)

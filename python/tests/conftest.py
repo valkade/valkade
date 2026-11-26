@@ -26,10 +26,27 @@ for _suffix, _path in (
     os.environ[f'CLARA_{_suffix}'] = str(_path)
     os.environ.pop(f'VALKADE_{_suffix}', None)
     os.environ.pop(f'NEMO_{_suffix}', None)
-# The running app's bearer tokens go too: with its sidecar token set, auth is enforced and every route
-# test gets a 401 (``CLARA_SIDECAR_AUTH_OPTIONAL`` only applies without a token), and a screenshot test
-# would post to the live broker. ``test_python_env`` checks this covers ``SIDECAR_PRIVATE_ENV_SUFFIXES``.
-for _suffix in ('SIDECAR_TOKEN', 'SCREENSHOT_URL', 'SCREENSHOT_TOKEN'):
+# The rest of the running app's wiring goes too. Its bearer tokens: with its sidecar token set, auth is
+# enforced and every route test gets a 401 (``CLARA_SIDECAR_AUTH_OPTIONAL`` only applies without a
+# token), and a screenshot test would post to the live broker. Its dependency dirs: the runtime-provider
+# tests would check, start and delete the installed language servers (a real gdls hangs the run) instead
+# of falling back to a temp runtime dir. ``test_python_env`` checks this covers ``SIDECAR_PRIVATE_ENV_SUFFIXES``.
+for _suffix in (
+    'SIDECAR_TOKEN',
+    'SCREENSHOT_URL',
+    'SCREENSHOT_TOKEN',
+    'PYTHON_PORT',
+    'JAVA_LSP_CACHE_DIR',
+    'RUNTIME_DIR',
+    'RUNTIME_PYTHON_DIR',
+    'RUNTIME_BIN_DIR',
+    'CUSTOM_MODELS_DIR',
+    'ELECTRON_EXEC_PATH',
+    'RG_PATH',
+    'BUNDLED_PYTHON',
+    'BUNDLED_RUNTIME_DIR',
+    'APP_VERSION',
+):
     for _prefix in ('VALKADE_', 'CLARA_', 'NEMO_'):
         os.environ.pop(f'{_prefix}{_suffix}', None)
 

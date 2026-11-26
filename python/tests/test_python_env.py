@@ -381,6 +381,12 @@ def test_agent_subprocess_env_drops_sidecar_wiring(monkeypatch, tmp_path: Path) 
     monkeypatch.setenv('VALKADE_CHECKPOINT_DB', str(tmp_path / 'live.sqlite'))
     monkeypatch.setenv('CLARA_RUNTIME_DIR', str(tmp_path / 'runtime'))
     monkeypatch.setenv('VALKADE_RUNTIME_BIN_DIR', str(tmp_path / 'bin'))
+    monkeypatch.setenv('VALKADE_JAVA_LSP_CACHE_DIR', str(tmp_path / 'java-lsp'))
+    monkeypatch.setenv('VALKADE_RG_PATH', str(tmp_path / 'rg.exe'))
+    monkeypatch.setenv('VALKADE_BUNDLED_PYTHON', str(tmp_path / 'python.exe'))
+    monkeypatch.setenv('VALKADE_PYTHON_PORT', '5123')
+    monkeypatch.setenv('VALKADE_APP_VERSION', '9.9.9')
+    monkeypatch.setenv('MY_TOOL_HOME', 'kept')
 
     venv = tmp_path / 'ws' / '.venv'
     for env in (with_subprocess_color_env(), build_workspace_python_env(venv)):
@@ -395,11 +401,18 @@ def test_agent_subprocess_env_drops_sidecar_wiring(monkeypatch, tmp_path: Path) 
             'VALKADE_SCREENSHOT_URL',
             'VALKADE_SCREENSHOT_TOKEN',
             'VALKADE_CHECKPOINT_DB',
+            # The installed app's dependency dirs: the backend suite would test (and delete) the real installs.
+            'CLARA_RUNTIME_DIR',
+            'VALKADE_RUNTIME_BIN_DIR',
+            'VALKADE_JAVA_LSP_CACHE_DIR',
+            'VALKADE_RG_PATH',
+            'VALKADE_BUNDLED_PYTHON',
+            'VALKADE_PYTHON_PORT',
+            'VALKADE_APP_VERSION',
         ):
             assert key not in env
-        # Shared caches and tool paths still reach the command.
-        assert env['CLARA_RUNTIME_DIR'] == str(tmp_path / 'runtime')
-        assert env['VALKADE_RUNTIME_BIN_DIR'] == str(tmp_path / 'bin')
+        # Only the app's own wiring goes; other variables (the user's) reach the command.
+        assert env['MY_TOOL_HOME'] == 'kept'
         assert env['FORCE_COLOR'] == '1'
 
 
