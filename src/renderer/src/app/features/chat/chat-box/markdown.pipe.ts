@@ -3,6 +3,7 @@ import { Pipe, PipeTransform, SecurityContext, inject } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Marked } from 'marked';
 import hljs from 'highlight.js';
+import { diagramLanguage, diagramPlaceholderHtml, isClosedFence } from '../../../core/markdown-diagrams';
 import { normalizeLooseAtxHeadings } from './markdown-normalize';
 
 const RUNNABLE_LANGS = ['batch', 'bash', 'powershell', 'ps1', 'bat', 'cmd', 'sh', 'shell'];
@@ -22,11 +23,16 @@ function safeLanguageClass(lang: string): string {
 }
 
 const customRenderer = {
-  code({ text, lang }: { text: string; lang?: string }): string {
+  code({ text, lang, raw }: { text: string; lang?: string; raw: string }): string {
+    const diagram = diagramLanguage(lang);
+    // A fence still streaming in stays a code block so half-written diagrams never flash parse errors.
+    if (diagram && isClosedFence(raw)) {
+      return diagramPlaceholderHtml(diagram, text);
+    }
+
     const language = lang || '';
     const langLower = language.toLowerCase();
     const isRunnable = RUNNABLE_LANGS.some((l) => langLower.includes(l));
-
     let highlighted: string;
     if (language && hljs.getLanguage(language)) {
       highlighted = hljs.highlight(text, { language }).value;

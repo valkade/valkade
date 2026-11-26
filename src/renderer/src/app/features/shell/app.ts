@@ -156,6 +156,7 @@ import { TtsPlaybackService } from '../../core/tts-playback.service';
 import { ThemedConfirmDialogService } from '../../shared/themed-confirm-dialog/themed-confirm-dialog.service';
 import { ThemedConfirmDialogComponent } from '../../shared/themed-confirm-dialog/themed-confirm-dialog';
 import { ThemedPromptDialogComponent } from '../../shared/themed-prompt-dialog/themed-prompt-dialog';
+import { DiagramViewerComponent } from '../../shared/diagram-viewer/diagram-viewer';
 import {
   activeStreamWorkspaceSwitchPrompt,
   unsavedCloseFileTabPrompt,
@@ -254,6 +255,7 @@ function turnSettingsOf(composer: ConversationTurnSettings): ConversationTurnSet
     WorkspaceTerminalDockComponent,
     ThemedConfirmDialogComponent,
     ThemedPromptDialogComponent,
+    DiagramViewerComponent,
     EditorGridComponent,
     GridSpinnerComponent,
   ],

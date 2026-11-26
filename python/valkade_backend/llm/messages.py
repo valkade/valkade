@@ -25,6 +25,7 @@ from valkade_backend.llm.gemma_output import (
 from valkade_backend.lang_agent.subagents import running_subagents_line
 from valkade_backend.llm.model_tuning import combined_model_prompt_suffix, gemma_output_parsing_active
 from valkade_backend.llm.prompt_blocks import (
+    chat_rendering_block,
     edit_semantics_block,
     source_code_formatting_guidance,
     speech_tts_mood_block,
@@ -716,6 +717,8 @@ def build_system_prompt(
         ),
         _outer_agent_operational_block(session, apply_mode).rstrip(),
     ]
+    if not session.subagent_parent_session_id:
+        sections.append(chat_rendering_block())
     model_suffix = _model_prompt_suffix(session, apply_mode).strip()
     if model_suffix:
         sections.append(model_suffix)

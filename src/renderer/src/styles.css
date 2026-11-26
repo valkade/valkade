@@ -424,6 +424,77 @@ app-shell > router-outlet + * {
   cursor: wait;
 }
 
+/* Mermaid diagrams in rendered markdown (chat replies and the .md preview); see core/markdown-diagrams.ts. */
+.md-diagram {
+  position: relative;
+  margin: 0.6em 0 1em;
+}
+
+/* Opens the full-window viewer (shared/diagram-viewer); shown on hover or keyboard focus. */
+.md-diagram__expand {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 1px solid var(--t-border);
+  background: var(--t-code-inline-bg);
+  color: var(--t-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.md-diagram:hover .md-diagram__expand,
+.md-diagram__expand:focus-visible {
+  opacity: 0.95;
+}
+
+.md-diagram__expand:hover,
+.md-diagram__expand:focus-visible {
+  color: var(--t-primary);
+  border-color: var(--t-primary);
+  outline: none;
+}
+
+.md-diagram__canvas {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  border: 1px solid var(--t-border-subtle);
+  background: var(--t-code-bg);
+  overflow-x: auto;
+  /* Labels are measured at the body's line height; keep it so they are not clipped. */
+  line-height: 1.5;
+}
+
+.md-diagram__canvas svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Undo markdown prose rules (paragraph margins, inline code chips) inside diagram labels. */
+.md-diagram .md-diagram__canvas svg p {
+  margin: 0;
+}
+
+.md-diagram .md-diagram__canvas svg code {
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.md-diagram__error {
+  margin-bottom: 0.35rem;
+  color: var(--t-log-level-error);
+  font-size: 0.8em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .code-block-output {
   display: flex;
   flex-direction: column;

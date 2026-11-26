@@ -1,6 +1,7 @@
 import { Marked } from 'marked';
 import hljs from 'highlight.js';
 import DOMPurify from 'dompurify';
+import { diagramLanguage, diagramPlaceholderHtml } from '../../../core/markdown-diagrams';
 
 /** Context needed to resolve workspace-relative image paths in a markdown document. */
 export interface MarkdownDocRenderContext {
@@ -80,6 +81,10 @@ function createMarked(ctx: MarkdownDocRenderContext): Marked {
   m.use({
     renderer: {
       code({ text, lang }: { text: string; lang?: string }): string {
+        const diagram = diagramLanguage(lang);
+        if (diagram) {
+          return diagramPlaceholderHtml(diagram, text);
+        }
         const language = lang || '';
         let highlighted: string;
         if (language && hljs.getLanguage(language)) {

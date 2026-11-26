@@ -54,6 +54,7 @@
         #previewHost
         class="workspace-monaco-md-preview workspace-monaco-pane"
         [class.workspace-monaco-pane--hidden]="!mdPreviewActive() || monacoDiffActive()"
+        appMarkdownDiagrams
         [innerHTML]="mdPreviewHtml()"
         tabindex="0"
         aria-label="Markdown preview"

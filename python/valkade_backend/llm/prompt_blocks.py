@@ -48,6 +48,21 @@ def edit_semantics_block() -> str:
     )
 
 
+def chat_rendering_block() -> str:
+    """What the chat UI renders beyond plain Markdown (diagram and chart fences).
+
+    Main agent only: a sub-agent's final message is a report to the main agent, never shown in chat.
+    """
+    return (
+        '**Rich replies:** chat renders Markdown, plus diagrams and charts the user can expand to full size. '
+        'A ```mermaid fence renders as a diagram (flowchart, sequence, class, state, ER, gantt, timeline, mindmap, '
+        'architecture, …); quote labels with punctuation (`A["Parse (step 1)"]`). A ```chart fence holding a Chart.js '
+        'config as JSON (`{"type": "bar", "data": {"labels": [...], "datasets": [{"label": "...", "data": [...]}]}}`; '
+        'no functions, colors are themed automatically) renders as a chart. Use them when structure, flow, or numbers '
+        'read better as a picture than as prose.'
+    )
+
+
 def subagent_role_block(name: str, role: Any = None) -> str:
     """Role of a sub-agent session (one-shot clone the main agent started with ``spawn_subagent``).
 

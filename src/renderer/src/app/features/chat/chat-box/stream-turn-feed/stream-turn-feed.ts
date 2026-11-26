@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import type { ChatThinkingDisplay, StreamPart, TurnFeedItem } from '@shared/index';
 import { DEFAULT_CHAT_THINKING_DISPLAY, formatThoughtDuration } from '@shared/index';
+import { MarkdownDiagramsDirective } from '../../../../core/markdown-diagrams.directive';
 import { AuxStreamToolPartComponent } from '../aux-stream-tool-part/aux-stream-tool-part';
 import { CaptureImagesDirective } from '../capture-images.directive';
 import { MarkdownPipe } from '../markdown.pipe';
@@ -75,6 +76,7 @@ export type HostedSpinnerKind = PillSpinnerKind;
   imports: [
     AuxStreamToolPartComponent,
     CaptureImagesDirective,
+    MarkdownDiagramsDirective,
     MarkdownPipe,
     NgTemplateOutlet,
     StreamNudgePillComponent,
