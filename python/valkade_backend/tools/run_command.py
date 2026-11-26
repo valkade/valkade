@@ -43,6 +43,7 @@ from valkade_backend.runtime.admin_exec import (
     start_elevated_job,
 )
 from valkade_backend.session.state import current_session_id, get_session, mutation_tools_blocked_reason
+from valkade_backend.tools.terminal_text import plain_terminal_text
 from valkade_backend.tools.tool_conventions import describe
 
 RUN_COMMAND_NAME = 'run_command'
@@ -436,6 +437,8 @@ def _running_session_jobs(session_id: str) -> list[CommandJob]:
 
 def _format_report(job: CommandJob, *, waited_sec: float) -> str:
     new_output, dropped = _consume_new_output(job)
+    # Colors are forced on for the terminal tab; the model gets the text without escapes and redraws.
+    new_output = plain_terminal_text(new_output)
     lines = [
         'Command report:',
         f'- Command id: `{job.job_id}`',

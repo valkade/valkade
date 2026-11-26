@@ -74,6 +74,28 @@ async def test_run_command_completes_within_wait(command_session) -> None:
 
 
 @pytest.mark.asyncio(loop_scope='function')
+async def test_report_drops_escape_sequences_but_the_terminal_tab_keeps_them(command_session) -> None:
+    import asyncio
+
+    command_session.planning_nested_events_q = asyncio.Queue()
+    command = _python_command("import sys; sys.stdout.write(chr(27) + '[31mred-text' + chr(27) + '[0m' + chr(10))")
+    try:
+        out = await run_command_tool.ainvoke({'command': command, 'wait_seconds': 15})
+        assert 'exited with code 0' in out, out
+        assert 'red-text' in out
+        assert '\x1b' not in out
+        streamed = ''
+        while not command_session.planning_nested_events_q.empty():
+            _tag, event = command_session.planning_nested_events_q.get_nowait()
+            if event['event'] == 'tool_exec_chunk':
+                streamed += event['data']['delta']
+        assert '\x1b[31mred-text' in streamed
+    finally:
+        command_session.planning_nested_events_q = None
+        await _cleanup('run-command-test-session')
+
+
+@pytest.mark.asyncio(loop_scope='function')
 async def test_run_command_reports_nonzero_exit(command_session) -> None:
     try:
         out = await run_command_tool.ainvoke({'command': 'exit 3', 'wait_seconds': 15})

@@ -1,7 +1,8 @@
 """Runs the real gdls binary against ``fixtures/godot_project`` through the session manager.
 
-Skipped unless gdls is installed: set ``CLARA_TEST_GDLS_BINARY``, or ``CLARA_RUNTIME_DIR`` to a runtime
-directory where it was installed from Dependencies.
+Skipped unless gdls is installed: set ``CLARA_TEST_GDLS_BINARY`` to the binary (e.g. one installed from
+Dependencies under the app's runtime dir). ``conftest`` drops the app's runtime-dir variables, so the suite
+never picks up an installed gdls by accident.
 """
 
 from __future__ import annotations
