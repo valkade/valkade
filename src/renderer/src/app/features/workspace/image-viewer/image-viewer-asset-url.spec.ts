@@ -30,6 +30,18 @@ describe('buildWorkspaceImageAssetUrl', () => {
     );
   });
 
+  it('appends v= revision only when positive', () => {
+    expect(buildWorkspaceImageAssetUrl('/ws', 'a.png', { revision: 0 })).toBe(
+      'nemo-asset://workspace/?root=%2Fws&path=a.png',
+    );
+    expect(buildWorkspaceImageAssetUrl('/ws', 'a.png', { revision: 3 })).toBe(
+      'nemo-asset://workspace/?root=%2Fws&path=a.png&v=3',
+    );
+    expect(
+      buildWorkspaceImageAssetUrl('/ws', 'a.png', { thumb: true, maxEdge: 128, revision: 2 }),
+    ).toBe('nemo-asset://workspace/?root=%2Fws&path=a.png&thumb=1&w=128&v=2');
+  });
+
   it('returns empty for non-image paths so hidden viewer tabs do not 404', () => {
     expect(buildWorkspaceImageAssetUrl('/ws', '.project')).toBe('');
     expect(buildWorkspaceImageAssetUrl('/ws', 'src/Main.java')).toBe('');

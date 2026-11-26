@@ -11,11 +11,20 @@
   box-sizing: border-box;
   /* Unencapsulated panes never see `:host`, so the window sets the base size. */
   font-size: 13px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-window input,
+.settings-window textarea,
+.settings-window [contenteditable='true'] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /*
- * Settings window (IDE flat): a plain drag strip, a category tree on the left, the section on the
- * right, and a footer bar. Sections are hairline-separated rows of fields, not cards.
+ * Settings dialog (IDE flat, fixed center): a plain header bar, a category tree on the left,
+ * the section on the right, and a footer bar. Sections are hairline-separated rows of fields.
  */
 .settings-top-bar {
   flex-shrink: 0;
@@ -25,8 +34,8 @@
   padding: 0 14px;
   border-bottom: 1px solid var(--t-border-subtle);
   background: var(--t-bg-deep);
-  -webkit-app-region: drag;
-  app-region: drag;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .settings-top-bar__title {
@@ -196,7 +205,7 @@
   padding: 8px 6px;
   border-right: 1px solid var(--t-border-subtle);
   background: var(--t-bg-deep);
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
 }
 
 .settings-nav__group {
@@ -425,7 +434,7 @@
   flex-shrink: 0;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--t-border-subtle);
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
 }
 
 .settings-overview .panel__copy {

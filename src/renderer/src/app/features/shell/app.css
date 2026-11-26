@@ -24,6 +24,39 @@
   position: relative;
 }
 
+.app-layout > .app-top-bar,
+.app-layout > .app-content,
+.app-layout > .app-status-footer {
+  transition: filter 0.16s ease;
+}
+
+.app-layout--settings-open > .app-top-bar,
+.app-layout--settings-open > .app-content,
+.app-layout--settings-open > .app-status-footer {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.app-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60000;
+  background: color-mix(in srgb, var(--t-bg-deep, #000) 42%, transparent);
+  pointer-events: all;
+  cursor: default;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-layout > .app-top-bar,
+  .app-layout > .app-content,
+  .app-layout > .app-status-footer {
+    transition: none;
+  }
+}
+
 .app-top-bar {
   flex-shrink: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--t-primary) 32%, var(--t-border-subtle));

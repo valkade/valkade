@@ -2,20 +2,39 @@
  * Tests for security/nemo-asset-svg — SVG sanitizer (strips active content
  * before serving workspace images over nemo-asset://).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockNativeImage = vi.hoisted(() => ({
+  createFromBuffer: vi.fn(),
+}));
+const mockProtocolHandle = vi.hoisted(() => vi.fn());
+const mockAssertRegisteredWorkspaceDirectory = vi.hoisted(() => vi.fn());
+const mockResolveSafeWorkspacePath = vi.hoisted(() => vi.fn());
+const mockFs = vi.hoisted(() => ({
+  stat: vi.fn(),
+  readFile: vi.fn(),
+}));
 
 vi.mock('electron', () => ({
-  nativeImage: {},
-  protocol: { handle: vi.fn() },
+  nativeImage: mockNativeImage,
+  protocol: { handle: mockProtocolHandle },
+}));
+vi.mock('fs', () => ({
+  promises: mockFs,
 }));
 vi.mock('../utils/assert-registered-workspace-dir', () => ({
-  assertRegisteredWorkspaceDirectory: vi.fn(),
+  assertRegisteredWorkspaceDirectory: mockAssertRegisteredWorkspaceDirectory,
 }));
 vi.mock('../utils/workspace-safe-path', () => ({
-  resolveSafeWorkspacePath: vi.fn(),
+  resolveSafeWorkspacePath: mockResolveSafeWorkspacePath,
 }));
 
-import { sanitizeSvg } from './nemo-asset';
+import {
+  clearNemoAssetCachesForTests,
+  encodeWorkspaceImageThumbWithMime,
+  registerNemoAssetProtocol,
+  sanitizeSvg,
+} from './nemo-asset';
 
 function svg(body: string): Buffer {
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg">${body}</svg>`, 'utf8');
@@ -106,5 +125,181 @@ describe('sanitizeSvg — benign preserved', () => {
     const r = out(sanitizeSvg(s));
     expect(r).toContain('<rect');
     expect(r).toContain('fill="red"');
+  });
+});
+
+describe('nemo-asset thumbnail encoding & caching', () => {
+  beforeEach(() => {
+    clearNemoAssetCachesForTests();
+    vi.clearAllMocks();
+  });
+
+  it('encodes opaque JPEG sources as image/jpeg and PNG sources as image/png', () => {
+    const resizedMock = {
+      toJPEG: vi.fn(() => Buffer.from('jpg-bytes')),
+      toPNG: vi.fn(() => Buffer.from('png-bytes')),
+    };
+    const imgMock = {
+      isEmpty: () => false,
+      getSize: () => ({ width: 800, height: 400 }),
+      resize: vi.fn(() => resizedMock),
+      toJPEG: vi.fn(() => Buffer.from('jpg-bytes')),
+      toPNG: vi.fn(() => Buffer.from('png-bytes')),
+    };
+    mockNativeImage.createFromBuffer.mockReturnValue(imgMock);
+
+    const jpgThumb = encodeWorkspaceImageThumbWithMime(Buffer.from('raw'), 128, 'jpg');
+    expect(jpgThumb).toEqual({ bytes: Buffer.from('jpg-bytes'), mime: 'image/jpeg' });
+    expect(imgMock.resize).toHaveBeenCalledWith({ width: 128, height: 64, quality: 'good' });
+
+    const pngThumb = encodeWorkspaceImageThumbWithMime(Buffer.from('raw'), 256, 'png');
+    expect(pngThumb).toEqual({ bytes: Buffer.from('png-bytes'), mime: 'image/png' });
+    expect(imgMock.resize).toHaveBeenCalledWith({ width: 256, height: 128, quality: 'better' });
+  });
+
+  it('returns ETag and responds 304 Not Modified when If-None-Match matches', async () => {
+    let handler: ((req: Request) => Promise<Response>) | undefined;
+    mockProtocolHandle.mockImplementation((_scheme: string, fn: (req: Request) => Promise<Response>) => {
+      handler = fn;
+    });
+    mockAssertRegisteredWorkspaceDirectory.mockResolvedValue('/ws');
+    mockResolveSafeWorkspacePath.mockReturnValue('/ws/a.png');
+    mockFs.stat.mockResolvedValue({ isFile: () => true, mtimeMs: 1700000000123, size: 420 });
+    mockFs.readFile.mockResolvedValue(Buffer.from('png-full'));
+
+    registerNemoAssetProtocol();
+    expect(handler).toBeDefined();
+
+    const url = 'nemo-asset://workspace/?root=%2Fws&path=a.png';
+    const first = await handler!(new Request(url));
+    expect(first.status).toBe(200);
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+    expect(mockFs.readFile).toHaveBeenCalledTimes(1);
+
+    const second = await handler!(new Request(url, { headers: { 'If-None-Match': etag! } }));
+    expect(second.status).toBe(304);
+    expect(mockFs.readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates concurrent workspace-root checks and thumbnail encodes', async () => {
+    let handler: ((req: Request) => Promise<Response>) | undefined;
+    mockProtocolHandle.mockImplementation((_scheme: string, fn: (req: Request) => Promise<Response>) => {
+      handler = fn;
+    });
+    mockAssertRegisteredWorkspaceDirectory.mockResolvedValue('/ws');
+    mockResolveSafeWorkspacePath.mockReturnValue('/ws/photo.jpg');
+    mockFs.stat.mockResolvedValue({ isFile: () => true, mtimeMs: 1700000000999, size: 1024 });
+    mockFs.readFile.mockResolvedValue(Buffer.from('raw-jpg'));
+
+    const resizedMock = {
+      toJPEG: vi.fn(() => Buffer.from('thumb-jpg')),
+      toPNG: vi.fn(() => Buffer.from('thumb-png')),
+    };
+    mockNativeImage.createFromBuffer.mockReturnValue({
+      isEmpty: () => false,
+      getSize: () => ({ width: 400, height: 300 }),
+      resize: () => resizedMock,
+      toJPEG: resizedMock.toJPEG,
+      toPNG: resizedMock.toPNG,
+    });
+
+    registerNemoAssetProtocol();
+    const url = 'nemo-asset://workspace/?root=%2Fws&path=photo.jpg&thumb=1&w=128';
+    const [r1, r2, r3] = await Promise.all([
+      handler!(new Request(url)),
+      handler!(new Request(url)),
+      handler!(new Request(url)),
+    ]);
+
+    expect(r1.status).toBe(200);
+    expect(r2.status).toBe(200);
+    expect(r3.status).toBe(200);
+    expect(r1.headers.get('content-type')).toBe('image/jpeg');
+    expect(mockAssertRegisteredWorkspaceDirectory).toHaveBeenCalledTimes(1);
+    expect(mockNativeImage.createFromBuffer).toHaveBeenCalledTimes(1);
+  });
+
+  it('matches weak, comma-separated, and wildcard If-None-Match headers', async () => {
+    let handler: ((req: Request) => Promise<Response>) | undefined;
+    mockProtocolHandle.mockImplementation((_scheme: string, fn: (req: Request) => Promise<Response>) => {
+      handler = fn;
+    });
+    mockAssertRegisteredWorkspaceDirectory.mockResolvedValue('/ws');
+    mockResolveSafeWorkspacePath.mockReturnValue('/ws/a.png');
+    mockFs.stat.mockResolvedValue({ isFile: () => true, mtimeMs: 1700000000123, size: 420 });
+    mockFs.readFile.mockResolvedValue(Buffer.from('png-full'));
+
+    registerNemoAssetProtocol();
+    const url = 'nemo-asset://workspace/?root=%2Fws&path=a.png';
+    const first = await handler!(new Request(url));
+    const etag = first.headers.get('etag')!;
+
+    const weakList = await handler!(
+      new Request(url, { headers: { 'If-None-Match': `"other", W/${etag}` } }),
+    );
+    expect(weakList.status).toBe(304);
+
+    const wildcard = await handler!(new Request(url, { headers: { 'If-None-Match': '*' } }));
+    expect(wildcard.status).toBe(304);
+  });
+
+  it('returns null from thumbnail encoder when nativeImage outputs empty bytes', () => {
+    const emptyResized = {
+      toJPEG: vi.fn(() => Buffer.alloc(0)),
+      toPNG: vi.fn(() => Buffer.alloc(0)),
+    };
+    mockNativeImage.createFromBuffer.mockReturnValue({
+      isEmpty: () => false,
+      getSize: () => ({ width: 400, height: 300 }),
+      resize: () => emptyResized,
+      toJPEG: emptyResized.toJPEG,
+      toPNG: emptyResized.toPNG,
+    });
+
+    expect(encodeWorkspaceImageThumbWithMime(Buffer.from('bad'), 128, 'jpg')).toBeNull();
+    expect(encodeWorkspaceImageThumbWithMime(Buffer.from('bad'), 128, 'png')).toBeNull();
+  });
+
+  it('caps concurrent thumbnail encodes to THUMB_ENCODE_CONCURRENCY under bursts', async () => {
+    let handler: ((req: Request) => Promise<Response>) | undefined;
+    mockProtocolHandle.mockImplementation((_scheme: string, fn: (req: Request) => Promise<Response>) => {
+      handler = fn;
+    });
+    mockAssertRegisteredWorkspaceDirectory.mockResolvedValue('/ws');
+    mockResolveSafeWorkspacePath.mockImplementation((_root: string, rel: string) => `/ws/${rel}`);
+    mockFs.stat.mockResolvedValue({ isFile: () => true, mtimeMs: 1700000001000, size: 500 });
+    mockFs.readFile.mockResolvedValue(Buffer.from('raw'));
+
+    let inEncode = 0;
+    let maxConcurrent = 0;
+    mockNativeImage.createFromBuffer.mockImplementation(() => {
+      inEncode += 1;
+      maxConcurrent = Math.max(maxConcurrent, inEncode);
+      const out = {
+        isEmpty: () => false,
+        getSize: () => ({ width: 100, height: 100 }),
+        resize: () => out,
+        toJPEG: () => {
+          inEncode -= 1;
+          return Buffer.from('jpg');
+        },
+        toPNG: () => {
+          inEncode -= 1;
+          return Buffer.from('png');
+        },
+      };
+      return out;
+    });
+
+    registerNemoAssetProtocol();
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        handler!(new Request(`nemo-asset://workspace/?root=%2Fws&path=img${i}.jpg&thumb=1&w=128`)),
+      ),
+    );
+
+    expect(responses.every((r) => r.status === 200)).toBe(true);
+    expect(maxConcurrent).toBeLessThanOrEqual(2);
   });
 });

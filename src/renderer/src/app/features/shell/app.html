@@ -1,5 +1,10 @@
-<div class='app-layout'>
-  <div class='app-top-bar' data-theme-group='shell.titlebar' data-tutorial='home-navigation'>
+<div class='app-layout' [class.app-layout--settings-open]='settingsWindowOpen()'>
+  <div
+    class='app-top-bar'
+    data-theme-group='shell.titlebar'
+    data-tutorial='home-navigation'
+    [attr.inert]='settingsWindowOpen() ? "" : null'
+  >
     @if (electron.isElectron) {
       <div class='window-chrome'>
         <h1 class='chrome-title' (dblclick)='onWindowToggleMaximize()'>
@@ -213,7 +218,11 @@
     }
   </div>
 
-  <div class='app-content' [class.app-content--no-workspace]='!hasOpenWorkspace()'>
+  <div
+    class='app-content'
+    [class.app-content--no-workspace]='!hasOpenWorkspace()'
+    [attr.inert]='settingsWindowOpen() ? "" : null'
+  >
     @if (hasOpenWorkspace()) {
       <div class='workspace-panel' data-theme-group='workspace.panel' [style.width.px]='workspaceWidth()'>
         <app-workspace
@@ -362,7 +371,7 @@
                     [workspacePath]='currentWorkspacePath()'
                     [relativePath]='view.imageRelativePath'
                     [active]='view.activeIsImage && focused && !chatShownExpanded()'
-                    (navigateTo)='onImageViewerNavigate($event)'
+                    (navigateTo)='onImageViewerNavigate(slot.id, $event)'
                   />
                 </div>
               }
@@ -544,7 +553,11 @@
 
   <!-- No status bar on the home screen: its Runtime panel already shows the model and embeddings status. -->
   @if (electron.isElectron && currentWorkspaceId()) {
-    <footer class="app-status-footer" data-theme-group="shell.status-bar">
+    <footer
+      class="app-status-footer"
+      data-theme-group="shell.status-bar"
+      [attr.inert]='settingsWindowOpen() ? "" : null'
+    >
       <div class="app-status-footer__start">
         <div class="app-status-footer__source" data-theme-group="workspace.footer">
           <app-provider-picker layout="status-bar" [appConfig]="appConfig()" />
@@ -564,4 +577,15 @@
 
   <app-themed-confirm-dialog />
   <app-themed-prompt-dialog />
+
+  @if (settingsWindowOpen()) {
+    <div
+      class='app-settings-backdrop'
+      role='presentation'
+      aria-hidden='true'
+      (mousedown)='onSettingsBackdropInteract($event)'
+      (click)='onSettingsBackdropInteract($event)'
+      (contextmenu)='onSettingsBackdropInteract($event)'
+    ></div>
+  }
 </div>

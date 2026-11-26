@@ -2,12 +2,22 @@ import { describe, expect, it } from 'vitest';
 import type { FileEntry } from '@shared/index';
 import {
   absolutePathForWorkspaceRelative,
+  clampZoom,
+  computeFilmstripVirtualWindow,
+  computeFitScale,
+  computeGridVirtualWindow,
+  computeZoomPanForPointer,
+  filterGalleryPaths,
+  formatImageExtension,
   galleryIndexForPath,
   galleryNextIndex,
   galleryPreviousIndex,
+  imageFileName,
+  isVectorOrIconImagePath,
   parentFolderAbsolutePath,
   parentFolderRelativePath,
   pickGalleryPathAfterRefresh,
+  shouldCollapseToolbarToRibbon,
   viewableImagesInDirectory,
   workspaceChangeAffectsGalleryFolder,
 } from './image-viewer-gallery';
@@ -145,5 +155,170 @@ describe('pickGalleryPathAfterRefresh', () => {
 
   it('returns null for an empty gallery', () => {
     expect(pickGalleryPathAfterRefresh([], 'photos/a.png', 0)).toBeNull();
+  });
+});
+
+describe('image metadata & filtering helpers', () => {
+  it('extracts filenames, format badges, and icon-like types', () => {
+    expect(imageFileName('docs/media/banner.jpeg')).toBe('banner.jpeg');
+    expect(formatImageExtension('docs/media/banner.jpeg')).toBe('JPG');
+    expect(formatImageExtension('logo.svg')).toBe('SVG');
+    expect(formatImageExtension('noext')).toBe('');
+    expect(isVectorOrIconImagePath('icons/app.svg')).toBe(true);
+    expect(isVectorOrIconImagePath('favicon.ico')).toBe(true);
+    expect(isVectorOrIconImagePath('photo.png')).toBe(false);
+  });
+
+  it('filters gallery paths case-insensitively by filename', () => {
+    const paths = ['a/Hero.png', 'a/Thumb.webp', 'a/banner-hero.jpg'];
+    expect(filterGalleryPaths(paths, '')).toEqual(paths);
+    expect(filterGalleryPaths(paths, 'HERO')).toEqual(['a/Hero.png', 'a/banner-hero.jpg']);
+    expect(filterGalleryPaths(paths, 'missing')).toEqual([]);
+  });
+});
+
+describe('zoom, fit scale, and cursor-anchored pan helpers', () => {
+  it('clamps zoom to viewer bounds', () => {
+    expect(clampZoom(0.01)).toBe(0.1);
+    expect(clampZoom(100)).toBe(16);
+    expect(clampZoom(2.5)).toBe(2.5);
+    expect(clampZoom(Number.NaN)).toBe(1);
+  });
+
+  it('computes fit scale accounting for 90-degree rotation without upscaling', () => {
+    expect(computeFitScale(1000, 500, 500, 500, 0)).toBeCloseTo(0.5);
+    expect(computeFitScale(1000, 500, 500, 250, 90)).toBeCloseTo(0.25);
+    expect(computeFitScale(200, 100, 800, 600, 0)).toBe(1);
+  });
+
+  it('preserves the image point under the pointer when zooming', () => {
+    const next = computeZoomPanForPointer({
+      currentZoom: 1,
+      nextZoom: 2,
+      panX: 0,
+      panY: 0,
+      pointerOffsetX: 100,
+      pointerOffsetY: -50,
+    });
+    expect(next).toEqual({ panX: -100, panY: 50 });
+  });
+});
+
+describe('virtualization windows', () => {
+  it('computes a bounded horizontal window for large filmstrips', () => {
+    const win = computeFilmstripVirtualWindow({
+      itemCount: 2000,
+      itemSizePx: 64,
+      gapPx: 8,
+      viewportWidthPx: 720,
+      scrollLeftPx: 7200,
+      overscan: 6,
+    });
+    // Stride = 72, scrollLeft 7200 -> firstVisible = 100, visibleCount = 11
+    expect(win.start).toBe(94);
+    expect(win.end).toBe(117);
+    expect(win.totalWidthPx).toBe(2000 * 64 + 1999 * 8);
+  });
+
+  it('computes a bounded vertical row window for contact-sheet grids', () => {
+    const win = computeGridVirtualWindow({
+      itemCount: 500,
+      columns: 5,
+      rowHeightPx: 160,
+      gapPx: 10,
+      viewportHeightPx: 510,
+      scrollTopPx: 1700,
+      overscanRows: 2,
+    });
+    // rowStride = 170, firstRow = 10, visibleRows = 4 -> startRow 8 (idx 40), endRow 16 (idx 80)
+    expect(win.startIndex).toBe(40);
+    expect(win.endIndex).toBe(80);
+    expect(win.totalHeightPx).toBe(100 * 160 + 99 * 10);
+  });
+
+  it('clamps empty galleries cleanly', () => {
+    expect(
+      computeFilmstripVirtualWindow({
+        itemCount: 0,
+        itemSizePx: 64,
+        gapPx: 8,
+        viewportWidthPx: 500,
+        scrollLeftPx: 0,
+      }),
+    ).toEqual({ start: 0, end: 0, totalWidthPx: 0 });
+    expect(
+      computeGridVirtualWindow({
+        itemCount: 0,
+        columns: 4,
+        rowHeightPx: 150,
+        gapPx: 10,
+        viewportHeightPx: 500,
+        scrollTopPx: 0,
+      }),
+    ).toEqual({ startIndex: 0, endIndex: 0, totalHeightPx: 0 });
+  });
+});
+
+describe('shouldCollapseToolbarToRibbon', () => {
+  it('stays inline when toolbar width fits file identity and controls', () => {
+    expect(
+      shouldCollapseToolbarToRibbon({
+        toolbarWidthPx: 920,
+        fileMinWidthPx: 180,
+        controlsWidthPx: 640,
+        chromeAllowancePx: 32,
+        hysteresisPx: 14,
+        currentlyOverflowing: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('collapses to ribbon when toolbar width falls below needed width', () => {
+    expect(
+      shouldCollapseToolbarToRibbon({
+        toolbarWidthPx: 840,
+        fileMinWidthPx: 180,
+        controlsWidthPx: 640,
+        chromeAllowancePx: 32,
+        hysteresisPx: 14,
+        currentlyOverflowing: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('applies hysteresis before returning to inline mode', () => {
+    // Needed = 180 + 640 + 32 = 852; with hysteresis 14 -> stays overflowing until >= 866
+    expect(
+      shouldCollapseToolbarToRibbon({
+        toolbarWidthPx: 860,
+        fileMinWidthPx: 180,
+        controlsWidthPx: 640,
+        chromeAllowancePx: 32,
+        hysteresisPx: 14,
+        currentlyOverflowing: true,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldCollapseToolbarToRibbon({
+        toolbarWidthPx: 868,
+        fileMinWidthPx: 180,
+        controlsWidthPx: 640,
+        chromeAllowancePx: 32,
+        hysteresisPx: 14,
+        currentlyOverflowing: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when layout measurements are not ready yet', () => {
+    expect(
+      shouldCollapseToolbarToRibbon({
+        toolbarWidthPx: 0,
+        fileMinWidthPx: 180,
+        controlsWidthPx: 640,
+        currentlyOverflowing: false,
+      }),
+    ).toBe(false);
   });
 });

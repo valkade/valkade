@@ -70,12 +70,24 @@ export function returnFocusToParentOnClose(child: BrowserWindow, parent: Browser
 }
 
 /**
- * Parent/modal options for the settings BrowserWindow.
- * Non-modal on every platform so the main window stays interactive while Settings is open
- * (mirrors the Health window). Modal child windows are also unreliable on Linux Wayland
- * (especially with frameless parents).
+ * Parent/modal options for non-modal satellite BrowserWindows (Dependencies, Health, Updater).
+ * Non-modal on every platform so the main window stays interactive while they are open.
  */
 export function settingsWindowParentOptions(
+  mainWindow: BrowserWindow,
+): Pick<BrowserWindowConstructorOptions, 'parent' | 'modal'> {
+  return { parent: mainWindow, modal: false };
+}
+
+/**
+ * Parent/modal options for the Settings dialog.
+ * Keeps `parent: mainWindow` so Settings stays layered above the main window in OS z-order,
+ * with `modal: false` so Windows does not disable the parent HWND (which plays the system
+ * "ding" beep on clicks) and Linux Wayland frameless modals stay reliable. Input blocking is
+ * enforced silently via main-process `before-input-event` + focus redirect and the renderer's
+ * `inert` + full-window blur backdrop.
+ */
+export function settingsModalParentOptions(
   mainWindow: BrowserWindow,
 ): Pick<BrowserWindowConstructorOptions, 'parent' | 'modal'> {
   return { parent: mainWindow, modal: false };

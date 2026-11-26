@@ -168,7 +168,7 @@ export const THEME_GROUPS: readonly ThemeGroupDef[] = [
     description: "Image tab toolbar and canvas.",
     selector: "[data-theme-group=\"editor.image-viewer\"]",
     component: "app/features/workspace/image-viewer",
-    tokens: ["--t-bg", "--t-bg-deep", "--t-border", "--t-border-subtle", "--t-hover-bg", "--t-primary", "--t-text-muted"],
+    tokens: ["--t-bg", "--t-bg-deep", "--t-bg-surface", "--t-border", "--t-border-subtle", "--t-danger", "--t-elev-shadow", "--t-fg", "--t-font-mono", "--t-hover-bg", "--t-input-bg", "--t-input-fg", "--t-panel", "--t-primary", "--t-success", "--t-text-muted"],
     supportsBackground: false,
   },
   {

@@ -19,17 +19,110 @@ const IMAGE_MIME_BY_EXT: Record<string, string> = {
   avif: 'image/avif',
 };
 
-const THUMB_CACHE_MAX = 80;
+const THUMB_CACHE_MAX_ENTRIES = 500;
+const THUMB_CACHE_MAX_BYTES = 24 * 1024 * 1024;
+const THUMB_ENCODE_CONCURRENCY = 2;
+const VERIFIED_ROOT_TTL_MS = 1_000;
+
+/** Formats without an alpha channel: JPEG thumbnails are 5–10× smaller and faster. */
+const OPAQUE_THUMB_SOURCE_EXTS = new Set(['jpg', 'jpeg', 'bmp']);
 
 type ThumbCacheEntry = {
   mtimeMs: number;
   size: number;
   maxEdge: number;
+  mime: string;
   bytes: Buffer;
 };
 
-/** In-memory LRU of resized gallery thumbs (path → entry). */
+type EncodedThumb = {
+  bytes: Buffer;
+  mime: string;
+};
+
+/** Byte- and entry-bounded in-memory LRU of resized gallery thumbs (key → entry). */
 const thumbCache = new Map<string, ThumbCacheEntry>();
+let thumbCacheBytes = 0;
+
+/** Deduplicates simultaneous thumbnail encodes for the same file version + maxEdge. */
+const inFlightThumbs = new Map<string, Promise<{ thumb: EncodedThumb | null; rawData?: Buffer }>>();
+
+/** Short-TTL + in-flight cache for workspace root verification during thumbnail bursts. */
+const VERIFIED_ROOT_CACHE_MAX_ENTRIES = 64;
+const verifiedRootCache = new Map<string, { resolved: string; expiresAt: number }>();
+const verifiedRootInFlight = new Map<string, Promise<string>>();
+
+/** Cooperative concurrency queue so bursts of synchronous nativeImage calls never stall main. */
+let activeThumbEncodes = 0;
+const thumbEncodeWaiters: Array<() => void> = [];
+
+function acquireThumbEncodeSlot(): Promise<void> {
+  if (activeThumbEncodes < THUMB_ENCODE_CONCURRENCY) {
+    activeThumbEncodes += 1;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    thumbEncodeWaiters.push(resolve);
+  });
+}
+
+function releaseThumbEncodeSlot(): void {
+  const next = thumbEncodeWaiters.shift();
+  if (next) {
+    // Transfer slot ownership directly so concurrent arrivals cannot exceed THUMB_ENCODE_CONCURRENCY
+    // while yielding to the main-process event loop between synchronous nativeImage encodes.
+    setImmediate(next);
+    return;
+  }
+  activeThumbEncodes = Math.max(0, activeThumbEncodes - 1);
+}
+
+async function resolveVerifiedWorkspaceRoot(rawRoot: string): Promise<string> {
+  const key = rawRoot.trim();
+  const now = Date.now();
+  const cached = verifiedRootCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.resolved;
+  }
+  const pending = verifiedRootInFlight.get(key);
+  if (pending) {
+    return pending;
+  }
+  const promise = assertRegisteredWorkspaceDirectory(key)
+    .then((resolved) => {
+      const expiresAt = Date.now() + VERIFIED_ROOT_TTL_MS;
+      verifiedRootCache.delete(key);
+      verifiedRootCache.set(key, { resolved, expiresAt });
+      if (verifiedRootCache.size > VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+        const pruneNow = Date.now();
+        for (const [k, entry] of verifiedRootCache) {
+          if (entry.expiresAt <= pruneNow || verifiedRootCache.size > VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+            verifiedRootCache.delete(k);
+          }
+          if (verifiedRootCache.size <= VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+            break;
+          }
+        }
+      }
+      return resolved;
+    })
+    .finally(() => {
+      verifiedRootInFlight.delete(key);
+    });
+  verifiedRootInFlight.set(key, promise);
+  return promise;
+}
+
+/** Clear internal protocol caches (used by unit tests). */
+export function clearNemoAssetCachesForTests(): void {
+  thumbCache.clear();
+  thumbCacheBytes = 0;
+  inFlightThumbs.clear();
+  verifiedRootCache.clear();
+  verifiedRootInFlight.clear();
+  activeThumbEncodes = 0;
+  thumbEncodeWaiters.length = 0;
+}
 
 function notFound(): Response {
   return new Response('Not found', { status: 404 });
@@ -150,40 +243,79 @@ function prepareAssetBytes(data: Buffer, mime: string): Buffer {
 }
 
 /** Response headers for every nemo-asset payload; SVG gets a tight CSP. */
-function assetResponseHeaders(mime: string): Record<string, string> {
+function assetResponseHeaders(mime: string, etag?: string): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': mime,
     'Cache-Control': 'no-cache',
     'X-Content-Type-Options': 'nosniff',
   };
+  if (etag) {
+    headers['ETag'] = etag;
+  }
   if (mime === 'image/svg+xml') {
     headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'";
   }
   return headers;
 }
 
+function buildAssetEtag(mtimeMs: number, size: number, maxEdge: number | null): string {
+  return `"${Math.trunc(mtimeMs)}-${size}-${maxEdge ?? 'full'}"`;
+}
+
+function ifNoneMatchMatches(headerValue: string | null, etag: string): boolean {
+  if (!headerValue) {
+    return false;
+  }
+  const trimmed = headerValue.trim();
+  if (trimmed === '*') {
+    return true;
+  }
+  for (const part of trimmed.split(',')) {
+    const candidate = part.trim().replace(/^W\//, '');
+    if (candidate === etag) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function rememberThumb(cacheKey: string, entry: ThumbCacheEntry): void {
-  if (thumbCache.has(cacheKey)) {
+  if (entry.bytes.byteLength > THUMB_CACHE_MAX_BYTES) {
+    return;
+  }
+  const existing = thumbCache.get(cacheKey);
+  if (existing) {
+    thumbCacheBytes -= existing.bytes.byteLength;
     thumbCache.delete(cacheKey);
   }
   thumbCache.set(cacheKey, entry);
-  while (thumbCache.size > THUMB_CACHE_MAX) {
-    const oldest = thumbCache.keys().next().value;
-    if (oldest === undefined) {
+  thumbCacheBytes += entry.bytes.byteLength;
+  while (
+    thumbCache.size > THUMB_CACHE_MAX_ENTRIES ||
+    (thumbCacheBytes > THUMB_CACHE_MAX_BYTES && thumbCache.size > 1)
+  ) {
+    const oldestKey = thumbCache.keys().next().value;
+    if (oldestKey === undefined) {
       break;
     }
-    thumbCache.delete(oldest);
+    const oldest = thumbCache.get(oldestKey);
+    if (oldest) {
+      thumbCacheBytes -= oldest.bytes.byteLength;
+    }
+    thumbCache.delete(oldestKey);
   }
 }
 
 /**
- * Downscale / freeze (GIF→PNG) for gallery thumbs. Returns null when nativeImage
- * cannot decode the buffer (e.g. SVG) so the caller can fall back to the original.
+ * Downscale / freeze (GIF→PNG) for gallery thumbs. Uses JPEG for opaque source formats
+ * (`jpg`, `jpeg`, `bmp`) for 5–10× smaller payloads and faster encode/decode, and PNG
+ * for alpha-capable formats. Returns null when nativeImage cannot decode (e.g. SVG).
  */
-export function encodeWorkspaceImageThumb(
+export function encodeWorkspaceImageThumbWithMime(
   data: Buffer,
   maxEdge: number,
-): Buffer | null {
+  sourceExt?: string,
+): EncodedThumb | null {
   const image = nativeImage.createFromBuffer(data);
   if (image.isEmpty()) {
     return null;
@@ -199,15 +331,75 @@ export function encodeWorkspaceImageThumb(
       : image.resize({
           width: target.width,
           height: target.height,
-          quality: 'better',
+          quality: maxEdge <= 128 ? 'good' : 'better',
         });
+  const normalizedExt = sourceExt?.replace(/^\./, '').toLowerCase() ?? '';
+  if (OPAQUE_THUMB_SOURCE_EXTS.has(normalizedExt) && typeof resized.toJPEG === 'function') {
+    const jpg = resized.toJPEG(82);
+    const bytes = Buffer.isBuffer(jpg) ? jpg : Buffer.from(jpg);
+    if (bytes.byteLength === 0) {
+      return null;
+    }
+    return { bytes, mime: 'image/jpeg' };
+  }
   const png = resized.toPNG();
-  return Buffer.isBuffer(png) ? png : Buffer.from(png);
+  const bytes = Buffer.isBuffer(png) ? png : Buffer.from(png);
+  if (bytes.byteLength === 0) {
+    return null;
+  }
+  return { bytes, mime: 'image/png' };
+}
+
+/**
+ * Downscale / freeze (GIF→PNG) for gallery thumbs. Returns null when nativeImage
+ * cannot decode the buffer (e.g. SVG) so the caller can fall back to the original.
+ */
+export function encodeWorkspaceImageThumb(
+  data: Buffer,
+  maxEdge: number,
+): Buffer | null {
+  return encodeWorkspaceImageThumbWithMime(data, maxEdge)?.bytes ?? null;
+}
+
+async function generateThumbDeduplicated(
+  abs: string,
+  ext: string,
+  mtimeMs: number,
+  size: number,
+  maxEdge: number,
+): Promise<{ thumb: EncodedThumb | null; rawData?: Buffer }> {
+  const inflightKey = `${abs}|${maxEdge}|${mtimeMs}|${size}`;
+  const existing = inFlightThumbs.get(inflightKey);
+  if (existing) {
+    return existing;
+  }
+
+  const work = (async (): Promise<{ thumb: EncodedThumb | null; rawData?: Buffer }> => {
+    const data = await fs.readFile(abs);
+    // Skip nativeImage for SVG directly (it is never raster-decoded by nativeImage).
+    if (ext === 'svg') {
+      return { thumb: null, rawData: data };
+    }
+    await acquireThumbEncodeSlot();
+    try {
+      const thumb = encodeWorkspaceImageThumbWithMime(data, maxEdge, ext);
+      return thumb ? { thumb } : { thumb: null, rawData: data };
+    } finally {
+      releaseThumbEncodeSlot();
+    }
+  })();
+
+  inFlightThumbs.set(inflightKey, work);
+  try {
+    return await work;
+  } finally {
+    inFlightThumbs.delete(inflightKey);
+  }
 }
 
 /**
  * Registers `nemo-asset://workspace/?root=<abs>&path=<rel>[&thumb=1|&w=128]` to serve
- * workspace image files. Thumbnail params return a small static PNG when decodable.
+ * workspace image files. Thumbnail params return a small static JPEG/PNG when decodable.
  * The root must be a registered workspace and the relative path may not escape it.
  */
 export function registerNemoAssetProtocol(): void {
@@ -235,11 +427,23 @@ export function registerNemoAssetProtocol(): void {
     }
 
     try {
-      const workspaceRoot = await assertRegisteredWorkspaceDirectory(root.trim());
+      const workspaceRoot = await resolveVerifiedWorkspaceRoot(root);
       const abs = resolveSafeWorkspacePath(workspaceRoot, relPath);
       const stat = await fs.stat(abs);
       if (!stat.isFile()) {
         return notFound();
+      }
+
+      const etag = buildAssetEtag(stat.mtimeMs, stat.size, maxEdge);
+      const ifNoneMatch = request.headers.get('if-none-match');
+      if (ifNoneMatchMatches(ifNoneMatch, etag)) {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: etag,
+            'Cache-Control': 'no-cache',
+          },
+        });
       }
 
       if (maxEdge != null) {
@@ -255,36 +459,42 @@ export function registerNemoAssetProtocol(): void {
           thumbCache.set(cacheKey, cached);
           return new Response(new Uint8Array(cached.bytes), {
             status: 200,
-            headers: assetResponseHeaders('image/png'),
+            headers: assetResponseHeaders(cached.mime, etag),
           });
         }
 
-        const data = await fs.readFile(abs);
-        const thumb = encodeWorkspaceImageThumb(data, maxEdge);
+        const { thumb, rawData } = await generateThumbDeduplicated(
+          abs,
+          ext,
+          stat.mtimeMs,
+          stat.size,
+          maxEdge,
+        );
         if (thumb) {
           rememberThumb(cacheKey, {
             mtimeMs: stat.mtimeMs,
             size: stat.size,
             maxEdge,
-            bytes: thumb,
+            mime: thumb.mime,
+            bytes: thumb.bytes,
           });
-          return new Response(new Uint8Array(thumb), {
+          return new Response(new Uint8Array(thumb.bytes), {
             status: 200,
-            headers: assetResponseHeaders('image/png'),
+            headers: assetResponseHeaders(thumb.mime, etag),
           });
         }
         // Undecodable as raster (often SVG) — serve sanitized original bytes.
-        const fallback = prepareAssetBytes(data, mime);
+        const fallback = prepareAssetBytes(rawData ?? (await fs.readFile(abs)), mime);
         return new Response(new Uint8Array(fallback), {
           status: 200,
-          headers: assetResponseHeaders(mime),
+          headers: assetResponseHeaders(mime, etag),
         });
       }
 
       const data = prepareAssetBytes(await fs.readFile(abs), mime);
       return new Response(new Uint8Array(data), {
         status: 200,
-        headers: assetResponseHeaders(mime),
+        headers: assetResponseHeaders(mime, etag),
       });
     } catch {
       return notFound();
