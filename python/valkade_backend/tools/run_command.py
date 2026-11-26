@@ -42,6 +42,11 @@ from valkade_backend.runtime.admin_exec import (
     shutdown_session_broker,
     start_elevated_job,
 )
+from valkade_backend.runtime.agent_shell import (
+    agent_shell_command_problem,
+    agent_shell_error_hints,
+    spawn_agent_shell,
+)
 from valkade_backend.session.state import current_session_id, get_session, mutation_tools_blocked_reason
 from valkade_backend.tools.terminal_text import plain_terminal_text
 from valkade_backend.tools.tool_conventions import describe
@@ -68,28 +73,76 @@ _FINISHED_JOB_TTL_SEC = 30 * 60
 _MAX_COMMAND_CHARS = 8_192
 
 # Structural denylist — reject before HITL / subprocess. Patterns are intentionally coarse.
-# Defense-in-depth only; HITL still gates approval for non-matching commands.
+# Defense-in-depth only; HITL still gates approval for non-matching commands. Chaining (`;`, `&&`, `|`,
+# new lines), `$( )` and backticks are allowed so agents can bundle steps; the rules below target what a
+# command does (sh, cmd and PowerShell spellings), not how it is joined.
+#: Where a command word starts: text start, a separator, or a wrapper that runs the next word as a command.
+_COMMAND_START = r'(?:^|[\n;&|({}]|\b(?:sudo|exec|nohup|start|xargs)\s|\s(?:/c|/k|-c|-command)\s)\s*[\'"]?'
+#: A delete target that wipes a whole drive, the OS, or a user's home folder.
+_WIDE_DELETE_TARGET = (
+    r'[\'"]?(?:[a-z]:[\\/]?|[a-z]:[\\/](?:windows|users|program files(?: \(x86\))?|programdata)[\\/]?'
+    r'|~[\\/]?|\$home[\\/]?'
+    r'|\$env:(?:userprofile|systemroot|windir|systemdrive|homedrive|programfiles)[\\/]?'
+    r'|%(?:userprofile|systemroot|windir|systemdrive|homedrive|programfiles)%[\\/]?)'
+    r'\*?[\'"]?(?=\s|$|[;&|)])'
+)
+_REMOTE_FETCH = r'(?:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod|downloadstring|net\.webclient)'
+_POSIX_SHELL = r'(?:sudo\s+)?(?:ba|z|da|k)?sh\b'
+#: PowerShell ways to run a string as code.
+_RUN_AS_CODE = r'(?:\b(?:iex|invoke-expression)\b|\[scriptblock\]::create\b)'
 _DENIED_COMMAND_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pat, re.IGNORECASE | re.DOTALL), label)
     for pat, label in (
-        (r'[\n\r]', 'newline / CR command chaining'),
-        (r'\$\(', 'command substitution $()'),
-        (r'`', 'backtick command substitution'),
-        (r'\b(env|printenv)\b', 'env dump (env/printenv)'),
-        (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|--force\s+)*(/|/\*|~|/home\b|/Users\b|/var\b|/etc\b)', 'rm -rf / (or similar)'),
+        # Text the approval card would not show faithfully.
+        (r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]', 'invisible control or text-direction characters'),
+        (r'\r(?!\n)', 'carriage return that hides text'),
+        # Secrets in the environment.
+        (_COMMAND_START + r'(?:env|printenv)\s*(?:$|[\n;&|)>])', 'environment dump (env / printenv)'),
+        (_COMMAND_START + r'set\s*(?:$|[\n;&|)>])', 'environment dump (set)'),
+        (r'\b(?:get-childitem|gci|dir|ls|get-item|gi)\s+(?:-path\s+)?[\'"]?env:[\\/]?\*?[\'"]?(?=\s|$|[;&|)])', 'environment dump (Env: drive)'),
+        (r'\[(?:system\.)?environment\]::getenvironmentvariables\b', 'environment dump (GetEnvironmentVariables)'),
+        # Wiping drives, the OS or home folders.
+        (
+            r'\brm\s+(?:-[a-z]*\s+|--[a-z-]+\s+)*[\'"]?(?:/|/\*|~/?\*?|\$home/?\*?|/(?:home|users)(?:/[^/\s\'"]+)?/?\*?'
+            r'|/(?:bin|boot|dev|etc|lib|lib64|opt|proc|root|sbin|srv|sys|usr|var)/?\*?)[\'"]?(?=\s|$|[;&|)])',
+            'rm -rf / (or similar)',
+        ),
+        (_COMMAND_START + r'(?:remove-item|ri|rm|rmdir|rd|del|erase)\b[^\n;|&]*?\s' + _WIDE_DELETE_TARGET, 'delete of a drive root, system or home folder'),
         (r':\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;?\s*:', 'fork bomb'),
         (r'\bdd\b[^\n]*\bof\s*=\s*/dev/', 'dd of=/dev/...'),
         (r'\bmkfs(\.\w+)?\b', 'mkfs'),
-        (r'\b(shutdown|reboot|poweroff|halt)\b', 'shutdown/reboot'),
+        (r'\b(?:format-volume|clear-disk|initialize-disk|remove-partition)\b', 'disk format / wipe'),
+        (_COMMAND_START + r'(?:format(?:\.com)?\s+[a-z]:|diskpart\b)', 'disk format / wipe'),
+        (_COMMAND_START + r'(?:shutdown|reboot|poweroff|halt|stop-computer|restart-computer)\b', 'shutdown/reboot'),
         (r'>\s*/dev/sd[a-z]\b', 'redirect to /dev/sdX'),
         (r'\bchmod\s+(-[a-zA-Z]*R[a-zA-Z]*\s+|--recursive\s+)*777\s+/', 'chmod -R 777 /'),
-        (r'\b(curl|wget)\b[\s\S]*\|\s*(ba)?sh\b', 'network download piped to shell'),
+        # Running code fetched from the network or hidden in an encoding.
+        (r'\b(curl|wget)\b[\s\S]*\|\s*' + _POSIX_SHELL, 'network download piped to shell'),
         (r'\b(ba)?sh\b[\s\S]*-c[\s\S]*\b(curl|wget)\b', 'shell -c fetching remote script'),
+        (r'\b(?:eval|source)\b[\s\S]*\b(?:curl|wget)\b', 'eval / source of a remote script'),
+        (r'(?:^|[\s;&|])(?:\.|source)\s+<\(\s*(?:curl|wget)\b', 'eval / source of a remote script'),
+        (r'\b' + _REMOTE_FETCH + r'\b[\s\S]*\|\s*(?:iex|invoke-expression)\b', 'remote script run with Invoke-Expression'),
+        (_RUN_AS_CODE + r'[\s\S]*\b' + _REMOTE_FETCH + r'\b', 'remote script run with Invoke-Expression'),
+        (r'\b(?:powershell|pwsh)(?:\.exe)?\b[^\n;|&]*\s-e(?:c|n\w*)?\s', 'encoded PowerShell command (-EncodedCommand)'),
+        (r'(?:^|\s)-encodedcommand\b', 'encoded PowerShell command (-EncodedCommand)'),
+        (r'\bfrombase64string\b[\s\S]*' + _RUN_AS_CODE, 'decoded base64 run as code'),
+        (_RUN_AS_CODE + r'[\s\S]*\bfrombase64string\b', 'decoded base64 run as code'),
+        (r'\bbase64\s+(?:-d|-D|--decode)\b[\s\S]*\|\s*' + _POSIX_SHELL, 'decoded base64 piped to a shell'),
+        # Exfiltration and disabling protections.
         (r'\bbase64\b[\s\S]*\|\s*(curl|wget|nc|ncat|netcat)\b', 'base64 pipe to network exfil'),
         (r'\b(nc|ncat|netcat)\b[^\n]*\s+-e\s+', 'netcat exec (-e)'),
         (r'\bcurl\b[^\n]*\s(--data|-d|--upload-file|-T)\b[^\n]*(/etc/passwd|/etc/shadow|\.ssh/)', 'credential exfil via curl'),
+        (
+            r'\b(?:iwr|irm|invoke-webrequest|invoke-restmethod)\b[^\n]*-(?:infile|body)\b[^\n]*'
+            r'(?:\.ssh[\\/]|id_rsa|id_ed25519|/etc/(?:passwd|shadow)|\.aws[\\/]credentials)',
+            'credential exfil via web request',
+        ),
+        (r'\b(?:set|add)-mppreference\b[^\n]*\s-(?:disable\w*|exclusion\w*)\b', 'Microsoft Defender tampering'),
+        (r'\bset-executionpolicy\b(?![^\n;|]*-scope\s+process\b)', 'persistent execution-policy change'),
     )
 )
+#: Line continuations (sh ``\``, PowerShell backtick, cmd ``^``) that could split a denied pattern over lines.
+_LINE_CONTINUATION = re.compile(r'[\\`^]\r?\n')
 
 
 def validate_run_command_text(command: str) -> str | None:
@@ -99,10 +152,19 @@ def validate_run_command_text(command: str) -> str | None:
         return 'Tool error: `command` must not be empty.'
     if len(text) > _MAX_COMMAND_CHARS:
         return f'Tool error: `command` is too long (max {_MAX_COMMAND_CHARS} characters).'
+    variants = (text, _LINE_CONTINUATION.sub(' ', text))
     for pattern, label in _DENIED_COMMAND_PATTERNS:
-        if pattern.search(text):
+        if any(pattern.search(variant) for variant in variants):
             return f'Tool error: command blocked by safety policy ({label}).'
     return None
+
+
+def _command_preview(command: str) -> str:
+    """One-line form of a (possibly multi-line) command for reports and listings."""
+    lines = [line.strip() for line in (command or '').strip().splitlines() if line.strip()]
+    if len(lines) <= 1:
+        return lines[0] if lines else ''
+    return f'{lines[0]} … (+{len(lines) - 1} more lines)'
 
 STATUS_RUNNING = 'running'
 STATUS_EXITED = 'exited'
@@ -442,7 +504,7 @@ def _format_report(job: CommandJob, *, waited_sec: float) -> str:
     lines = [
         'Command report:',
         f'- Command id: `{job.job_id}`',
-        f'- Command: `{job.command_text}`',
+        f'- Command: `{_command_preview(job.command_text)}`',
         f'- Working directory: `{job.cwd_label}`',
     ]
     if job.elevated:
@@ -461,6 +523,12 @@ def _format_report(job: CommandJob, *, waited_sec: float) -> str:
         lines.append(_truncate_report_output(new_output).rstrip())
     else:
         lines.append('New output: (none)')
+    # Scan the whole new output (not the truncated slice) for bash habits the shell rejected.
+    hints = agent_shell_error_hints(new_output)
+    if hints:
+        lines.append('')
+        lines.append('Shell hints:')
+        lines.extend(f'- {hint}' for hint in hints)
     if job.status == STATUS_RUNNING:
         lines.append('')
         lines.append(
@@ -521,8 +589,11 @@ async def _start_job(
     env: dict[str, str] | None,
     elevated: bool = False,
 ) -> tuple[CommandJob | None, str | None]:
+    shell_problem = agent_shell_command_problem(command)
+    if shell_problem:
+        return None, shell_problem
     try:
-        proc = await asyncio.create_subprocess_shell(
+        proc = await spawn_agent_shell(
             command,
             cwd=cwd,
             env=env,
@@ -680,17 +751,19 @@ def _find_session_job(session_id: str, command_id: str) -> tuple[CommandJob | No
 
 
 @tool(RUN_COMMAND_NAME, description=describe(
-    'Run a shell command in the workspace as a managed background job (stdout+stderr merged)',
+    'Run a command in the agent shell (PowerShell on Windows, `/bin/sh` elsewhere) as a managed background '
+    'job (stdout+stderr merged)',
     when='builds, tests, git, scripts, smoke checks and long-lived dev servers—anything without a dedicated tool',
     not_='interactive commands (stdin is closed)',
     shape=(
-        'asks the user to approve unless Auto Run is on; `elevate` (or a leading `sudo`) for admin work asks for '
+        'bundle related steps in one call (separators, or one step per line); asks the user to approve unless '
+        'Auto Run is on; `elevate` (or a leading `sudo`) for admin work asks for '
         f'Admin first; waits `wait_seconds` (default {CLARA_RUN_COMMAND_DEFAULT_WAIT_SEC}s, max '
         f'{CLARA_RUN_COMMAND_MAX_WAIT_SEC}s), then returns a command id for `wait_for_command` / '
         '`kill_background_command` if still running'
     ),))
 async def run_command_tool(
-    command: Annotated[str, 'shell command line, e.g. `npm run build`'],
+    command: Annotated[str, 'command line or short multi-line script, e.g. `npm ci; npm test`'],
     cwd: Annotated[str, 'workspace-relative working directory (empty = workspace root)'] = '',
     wait_seconds: Annotated[float | None, 'seconds to wait before reporting; 0 = fire and forget'] = None,
     elevate: Annotated[bool, 'administrator/root privileges (needs Admin)'] = False,
@@ -708,8 +781,8 @@ async def run_command_tool(
         elevate = elevate.strip().lower() in {'1', 'true', 'yes', 'on'}
     else:
         elevate = bool(elevate)
-    command_text, elevate = normalize_run_command_elevation(command, elevate)
-    denied = validate_run_command_text(command_text)
+    command_text, elevate = normalize_run_command_elevation((command or '').replace('\r\n', '\n'), elevate)
+    denied = validate_run_command_text(command_text) or agent_shell_command_problem(command_text)
     if denied:
         return denied
     if elevate and not admin_elevation_supported():
@@ -773,7 +846,7 @@ async def run_command_tool(
 
     running = _running_session_jobs(sid)
     if len(running) >= _MAX_RUNNING_JOBS_PER_SESSION:
-        listing = ', '.join(f'`{job.job_id}` ({job.command_text})' for job in running)
+        listing = ', '.join(f'`{job.job_id}` ({_command_preview(job.command_text)})' for job in running)
         return (
             f'Tool error: {_MAX_RUNNING_JOBS_PER_SESSION} background commands are already running: {listing}. '
             f'Finish or `{KILL_BACKGROUND_COMMAND_NAME}` one first.'
@@ -874,7 +947,8 @@ async def list_background_commands_tool() -> str:
             status = 'killed'
         else:
             status = f'exited (code {job.exit_code})'
-        command_preview = job.command_text if len(job.command_text) <= 80 else job.command_text[:77] + '...'
+        one_line = _command_preview(job.command_text)
+        command_preview = one_line if len(one_line) <= 80 else one_line[:77] + '...'
         lines.append(f'{index}. `{job.job_id}` — {status} — `{command_preview}` (cwd `{job.cwd_label}`)')
     return '\n'.join(lines) + '\n'
 

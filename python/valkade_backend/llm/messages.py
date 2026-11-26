@@ -30,6 +30,7 @@ from valkade_backend.llm.prompt_blocks import (
     speech_tts_mood_block,
     subagent_role_block,
 )
+from valkade_backend.runtime.agent_shell import agent_shell_prompt_line
 from valkade_backend.session.state import get_active_connection, runtime_config
 
 # Precompiled patterns for detecting "pseudo" tool syntax in plain model text.
@@ -675,7 +676,8 @@ def _outer_agent_operational_block(session: SessionState, apply_mode: bool) -> s
         'Operational rules:\n'
         '- Ground claims in workspace reads and tool output; if data is missing or no workspace is attached, say so.\n'
         '- On `Tool error:`, read it literally, fix the mismatch (path, args, or stale anchors), and retry.\n'
-        '- Match shell commands to the host OS (do not assume Bash on Windows).\n'
+        + agent_shell_prompt_line()
+        + '\n'
         '- Discovery: check the workspace tree below first (`list_workspace_directory` only if insufficient). '
         'Use `search_workspace` by default whenever you can name a literal/regex needle (symbols, strings, imports, '
         'config keys); use `retrieve_workspace_semantic` for fuzzy concepts and verify hits on disk; '

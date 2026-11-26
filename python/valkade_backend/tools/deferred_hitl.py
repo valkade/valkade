@@ -38,7 +38,9 @@ def _presentation(tool_name: str, tool_input: dict[str, Any]) -> tuple[str, str,
     if tool_name == 'run_command':
         command = str(tool_input.get('command') or '').strip()
         cwd = str(tool_input.get('cwd') or '').strip()
-        details = [f'Working directory: `{cwd or "."}`']
+        from valkade_backend.runtime.agent_shell import agent_shell
+
+        details = [f'Working directory: `{cwd or "."}`', f'Shell: `{agent_shell().label}`']
         if bool(tool_input.get('elevate')):
             details.append(f'Elevation: `{elevation_privilege_label()}`')
         return (

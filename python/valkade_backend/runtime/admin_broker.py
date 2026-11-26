@@ -2,6 +2,7 @@
 
 Launched via UAC (Windows ``runas``) or polkit (``pkexec``) so the ValkAde sidecar
 can stream output without elevating Electron. Uses JSON-lines over 127.0.0.1.
+Commands run in the same agent shell as unelevated ones (:mod:`valkade_backend.runtime.agent_shell`).
 """
 
 from __future__ import annotations
@@ -179,8 +180,10 @@ class _Broker:
         if job_id in self.jobs:
             await self._send(writer, {'op': 'run_err', 'job_id': job_id, 'error': 'duplicate job_id'})
             return
+        from valkade_backend.runtime.agent_shell import spawn_agent_shell
+
         try:
-            proc = await asyncio.create_subprocess_shell(
+            proc = await spawn_agent_shell(
                 command,
                 cwd=cwd,
                 env=env,

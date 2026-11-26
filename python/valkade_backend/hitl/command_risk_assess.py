@@ -47,7 +47,7 @@ def _risk_assessment_chain():
             ),
             (
                 'human',
-                'Working directory: {cwd}\n\nCommand:\n{command}',
+                'Shell: {shell}\nWorking directory: {cwd}\n\nCommand:\n{command}',
             ),
         ]
     )
@@ -62,10 +62,12 @@ def _risk_assessment_chain():
 async def assess_command_risk(command_text: str, cwd_label: str) -> CommandRiskAssessment | None:
     """Fail-open: returns None on any error or timeout (never blocks the approval card)."""
 
+    from valkade_backend.runtime.agent_shell import agent_shell
+
     try:
         chain = _risk_assessment_chain()
         return await asyncio.wait_for(
-            chain.ainvoke({'command': command_text, 'cwd': cwd_label}),
+            chain.ainvoke({'command': command_text, 'cwd': cwd_label, 'shell': agent_shell().label}),
             timeout=CLARA_COMMAND_RISK_ASSESS_TIMEOUT_SEC,
         )
     except Exception:

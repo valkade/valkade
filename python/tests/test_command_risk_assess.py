@@ -13,6 +13,7 @@ from valkade_backend.hitl.command_risk_assess import (
     assess_command_risk,
     maybe_enrich_pending_command_risk,
 )
+from valkade_backend.runtime.agent_shell import agent_shell
 from valkade_backend.session.state import runtime_config
 
 
@@ -36,7 +37,9 @@ async def test_assess_command_risk_returns_structured_result(mock_chain_factory:
     assert result is not None
     assert result.risk == 'low'
     assert 'Lists files' in result.description
-    mock_chain.ainvoke.assert_awaited_once_with({'command': 'ls -la', 'cwd': '/workspace'})
+    mock_chain.ainvoke.assert_awaited_once_with(
+        {'command': 'ls -la', 'cwd': '/workspace', 'shell': agent_shell().label}
+    )
 
 
 @patch('valkade_backend.hitl.command_risk_assess._risk_assessment_chain')

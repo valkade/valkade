@@ -971,7 +971,8 @@ export class WorkspaceTerminalDockComponent implements OnDestroy {
         this.mountAgentCommandXtermsIfNeeded();
         this.withAgentCommandTerminal(tabId, (inst) => {
           inst.terminal.writeln(`\x1b[90m[run_command ${commandId}]\x1b[0m`);
-          inst.terminal.writeln(`\x1b[36m$ ${msg.commandText}\x1b[0m`);
+          // Multi-line commands: xterm needs CRLF, and continuation lines get a `>` prompt.
+          inst.terminal.writeln(`\x1b[36m$ ${msg.commandText.replace(/\r?\n/g, '\r\n> ')}\x1b[0m`);
           inst.terminal.writeln(`\x1b[90m(cwd: ${msg.cwdLabel || '.'})\x1b[0m`);
           inst.terminal.writeln('');
           if (preOpen) {
