@@ -8,7 +8,7 @@ import { MarkdownDiagramsDirective } from './markdown-diagrams.directive';
 import { stockDiagramTheme, type DiagramPalette, type DiagramTheme } from './diagram-palette';
 import { DiagramThemeService } from './diagram-theme.service';
 import { DiagramViewerService } from './diagram-viewer.service';
-import { setChartLoaderForTests } from './markdown-charts';
+import { chartPixelRatio, setChartLoaderForTests } from './markdown-charts';
 import {
   DIAGRAM_CLASS,
   DIAGRAM_EXPAND_CLASS,
@@ -351,6 +351,18 @@ describe('chart fences', () => {
     expect(config.data.datasets[1]).toEqual(expect.objectContaining({ borderColor: '#123456' }));
     expect(config.data.datasets[1]!['backgroundColor']).toBeUndefined();
     expect(FakeChart.defaults).toEqual({ color: '#eeeeee', borderColor: '#2a2a2a' });
+  });
+
+  it('lowers the bitmap density of a large chart to stay within the pixel budget', async () => {
+    expect(chartPixelRatio(720, 380)).toBe(3);
+    const { configs } = stubChartJs();
+    const host = chartHost(JSON.stringify({ type: 'bar', data: { datasets: [] }, width: 2400, height: 2400 }));
+    hydrateMarkdownDiagrams(host, PALETTE_THEME);
+    await settle();
+
+    const ratio = configs[0]!.options['devicePixelRatio'] as number;
+    expect(ratio).toBeLessThan(3);
+    expect((2400 * ratio) ** 2).toBeLessThanOrEqual(16_000_000 + 1);
   });
 
   it('accepts trailing commas but explains other bad input', async () => {

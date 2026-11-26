@@ -17,6 +17,11 @@ const MIN_SIZE = 160;
 const MAX_SIZE = 2400;
 /** Bitmap density: sharp inline and still crisp at 3× in the expanded viewer. */
 const PIXEL_RATIO = 3;
+/**
+ * Bitmap size cap (64 MB of RGBA): a large chart renders at a lower density instead of allocating
+ * and PNG-encoding a huge canvas on the UI thread (2400 × 2400 at 3× would be 52M pixels).
+ */
+const MAX_BITMAP_PIXELS = 16_000_000;
 
 /** Chart types drawn one color per data point instead of one per dataset. */
 const PER_POINT_TYPES = new Set(['pie', 'doughnut', 'polarArea']);
@@ -99,6 +104,11 @@ export function applyChartPalette(config: ChartSpec['config'], palette: DiagramP
   });
 }
 
+/** {@link PIXEL_RATIO}, lowered as far as needed to keep the bitmap within {@link MAX_BITMAP_PIXELS}. */
+export function chartPixelRatio(width: number, height: number): number {
+  return Math.min(PIXEL_RATIO, Math.sqrt(MAX_BITMAP_PIXELS / (width * height)));
+}
+
 /** Options forced on every chart: a fixed-size, static, high-density render. */
 function renderOptions(spec: ChartSpec): JsonObject {
   return {
@@ -106,7 +116,7 @@ function renderOptions(spec: ChartSpec): JsonObject {
     responsive: false,
     maintainAspectRatio: false,
     animation: false,
-    devicePixelRatio: PIXEL_RATIO,
+    devicePixelRatio: chartPixelRatio(spec.width, spec.height),
   };
 }
 
