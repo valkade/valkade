@@ -239,3 +239,56 @@ describe('StreamTurnFeedComponent activity blocks', () => {
     expect(glyphs[1]!.querySelector('.ts-sweep')).not.toBeNull();
   });
 });
+
+describe('StreamTurnFeedComponent final response fade-in', () => {
+  it('marks only the final response markdown with data-final-response and fades in newly streamed text', () => {
+    const fixture = TestBed.createComponent(StreamTurnFeedComponent);
+    fixture.componentRef.setInput('items', [
+      { kind: 'markdown', text: 'Checking files first.' },
+      read,
+      { kind: 'markdown', text: 'Here is' },
+    ]);
+    fixture.componentRef.setInput('live', true);
+    fixture.componentRef.setInput('showCursor', true);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const mdBlocks = [...el.querySelectorAll('.stream-turn-feed__markdown')];
+    expect(mdBlocks.length).toBe(2);
+    // Intermediate brief before a tool is muted and not the final response.
+    expect(mdBlocks[0]!.getAttribute('data-final-response')).toBeNull();
+    expect(mdBlocks[0]!.querySelector('.assistant-md')?.classList.contains('streaming-live-md')).toBe(true);
+
+    // Trailing reply is the final response: full style, no blinking cursor, fade-in enabled.
+    const finalBlock = mdBlocks[1]!;
+    expect(finalBlock.getAttribute('data-final-response')).toBe('true');
+    expect(finalBlock.querySelector('.assistant-md')?.classList.contains('streaming-live-md')).toBe(false);
+    expect(finalBlock.querySelector('.streaming-cursor')).toBeNull();
+    const initialP = finalBlock.querySelector('p')!;
+    expect(initialP.classList.contains('stream-md-fade')).toBe(true);
+
+    // Streaming another chunk fades in only the new delta without replacing the existing <p>.
+    fixture.componentRef.setInput('items', [
+      { kind: 'markdown', text: 'Checking files first.' },
+      read,
+      { kind: 'markdown', text: 'Here is the answer.' },
+    ]);
+    fixture.detectChanges();
+    expect(finalBlock.querySelector('p')).toBe(initialP);
+    const fadeSpans = finalBlock.querySelectorAll('span[data-stream-md-fade]');
+    expect(fadeSpans.length).toBe(1);
+    expect(fadeSpans[0]!.textContent).toBe(' the answer.');
+  });
+
+  it('marks the persisted final reply with data-final-response without fade animation wrappers', () => {
+    const fixture = TestBed.createComponent(StreamTurnFeedComponent);
+    fixture.componentRef.setInput('items', [read, { kind: 'markdown', text: 'Final answer.' }]);
+    fixture.componentRef.setInput('live', false);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const finalBlock = el.querySelector('[data-final-response="true"]');
+    expect(finalBlock?.textContent?.trim()).toBe('Final answer.');
+    expect(finalBlock?.querySelector('.stream-md-fade')).toBeNull();
+  });
+});

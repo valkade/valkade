@@ -399,6 +399,40 @@ export function didFinalResponseAppear(
   return (finalText ?? '').trim().length > 0 && !prevHadFinalText;
 }
 
+/** Return value for final-response top-edge scroll clamping. */
+export interface FinalResponseScrollStop {
+  /** Target `scrollTop`: either the bottom of the scrollport or the top of the final response. */
+  scrollTop: number;
+  /** True when scrolling to the bottom would push the start of the final response above the container top. */
+  stoppedAtTop: boolean;
+}
+
+/**
+ * While following a growing final response in stick mode, stop scrolling once the top of the
+ * final response reaches the top of the scroll container so the beginning of the text stays at
+ * the start of the frame.
+ */
+export function decideFinalResponseScrollTop(input: {
+  scrollHeight: number;
+  clientHeight: number;
+  targetContentTop: number;
+  topInsetPx?: number;
+}): FinalResponseScrollStop {
+  const bottomScrollTop = Math.max(0, input.scrollHeight - input.clientHeight);
+  const topInset =
+    typeof input.topInsetPx === 'number' && Number.isFinite(input.topInsetPx) && input.topInsetPx > 0
+      ? input.topInsetPx
+      : 0;
+  const maxScrollTop = Math.max(0, Math.floor(input.targetContentTop - topInset));
+  if (
+    isChatTranscriptScrollable(input.scrollHeight, input.clientHeight) &&
+    bottomScrollTop > maxScrollTop
+  ) {
+    return { scrollTop: maxScrollTop, stoppedAtTop: true };
+  }
+  return { scrollTop: bottomScrollTop, stoppedAtTop: false };
+}
+
 /** Final-response autoscroll follows the same stick rule as stream completion. */
 export function shouldFollowFinalResponse(stickMode: boolean): boolean {
   return stickMode;

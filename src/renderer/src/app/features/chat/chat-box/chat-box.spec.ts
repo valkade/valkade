@@ -6,6 +6,7 @@ import {
   CHAT_BOTTOM_BUFFER_RATIO,
   chatBottomBufferPx,
   decideChatScrollOnAppend,
+  decideFinalResponseScrollTop,
   decideInstantScrollOnStreamingUpdate,
   decideStickAfterUserScroll,
   extractLatestBriefLine,
@@ -813,6 +814,55 @@ describe('stick/roam scroll policy', () => {
     expect(unseenBelowAfterScroll(true, true)).toBe(false);
     expect(unseenBelowAfterScroll(false, true)).toBe(true);
     expect(unseenBelowAfterScroll(false, false)).toBe(false);
+  });
+
+  describe('decideFinalResponseScrollTop', () => {
+    it('keeps following to the bottom while the top of the final response is still below the container top', () => {
+      // Viewport 600, bottom buffer 300, final response starts at y=800 and is 200px tall (scrollHeight=1300).
+      // Bottom scrollTop is 700, which keeps y=800 visible at 100px from top.
+      expect(
+        decideFinalResponseScrollTop({
+          scrollHeight: 1300,
+          clientHeight: 600,
+          targetContentTop: 800,
+          topInsetPx: 9,
+        }),
+      ).toEqual({ scrollTop: 700, stoppedAtTop: false });
+    });
+
+    it('stops scrolling at the top of the final response once bottom-follow would push it past the top edge', () => {
+      // Final response grew to 400px tall (scrollHeight=1500 -> bottomScrollTop=900 > maxScrollTop=791).
+      expect(
+        decideFinalResponseScrollTop({
+          scrollHeight: 1500,
+          clientHeight: 600,
+          targetContentTop: 800,
+          topInsetPx: 9,
+        }),
+      ).toEqual({ scrollTop: 791, stoppedAtTop: true });
+    });
+
+    it('never triggers when the transcript does not overflow', () => {
+      expect(
+        decideFinalResponseScrollTop({
+          scrollHeight: 600,
+          clientHeight: 600,
+          targetContentTop: 120,
+          topInsetPx: 9,
+        }),
+      ).toEqual({ scrollTop: 0, stoppedAtTop: false });
+    });
+
+    it('clamps the stop offset to 0 when the final response starts inside the top padding', () => {
+      expect(
+        decideFinalResponseScrollTop({
+          scrollHeight: 1200,
+          clientHeight: 600,
+          targetContentTop: 4,
+          topInsetPx: 9,
+        }),
+      ).toEqual({ scrollTop: 0, stoppedAtTop: true });
+    });
   });
 });
 

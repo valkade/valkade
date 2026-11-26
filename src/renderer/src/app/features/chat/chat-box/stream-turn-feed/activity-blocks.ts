@@ -109,6 +109,26 @@ export function activityLayout(
   return blocks.size > 0 ? { blocks, hidden, working } : EMPTY_LAYOUT;
 }
 
+/**
+ * True when the markdown item at `index` is the turn's final response (non-empty markdown with no
+ * subsequent non-HITL work or prose after it). Intermediate briefs followed by tools or thoughts
+ * return `false`.
+ */
+export function isFinalResponseFeedItem(items: readonly TurnFeedItem[], index: number): boolean {
+  const item = items[index];
+  if (item?.kind !== 'markdown' || !item.text.trim()) {
+    return false;
+  }
+  for (let i = index + 1; i < items.length; i++) {
+    const after = items[i]!;
+    if (after.kind === 'tool' && isHitlTrailStreamTag(after.part.streamTag)) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 /** A finished turn's work folded behind one pill, so the transcript reads prompt, work, reply. */
 export interface TurnWorkLayout {
   /** Top-level rows of the work, in order: activity block leads, prose between tools, HITL rows. */

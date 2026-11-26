@@ -152,7 +152,7 @@
   }
   <div class="chat-virtual-spacer" [style.height.px]="virtualWindow().bottomSpacer" aria-hidden="true"></div>
   @if (liveTurn(); as liveTurn) {
-    <div class="chat-row chat-row--assistant d-flex mb-2">
+    <div class="chat-row chat-row--assistant chat-row--live d-flex mb-2">
       <div
         class="msg-bubble assistant-bubble assistant-turn-bubble"
         [class.streaming-bubble]="!liveTurnPresentationSettled()"

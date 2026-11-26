@@ -18,6 +18,7 @@ import { DEFAULT_CHAT_THINKING_DISPLAY, formatThoughtDuration } from '@shared/in
 import { AuxStreamToolPartComponent } from '../aux-stream-tool-part/aux-stream-tool-part';
 import { CaptureImagesDirective } from '../capture-images.directive';
 import { MarkdownPipe } from '../markdown.pipe';
+import { StreamingMarkdownDirective } from '../streaming-markdown.directive';
 import { StreamNudgePillComponent } from '../stream-nudge-pill/stream-nudge-pill';
 import { StreamThoughtPillComponent } from '../stream-thought-pill/stream-thought-pill';
 import { StreamToolPillComponent } from '../stream-tool-pill/stream-tool-pill';
@@ -46,7 +47,14 @@ import {
   queueableItems,
   splitQueuedFeed,
 } from './stream-preview-queue';
-import { activityGlyphs, activityLayout, activitySummary, turnWorkLayout, type ActivitySummary } from './activity-blocks';
+import {
+  activityGlyphs,
+  activityLayout,
+  activitySummary,
+  isFinalResponseFeedItem,
+  turnWorkLayout,
+  type ActivitySummary,
+} from './activity-blocks';
 import { settlingChipIndices, toolChipGroupParts, toolChipLayout } from './tool-chip-groups';
 
 /** How long chips that just left the live preview play their settle animation (see the CSS). */
@@ -72,6 +80,7 @@ export type HostedSpinnerKind = PillSpinnerKind;
     StreamNudgePillComponent,
     StreamThoughtPillComponent,
     StreamToolPillComponent,
+    StreamingMarkdownDirective,
     ToolPillGroupComponent,
     ToolSpinnerComponent,
   ],
@@ -435,6 +444,11 @@ export class StreamTurnFeedComponent {
       }
     }
     return false;
+  }
+
+  /** True for the turn's final response markdown block (not an intermediate brief before tools). */
+  isFinalResponse(index: number): boolean {
+    return isFinalResponseFeedItem(this.items(), index);
   }
 
   private syncQueue(live: boolean, items: TurnFeedItem[]): void {
