@@ -1,4 +1,5 @@
-import { Directive, ElementRef, effect, inject, input } from '@angular/core';
+import { Directive, ElementRef, SecurityContext, effect, inject, input } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 import { patchStreamingMarkdownDom } from './streaming-markdown';
 
 /**
@@ -17,16 +18,21 @@ export class StreamingMarkdownDirective {
   readonly appStreamingMarkdownAnimate = input(false);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly sanitizer = inject(DomSanitizer);
   private lastHtml: string | null = null;
+  private lastAnimate = false;
 
   constructor() {
     effect(() => {
-      const html = this.appStreamingMarkdown();
+      const rawHtml = this.appStreamingMarkdown();
       const animate = this.appStreamingMarkdownAnimate();
-      if (html === this.lastHtml) {
+      const html = this.sanitizer.sanitize(SecurityContext.HTML, rawHtml) ?? '';
+      // Re-apply when leaving animate mode so stale fade wrappers/classes are stripped even if HTML is unchanged.
+      if (html === this.lastHtml && (!this.lastAnimate || animate)) {
         return;
       }
       this.lastHtml = html;
+      this.lastAnimate = animate;
       patchStreamingMarkdownDom(this.host, html, { animate });
     });
   }

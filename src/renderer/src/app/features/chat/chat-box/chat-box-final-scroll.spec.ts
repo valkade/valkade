@@ -25,12 +25,14 @@ function defineGeometry(
 
 describe('ChatBox final response top-of-container scroll stop', () => {
   let rafQueue: FrameRequestCallback[] = [];
+  let resizeCallbacks: ResizeObserverCallback[] = [];
   let origRaf: typeof window.requestAnimationFrame;
   let origCancelRaf: typeof window.cancelAnimationFrame;
   let origResizeObserver: typeof globalThis.ResizeObserver;
 
   beforeEach(async () => {
     rafQueue = [];
+    resizeCallbacks = [];
     origRaf = window.requestAnimationFrame;
     origCancelRaf = window.cancelAnimationFrame;
     origResizeObserver = globalThis.ResizeObserver;
@@ -41,6 +43,9 @@ describe('ChatBox final response top-of-container scroll stop', () => {
     }) as typeof window.requestAnimationFrame;
     window.cancelAnimationFrame = (() => undefined) as typeof window.cancelAnimationFrame;
     globalThis.ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) {
+        resizeCallbacks.push(cb);
+      }
       observe(): void {}
       unobserve(): void {}
       disconnect(): void {}
@@ -144,5 +149,267 @@ describe('ChatBox final response top-of-container scroll stop', () => {
     expect(comp.stickMode()).toBe(true);
     expect(comp.showJumpToBottom()).toBe(false);
     expect(scrollBox.scrollTop).toBe(2000);
+  });
+
+  it('does not yank back up after jump-to-bottom if an earlier stream item shifts the final response index', () => {
+    const fixture = TestBed.createComponent(ChatBox);
+    const comp = fixture.componentInstance;
+    fixture.componentRef.setInput('conversationId', 'conv-shift');
+    fixture.componentRef.setInput('messages', [{ role: 'user', text: 'Explain' }]);
+    fixture.componentRef.setInput('loading', true);
+    fixture.componentRef.setInput('streamingParts', [
+      { streamTag: 'agent', label: '', text: 'Line 1\n' + 'More text\n'.repeat(40) },
+    ]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scrollBox = host.querySelector('.chat-box') as HTMLElement;
+    scrollBox.scrollTo = ((opts?: ScrollToOptions | number) => {
+      if (typeof opts === 'object' && opts && typeof opts.top === 'number') {
+        scrollBox.scrollTop = opts.top;
+      }
+    }) as HTMLElement['scrollTo'];
+
+    const mockFinalRect = (contentTop: number) => {
+      const el = scrollBox.querySelector('.chat-row--live [data-final-response="true"]') as HTMLElement;
+      el.getBoundingClientRect = () =>
+        ({
+          top: 100 + (contentTop - scrollBox.scrollTop),
+          bottom: 100 + (contentTop - scrollBox.scrollTop) + 800,
+          left: 0,
+          right: 600,
+          width: 600,
+          height: 800,
+          x: 0,
+          y: 100 + (contentTop - scrollBox.scrollTop),
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1600, rectTop: 100 });
+    mockFinalRect(800);
+    flushRaf();
+    fixture.detectChanges();
+
+    expect(scrollBox.scrollTop).toBe(800);
+    expect(comp.stickMode()).toBe(false);
+
+    // User clicks Jump-to-Bottom to follow the bottom of the live stream.
+    (host.querySelector('.chat-jump-bottom') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    flushRaf();
+    expect(comp.stickMode()).toBe(true);
+    expect(scrollBox.scrollTop).toBe(1600);
+
+    // An earlier tool/thought row shifts the final response's feed index from 0 -> 1.
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1900, rectTop: 100 });
+    fixture.componentRef.setInput('streamingParts', [
+      { streamTag: 'reasoning', label: 'Model reasoning', text: 'Checked details' },
+      { streamTag: 'agent', label: '', text: 'Line 1\n' + 'More text\n'.repeat(60) },
+    ]);
+    fixture.detectChanges();
+    mockFinalRect(840);
+    flushRaf();
+
+    // Must remain stuck to bottom rather than yanking back up to y=840.
+    expect(comp.stickMode()).toBe(true);
+    expect(scrollBox.scrollTop).toBe(1900);
+  });
+
+  it('stays unstuck when scrollend fires after stopping at the final response top', () => {
+    const fixture = TestBed.createComponent(ChatBox);
+    const comp = fixture.componentInstance;
+    fixture.componentRef.setInput('conversationId', 'conv-scrollend');
+    fixture.componentRef.setInput('messages', [{ role: 'user', text: 'Write' }]);
+    fixture.componentRef.setInput('loading', true);
+    fixture.componentRef.setInput('streamingParts', [
+      { streamTag: 'agent', label: '', text: 'Start\n' + 'Line\n'.repeat(30) },
+    ]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scrollBox = host.querySelector('.chat-box') as HTMLElement;
+    const finalEl = scrollBox.querySelector('.chat-row--live [data-final-response="true"]') as HTMLElement;
+
+    // Slight overflow past maxScrollTop so slack (50px) is still inside stickThresholdPx (300px).
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1450, rectTop: 100 });
+    finalEl.getBoundingClientRect = () =>
+      ({
+        top: 100 + (800 - scrollBox.scrollTop),
+        bottom: 100 + (800 - scrollBox.scrollTop) + 350,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 350,
+        x: 0,
+        y: 100 + (800 - scrollBox.scrollTop),
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    flushRaf();
+    expect(scrollBox.scrollTop).toBe(800);
+    expect(comp.stickMode()).toBe(false);
+
+    // Programmatic scrollend firing at the stop position must not re-stick.
+    scrollBox.dispatchEvent(new Event('scrollend'));
+    expect(comp.stickMode()).toBe(false);
+    expect(scrollBox.scrollTop).toBe(800);
+  });
+
+  it('does not spuriously unstick on ResizeObserver resize after a short reply finishes and settles', () => {
+    const fixture = TestBed.createComponent(ChatBox);
+    const comp = fixture.componentInstance;
+    fixture.componentRef.setInput('conversationId', 'conv-idle-resize');
+    fixture.componentRef.setInput('messages', [{ role: 'user', text: 'Hi' }]);
+    fixture.componentRef.setInput('loading', true);
+    fixture.componentRef.setInput('streamingParts', [{ streamTag: 'agent', label: '', text: 'Short reply.' }]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scrollBox = host.querySelector('.chat-box') as HTMLElement;
+    scrollBox.scrollTo = ((opts?: ScrollToOptions | number) => {
+      if (typeof opts === 'object' && opts && typeof opts.top === 'number') {
+        scrollBox.scrollTop = opts.top;
+      }
+    }) as HTMLElement['scrollTo'];
+
+    const liveFinal = scrollBox.querySelector('.chat-row--live [data-final-response="true"]') as HTMLElement;
+    expect(liveFinal).not.toBeNull();
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1000, rectTop: 100 });
+    liveFinal.getBoundingClientRect = () =>
+      ({
+        top: 100 + (500 - scrollBox.scrollTop),
+        bottom: 100 + (500 - scrollBox.scrollTop) + 200,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 200,
+        x: 0,
+        y: 100 + (500 - scrollBox.scrollTop),
+        toJSON: () => ({}),
+      }) as DOMRect;
+    flushRaf();
+    expect(comp.stickMode()).toBe(true);
+
+    // Turn finishes and persists the short assistant reply.
+    fixture.componentRef.setInput('messages', [
+      { role: 'user', text: 'Hi' },
+      { role: 'assistant', text: 'Short reply.' },
+    ]);
+    fixture.componentRef.setInput('loading', false);
+    fixture.componentRef.setInput('streamingParts', []);
+    fixture.detectChanges();
+    const persistedFinal = scrollBox.querySelector('[data-chat-row="1"] [data-final-response="true"]') as HTMLElement;
+    expect(persistedFinal).not.toBeNull();
+    persistedFinal.getBoundingClientRect = () =>
+      ({
+        top: 100 + (500 - scrollBox.scrollTop),
+        bottom: 100 + (500 - scrollBox.scrollTop) + 200,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 200,
+        x: 0,
+        y: 100 + (500 - scrollBox.scrollTop),
+        toJSON: () => ({}),
+      }) as DOMRect;
+    flushRaf();
+    fixture.detectChanges();
+    flushRaf();
+
+    expect(comp.stickMode()).toBe(true);
+
+    // Later while idle, shrinking the viewport (e.g. opening terminal dock) triggers ResizeObserver.
+    defineGeometry(scrollBox, { clientHeight: 300, scrollHeight: 1000, rectTop: 100 });
+    for (const cb of resizeCallbacks) {
+      cb([], {} as ResizeObserver);
+    }
+    flushRaf();
+
+    expect(comp.stickMode()).toBe(true);
+    expect(scrollBox.scrollTop).toBe(1000);
+  });
+
+  it('re-aligns scrollTop to the persisted final response top when [DONE] folds work above it', () => {
+    const fixture = TestBed.createComponent(ChatBox);
+    const comp = fixture.componentInstance;
+    fixture.componentRef.setInput('conversationId', 'conv-done-realign');
+    fixture.componentRef.setInput('messages', [{ role: 'user', text: 'Investigate' }]);
+    fixture.componentRef.setInput('loading', true);
+    fixture.componentRef.setInput('streamingParts', [
+      { streamTag: 'reasoning', label: 'Model reasoning', text: 'Checking files' },
+      { streamTag: 'agent', label: '', text: 'Findings:\n' + 'Detail line\n'.repeat(40) },
+    ]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const scrollBox = host.querySelector('.chat-box') as HTMLElement;
+    const liveFinal = scrollBox.querySelector('.chat-row--live [data-final-response="true"]') as HTMLElement;
+    expect(liveFinal).not.toBeNull();
+
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1800, rectTop: 100 });
+    liveFinal.getBoundingClientRect = () =>
+      ({
+        top: 100 + (900 - scrollBox.scrollTop),
+        bottom: 100 + (900 - scrollBox.scrollTop) + 600,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 600,
+        x: 0,
+        y: 100 + (900 - scrollBox.scrollTop),
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    flushRaf();
+    expect(scrollBox.scrollTop).toBe(900);
+    expect(comp.stickMode()).toBe(false);
+
+    // [DONE]: work folds upward, shifting persisted final response from y=900 to y=520.
+    const origGetRect = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this === scrollBox) {
+        return {
+          top: 100,
+          bottom: 700,
+          left: 0,
+          right: 600,
+          width: 600,
+          height: 600,
+          x: 0,
+          y: 100,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (this.matches('[data-chat-row="1"] [data-final-response="true"]')) {
+        return {
+          top: 100 + (520 - scrollBox.scrollTop),
+          bottom: 100 + (520 - scrollBox.scrollTop) + 600,
+          left: 0,
+          right: 600,
+          width: 600,
+          height: 600,
+          x: 0,
+          y: 100 + (520 - scrollBox.scrollTop),
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return origGetRect.call(this);
+    });
+
+    fixture.componentRef.setInput('messages', [
+      { role: 'user', text: 'Investigate' },
+      { role: 'assistant', text: 'Findings:\n' + 'Detail line\n'.repeat(40) },
+    ]);
+    fixture.componentRef.setInput('loading', false);
+    fixture.componentRef.setInput('streamingParts', []);
+    defineGeometry(scrollBox, { clientHeight: 600, scrollHeight: 1420, rectTop: 100 });
+    fixture.detectChanges();
+    flushRaf();
+    fixture.detectChanges();
+    flushRaf();
+
+    expect(scrollBox.scrollTop).toBe(520);
+    expect(comp.stickMode()).toBe(false);
   });
 });

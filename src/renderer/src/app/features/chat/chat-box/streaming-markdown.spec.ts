@@ -121,6 +121,73 @@ describe('patchStreamingMarkdownDom', () => {
     p.dispatchEvent(new Event('animationend'));
     expect(p.classList.contains(STREAM_FADE_CLASS)).toBe(false);
   });
+
+  it('ignores bubbling animationend events from child fade spans on a parent block', () => {
+    const host = document.createElement('div');
+    patchStreamingMarkdownDom(host, '<p>Hello</p>', { animate: true, nowMs: 1000 });
+    patchStreamingMarkdownDom(host, '<p>Hello world</p>', { animate: true, nowMs: 1050 });
+    const p = host.querySelector('p')!;
+    const span = p.querySelector(`span[${STREAM_FADE_SPAN_ATTR}]`)!;
+    expect(p.classList.contains(STREAM_FADE_CLASS)).toBe(true);
+
+    span.dispatchEvent(new Event('animationend', { bubbles: true }));
+    expect(p.classList.contains(STREAM_FADE_CLASS)).toBe(true);
+
+    p.dispatchEvent(new Event('animationend'));
+    expect(p.classList.contains(STREAM_FADE_CLASS)).toBe(false);
+  });
+
+  it('does not blink already-shown text when inline or block markdown closes at slot start', () => {
+    const host = document.createElement('div');
+    patchStreamingMarkdownDom(host, '<p>**bol</p>', { animate: true, nowMs: 1000 });
+    patchStreamingMarkdownDom(host, '<p><strong>bold</strong></p>', { animate: true, nowMs: 1050 });
+    expect(host.querySelector('strong')?.classList.contains(STREAM_FADE_CLASS)).toBe(false);
+
+    const headingHost = document.createElement('div');
+    patchStreamingMarkdownDom(headingHost, '<p>## Overvie</p>', { animate: true, nowMs: 1000 });
+    patchStreamingMarkdownDom(headingHost, '<h2>Overview</h2>', { animate: true, nowMs: 1050 });
+    expect(headingHost.querySelector('h2')?.classList.contains(STREAM_FADE_CLASS)).toBe(false);
+
+    const listHost = document.createElement('div');
+    patchStreamingMarkdownDom(listHost, '<p>- First ite</p>', { animate: true, nowMs: 1000 });
+    patchStreamingMarkdownDom(listHost, '<ul><li>First item</li></ul>', { animate: true, nowMs: 1050 });
+    expect(listHost.querySelector('ul')?.classList.contains(STREAM_FADE_CLASS)).toBe(false);
+  });
+
+  it('coalesces settled fade spans in completed earlier paragraphs on later updates', () => {
+    const host = document.createElement('div');
+    patchStreamingMarkdownDom(host, '<p>One</p>', { animate: true, nowMs: 0 });
+    patchStreamingMarkdownDom(host, '<p>One two</p>', { animate: true, nowMs: 50 });
+    expect(host.querySelectorAll(`p span[${STREAM_FADE_SPAN_ATTR}]`).length).toBe(1);
+
+    patchStreamingMarkdownDom(host, '<p>One two</p><p>Next</p>', {
+      animate: true,
+      nowMs: 50 + STREAM_FADE_SETTLE_MS,
+    });
+    const firstP = host.querySelectorAll('p')[0]!;
+    expect(firstP.textContent).toBe('One two');
+    expect(firstP.querySelectorAll(`span[${STREAM_FADE_SPAN_ATTR}]`).length).toBe(0);
+  });
+
+  it('preserves RunButtonDirective attachment state and output siblings during streaming', () => {
+    const host = document.createElement('div');
+    const blockHtml =
+      '<div class="code-block-wrapper" data-script="echo%20hi" data-language="bash">' +
+      '<button class="code-block-run-btn" type="button">Run</button>' +
+      '<pre><code class="hljs language-bash">echo hi</code></pre></div>';
+    patchStreamingMarkdownDom(host, blockHtml, { animate: true, nowMs: 1000 });
+    const btn = host.querySelector('.code-block-run-btn') as HTMLElement;
+    btn.dataset['attached'] = 'true';
+    const output = document.createElement('div');
+    output.className = 'code-block-output';
+    output.textContent = 'hi';
+    host.appendChild(output);
+
+    patchStreamingMarkdownDom(host, `${blockHtml}<p>Done.</p>`, { animate: true, nowMs: 1100 });
+    expect(btn.dataset['attached']).toBe('true');
+    expect(host.querySelector('.code-block-output')).toBe(output);
+    expect(host.querySelector('p')?.textContent).toBe('Done.');
+  });
 });
 
 @Component({
@@ -145,5 +212,30 @@ describe('StreamingMarkdownDirective', () => {
     fixture.detectChanges();
     expect(el.querySelector('p')).toBe(firstP);
     expect(firstP.querySelector(`span[${STREAM_FADE_SPAN_ATTR}]`)?.textContent).toBe(' chunk');
+  });
+
+  it('strips fade wrappers when animate transitions from true to false with unchanged HTML', () => {
+    const fixture = TestBed.createComponent(DirectiveHostComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.html.set('<p>First chunk</p>');
+    fixture.detectChanges();
+    const el = fixture.nativeElement.querySelector('.md') as HTMLElement;
+    expect(el.querySelector(`.${STREAM_FADE_CLASS}`)).not.toBeNull();
+
+    fixture.componentInstance.animate.set(false);
+    fixture.detectChanges();
+    expect(el.querySelector(`.${STREAM_FADE_CLASS}`)).toBeNull();
+    expect(el.querySelector(`span[${STREAM_FADE_SPAN_ATTR}]`)).toBeNull();
+    expect(el.textContent).toBe('First chunk');
+  });
+
+  it('sanitizes unsafe HTML passed directly to the directive', () => {
+    const fixture = TestBed.createComponent(DirectiveHostComponent);
+    fixture.componentInstance.html.set('<p onclick="alert(1)">Safe</p><script>alert(1)</script>');
+    fixture.detectChanges();
+    const el = fixture.nativeElement.querySelector('.md') as HTMLElement;
+    expect(el.querySelector('script')).toBeNull();
+    expect(el.querySelector('p')?.getAttribute('onclick')).toBeNull();
+    expect(el.textContent).toBe('Safe');
   });
 });

@@ -51,7 +51,12 @@ function groupTargetChildren(parent: Element): TargetItem[] {
       continue;
     }
     if (child.nodeType === 1) {
-      items.push({ kind: 'element', el: child as Element });
+      const el = child as Element;
+      // Preserve live script output injected by RunButtonDirective beside runnable code blocks.
+      if (el.classList.contains('code-block-output')) {
+        continue;
+      }
+      items.push({ kind: 'element', el });
     }
   }
   return items;
@@ -93,14 +98,16 @@ function createFadeTextNode(doc: Document, text: string, nowMs: number): ChildNo
 function markElementFadeIn(el: Element, nowMs: number): void {
   el.classList.add(STREAM_FADE_CLASS);
   fadeCreatedAt.set(el, nowMs);
-  el.addEventListener(
-    'animationend',
-    () => {
-      el.classList.remove(STREAM_FADE_CLASS);
-      fadeCreatedAt.delete(el);
-    },
-    { once: true },
-  );
+  const onAnimationEnd = (event: Event): void => {
+    // Ignore bubbling animationend events from descendant fade spans/blocks.
+    if (event.target !== el) {
+      return;
+    }
+    el.removeEventListener('animationend', onAnimationEnd);
+    el.classList.remove(STREAM_FADE_CLASS);
+    fadeCreatedAt.delete(el);
+  };
+  el.addEventListener('animationend', onAnimationEnd);
 }
 
 function isSettledFadeSpan(node: ChildNode, nowMs: number): boolean {
@@ -191,11 +198,16 @@ function syncAttributes(target: Element, source: Element, nowMs: number): void {
     target.classList.contains(STREAM_FADE_CLASS) &&
     created !== undefined &&
     nowMs - created < STREAM_FADE_SETTLE_MS;
+  const preserveRunAttached = target.classList.contains('code-block-run-btn');
 
   for (const attr of Array.from(target.attributes)) {
     if (!source.hasAttribute(attr.name)) {
       if (attr.name === 'class' && keepFadeClass) {
-        target.setAttribute('class', STREAM_FADE_CLASS);
+        if (target.getAttribute('class') !== STREAM_FADE_CLASS) {
+          target.setAttribute('class', STREAM_FADE_CLASS);
+        }
+      } else if (preserveRunAttached && attr.name === 'data-attached') {
+        continue;
       } else {
         target.removeAttribute(attr.name);
       }
@@ -239,6 +251,22 @@ function removeTargetItem(parent: Element, item: TargetItem): void {
   }
 }
 
+function textAlreadyShown(prevText: string, nextText: string): boolean {
+  if (!prevText || !nextText) {
+    return false;
+  }
+  if (prevText.includes(nextText)) {
+    return true;
+  }
+  // Strip raw markdown syntax markers so closing delimiters that also add characters
+  // (e.g. `**bol` -> `bold`, `## Headin` -> `Heading`, `- Ite` -> `Item`) do not blink out.
+  const stripped = prevText
+    .replace(/^[\s*_~`#>[()-]+|^\s*\d+[.)]\s+/, '')
+    .replace(/[*_~`]+$/, '')
+    .trim();
+  return stripped.length > 0 && nextText.trimStart().startsWith(stripped);
+}
+
 function reconcileChildren(
   target: Element,
   source: DocumentFragment | Element,
@@ -272,11 +300,11 @@ function reconcileChildren(
 
     // Both text: preserve unchanged prefix, fade in only the newly appended suffix.
     if (t.kind === 'text-run' && s.kind === 'text') {
+      coalesceSettledTextRun(target, t, nowMs);
       if (s.text === t.text) {
         shortenedPriorTextTail = false;
         continue;
       }
-      coalesceSettledTextRun(target, t, nowMs);
       const prefixLen = commonPrefixLength(t.text, s.text);
       const lostTail = prefixLen < t.text.length;
       if (lostTail) {
@@ -314,14 +342,14 @@ function reconcileChildren(
 
     if (s.kind === 'text') {
       const node =
-        prevText && prevText.includes(s.text)
+        textAlreadyShown(prevText, s.text)
           ? doc.createTextNode(s.text)
           : createFadeTextNode(doc, s.text, nowMs);
       target.insertBefore(node, refNode);
     } else {
       const nextText = s.el.textContent ?? '';
-      // Avoid blinking already-visible text back to opacity 0 when markdown closes inline syntax.
-      const alreadyShown = Boolean(nextText && prevText && prevText.includes(nextText));
+      // Avoid blinking already-visible text back to opacity 0 when markdown closes inline/block syntax.
+      const alreadyShown = textAlreadyShown(prevText, nextText);
       if (!alreadyShown && !shortenedPriorTextTail) {
         markElementFadeIn(s.el, nowMs);
       }
