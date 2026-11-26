@@ -532,7 +532,14 @@ app-image-viewer .image-viewer-autoplay-progress-fill {
   width: 100%;
   background: var(--t-primary);
   transform-origin: left center;
-  animation: iv-autoplay-fill var(--autoplay-duration, 3000ms) linear infinite;
+  animation: iv-autoplay-fill var(--autoplay-duration, 3000ms) linear forwards;
+}
+
+app-image-viewer .image-viewer-seg-btn:disabled,
+app-image-viewer .image-viewer-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
 }
 
 @keyframes iv-autoplay-fill {

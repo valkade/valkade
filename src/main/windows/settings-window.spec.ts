@@ -304,4 +304,53 @@ describe('settings window size, centering, and modal input lock', () => {
     expect(settingsWindowSize({ width: 0, height: 0 })).toEqual({ width: 1680, height: 980 });
     expect(settingsWindowSize({ width: 2560.5, height: 900.9 })).toEqual({ width: 1680, height: 900 });
   });
+
+  it('does not shrink Settings when the main window minimizes and re-centers on restore', () => {
+    let minimized = false;
+    let currentMainBounds = { x: 100, y: 50, width: 1400, height: 900 };
+    const main = {
+      ...fakeWin(currentMainBounds),
+      isMinimized: () => minimized,
+      getBounds: () => currentMainBounds,
+    };
+    mainState.mainWindow = main as never;
+
+    const handlers = new Map<string, () => void>();
+    const created = {
+      ...fakeWin({ x: 148, y: 98, width: 1304, height: 804 }),
+      setResizable: vi.fn(),
+      on: vi.fn((event: string, cb: () => void) => void handlers.set(event, cb)),
+      removeMenu: vi.fn(),
+      loadFile: vi.fn(),
+      loadURL: vi.fn(),
+    };
+    vi.mocked(BrowserWindow).mockImplementationOnce(function () {
+      return created as never;
+    });
+
+    createSettingsWindow();
+
+    // Windows reports tiny off-screen bounds while minimized; Settings must ignore them.
+    minimized = true;
+    currentMainBounds = { x: -32000, y: -32000, width: 160, height: 28 };
+    main.emit('resize');
+    main.emit('move');
+    expect(created.setBounds).not.toHaveBeenCalled();
+
+    // Restoring to new bounds re-centers and toggles resizable cleanly around setBounds.
+    minimized = false;
+    currentMainBounds = { x: 200, y: 80, width: 1200, height: 800 };
+    main.emit('restore');
+    expect(created.setResizable).toHaveBeenNthCalledWith(1, true);
+    expect(created.setBounds).toHaveBeenCalledWith({ x: 248, y: 128, width: 1104, height: 704 });
+    expect(created.setResizable).toHaveBeenNthCalledWith(2, false);
+
+    // Listeners are removed once Settings closes.
+    handlers.get('closed')!();
+    created.setBounds.mockClear();
+    main.emit('maximize');
+    main.emit('unmaximize');
+    main.emit('restore');
+    expect(created.setBounds).not.toHaveBeenCalled();
+  });
 });

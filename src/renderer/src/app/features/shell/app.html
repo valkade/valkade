@@ -371,7 +371,7 @@
                     [workspacePath]='currentWorkspacePath()'
                     [relativePath]='view.imageRelativePath'
                     [active]='view.activeIsImage && focused && !chatShownExpanded()'
-                    (navigateTo)='onImageViewerNavigate($event)'
+                    (navigateTo)='onImageViewerNavigate(slot.id, $event)'
                   />
                 </div>
               }

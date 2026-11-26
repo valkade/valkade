@@ -45,9 +45,10 @@ const thumbCache = new Map<string, ThumbCacheEntry>();
 let thumbCacheBytes = 0;
 
 /** Deduplicates simultaneous thumbnail encodes for the same file version + maxEdge. */
-const inFlightThumbs = new Map<string, Promise<EncodedThumb | null>>();
+const inFlightThumbs = new Map<string, Promise<{ thumb: EncodedThumb | null; rawData?: Buffer }>>();
 
 /** Short-TTL + in-flight cache for workspace root verification during thumbnail bursts. */
+const VERIFIED_ROOT_CACHE_MAX_ENTRIES = 64;
 const verifiedRootCache = new Map<string, { resolved: string; expiresAt: number }>();
 const verifiedRootInFlight = new Map<string, Promise<string>>();
 
@@ -61,20 +62,19 @@ function acquireThumbEncodeSlot(): Promise<void> {
     return Promise.resolve();
   }
   return new Promise<void>((resolve) => {
-    thumbEncodeWaiters.push(() => {
-      activeThumbEncodes += 1;
-      resolve();
-    });
+    thumbEncodeWaiters.push(resolve);
   });
 }
 
 function releaseThumbEncodeSlot(): void {
-  activeThumbEncodes = Math.max(0, activeThumbEncodes - 1);
   const next = thumbEncodeWaiters.shift();
   if (next) {
-    // Yield to the main-process event loop between synchronous nativeImage encodes.
+    // Transfer slot ownership directly so concurrent arrivals cannot exceed THUMB_ENCODE_CONCURRENCY
+    // while yielding to the main-process event loop between synchronous nativeImage encodes.
     setImmediate(next);
+    return;
   }
+  activeThumbEncodes = Math.max(0, activeThumbEncodes - 1);
 }
 
 async function resolveVerifiedWorkspaceRoot(rawRoot: string): Promise<string> {
@@ -90,7 +90,20 @@ async function resolveVerifiedWorkspaceRoot(rawRoot: string): Promise<string> {
   }
   const promise = assertRegisteredWorkspaceDirectory(key)
     .then((resolved) => {
-      verifiedRootCache.set(key, { resolved, expiresAt: Date.now() + VERIFIED_ROOT_TTL_MS });
+      const expiresAt = Date.now() + VERIFIED_ROOT_TTL_MS;
+      verifiedRootCache.delete(key);
+      verifiedRootCache.set(key, { resolved, expiresAt });
+      if (verifiedRootCache.size > VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+        const pruneNow = Date.now();
+        for (const [k, entry] of verifiedRootCache) {
+          if (entry.expiresAt <= pruneNow || verifiedRootCache.size > VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+            verifiedRootCache.delete(k);
+          }
+          if (verifiedRootCache.size <= VERIFIED_ROOT_CACHE_MAX_ENTRIES) {
+            break;
+          }
+        }
+      }
       return resolved;
     })
     .finally(() => {
@@ -107,6 +120,8 @@ export function clearNemoAssetCachesForTests(): void {
   inFlightThumbs.clear();
   verifiedRootCache.clear();
   verifiedRootInFlight.clear();
+  activeThumbEncodes = 0;
+  thumbEncodeWaiters.length = 0;
 }
 
 function notFound(): Response {
@@ -247,7 +262,27 @@ function buildAssetEtag(mtimeMs: number, size: number, maxEdge: number | null): 
   return `"${Math.trunc(mtimeMs)}-${size}-${maxEdge ?? 'full'}"`;
 }
 
+function ifNoneMatchMatches(headerValue: string | null, etag: string): boolean {
+  if (!headerValue) {
+    return false;
+  }
+  const trimmed = headerValue.trim();
+  if (trimmed === '*') {
+    return true;
+  }
+  for (const part of trimmed.split(',')) {
+    const candidate = part.trim().replace(/^W\//, '');
+    if (candidate === etag) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function rememberThumb(cacheKey: string, entry: ThumbCacheEntry): void {
+  if (entry.bytes.byteLength > THUMB_CACHE_MAX_BYTES) {
+    return;
+  }
   const existing = thumbCache.get(cacheKey);
   if (existing) {
     thumbCacheBytes -= existing.bytes.byteLength;
@@ -301,16 +336,18 @@ export function encodeWorkspaceImageThumbWithMime(
   const normalizedExt = sourceExt?.replace(/^\./, '').toLowerCase() ?? '';
   if (OPAQUE_THUMB_SOURCE_EXTS.has(normalizedExt) && typeof resized.toJPEG === 'function') {
     const jpg = resized.toJPEG(82);
-    return {
-      bytes: Buffer.isBuffer(jpg) ? jpg : Buffer.from(jpg),
-      mime: 'image/jpeg',
-    };
+    const bytes = Buffer.isBuffer(jpg) ? jpg : Buffer.from(jpg);
+    if (bytes.byteLength === 0) {
+      return null;
+    }
+    return { bytes, mime: 'image/jpeg' };
   }
   const png = resized.toPNG();
-  return {
-    bytes: Buffer.isBuffer(png) ? png : Buffer.from(png),
-    mime: 'image/png',
-  };
+  const bytes = Buffer.isBuffer(png) ? png : Buffer.from(png);
+  if (bytes.byteLength === 0) {
+    return null;
+  }
+  return { bytes, mime: 'image/png' };
 }
 
 /**
@@ -334,21 +371,19 @@ async function generateThumbDeduplicated(
   const inflightKey = `${abs}|${maxEdge}|${mtimeMs}|${size}`;
   const existing = inFlightThumbs.get(inflightKey);
   if (existing) {
-    const thumb = await existing;
-    return { thumb };
+    return existing;
   }
 
-  let rawData: Buffer | undefined;
-  const work = (async (): Promise<EncodedThumb | null> => {
+  const work = (async (): Promise<{ thumb: EncodedThumb | null; rawData?: Buffer }> => {
     const data = await fs.readFile(abs);
-    rawData = data;
     // Skip nativeImage for SVG directly (it is never raster-decoded by nativeImage).
     if (ext === 'svg') {
-      return null;
+      return { thumb: null, rawData: data };
     }
     await acquireThumbEncodeSlot();
     try {
-      return encodeWorkspaceImageThumbWithMime(data, maxEdge, ext);
+      const thumb = encodeWorkspaceImageThumbWithMime(data, maxEdge, ext);
+      return thumb ? { thumb } : { thumb: null, rawData: data };
     } finally {
       releaseThumbEncodeSlot();
     }
@@ -356,8 +391,7 @@ async function generateThumbDeduplicated(
 
   inFlightThumbs.set(inflightKey, work);
   try {
-    const thumb = await work;
-    return { thumb, rawData };
+    return await work;
   } finally {
     inFlightThumbs.delete(inflightKey);
   }
@@ -402,7 +436,7 @@ export function registerNemoAssetProtocol(): void {
 
       const etag = buildAssetEtag(stat.mtimeMs, stat.size, maxEdge);
       const ifNoneMatch = request.headers.get('if-none-match');
-      if (ifNoneMatch && ifNoneMatch === etag) {
+      if (ifNoneMatchMatches(ifNoneMatch, etag)) {
         return new Response(null, {
           status: 304,
           headers: {

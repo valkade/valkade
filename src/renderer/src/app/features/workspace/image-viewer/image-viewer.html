@@ -33,7 +33,7 @@
             [class.is-open]='ribbonExpanded()'
             [class.has-status]='!ribbonExpanded() && !!ribbonStatusBadge()'
             [attr.aria-expanded]='ribbonExpanded()'
-            aria-controls='image-viewer-controls-ribbon'
+            [attr.aria-controls]='ribbonId'
             (click)='toggleRibbon()'
             [title]='ribbonExpanded() ? "Collapse controls ribbon" : "Expand controls ribbon"'
           >
@@ -53,6 +53,7 @@
                 type='button'
                 class='image-viewer-btn image-viewer-btn--icon'
                 [class.is-active]='filmstripVisible()'
+                [attr.aria-pressed]='filmstripVisible()'
                 (click)='toggleFilmstrip()'
                 [title]='filmstripVisible() ? "Hide filmstrip (F)" : "Show filmstrip (F)"'
                 aria-label='Toggle filmstrip'
@@ -88,7 +89,7 @@
     </div>
 
     <div
-      id='image-viewer-controls-ribbon'
+      [id]='ribbonId'
       class='image-viewer-ribbon'
       [class.image-viewer-ribbon--collapsible]='toolbarOverflowing()'
       [class.image-viewer-ribbon--open]='!toolbarOverflowing() || ribbonExpanded()'
@@ -103,6 +104,7 @@
                 type='button'
                 class='image-viewer-seg-btn'
                 [class.is-active]='viewMode() === "viewer"'
+                [attr.aria-pressed]='viewMode() === "viewer"'
                 (click)='setViewMode("viewer")'
                 title='Single image viewer (G)'
               >
@@ -113,6 +115,7 @@
                 type='button'
                 class='image-viewer-seg-btn'
                 [class.is-active]='viewMode() === "grid"'
+                [attr.aria-pressed]='viewMode() === "grid"'
                 (click)='setViewMode("grid")'
                 title='Contact sheet grid (G)'
               >
@@ -130,6 +133,7 @@
               <button
                 type='button'
                 class='image-viewer-seg-btn image-viewer-seg-btn--icon'
+                [disabled]='!canZoom()'
                 (click)='zoomOut()'
                 title='Zoom out (-)'
                 aria-label='Zoom out'
@@ -140,6 +144,7 @@
                 type='button'
                 class='image-viewer-seg-btn image-viewer-zoom-readout'
                 [class.is-active]='!isFit()'
+                [disabled]='!canZoom()'
                 (click)='toggleFitOrActual()'
                 title='Toggle Fit / 100% (0 / 1)'
               >
@@ -148,6 +153,7 @@
               <button
                 type='button'
                 class='image-viewer-seg-btn image-viewer-seg-btn--icon'
+                [disabled]='!canZoom()'
                 (click)='zoomIn()'
                 title='Zoom in (+)'
                 aria-label='Zoom in'
@@ -159,6 +165,7 @@
                 type='button'
                 class='image-viewer-seg-btn'
                 [class.is-active]='isFit()'
+                [disabled]='!canZoom()'
                 (click)='fitToWindow()'
                 title='Fit to window (0)'
               >
@@ -169,6 +176,7 @@
                 type='button'
                 class='image-viewer-seg-btn'
                 [class.is-active]='zoomPercent() === 100'
+                [disabled]='!canZoom()'
                 (click)='actualSize()'
                 title='Actual size 100% (1)'
               >
@@ -201,7 +209,7 @@
       [class.image-viewer-stage--light]='backdrop() === "light"'
       [class.image-viewer-stage--zoomed]='!isFit()'
       [class.image-viewer-stage--panning]='isPanning()'
-      (dblclick)='onStageDoubleClick()'
+      (dblclick)='onStageDoubleClick($event)'
     >
       @if (imageLoading()) {
         <div class='image-viewer-loading-bar' aria-hidden='true'></div>
@@ -222,12 +230,12 @@
             </div>
           </div>
         </div>
-      } @else {
+      } @else if (displayedSrc(); as src) {
         <img
           class='image-viewer-img'
           [class.image-viewer-img--fit]='!usesGpuTransform()'
           [class.image-viewer-img--transformed]='usesGpuTransform()'
-          [src]='displayedSrc()'
+          [src]='src'
           [style.width.px]='usesGpuTransform() ? naturalWidth() : null'
           [style.height.px]='usesGpuTransform() ? naturalHeight() : null'
           [style.transform]='imageTransformStyle()'
@@ -271,13 +279,13 @@
         }
       }
 
-      @if (autoPlayEnabled()) {
+      @if (autoPlayEnabled() && active()) {
         <div
           class='image-viewer-autoplay-progress'
           [style.--autoplay-duration.ms]='autoPlayIntervalMs()'
           aria-hidden='true'
         >
-          @for (slideKey of [normalizedRelativePath()]; track slideKey) {
+          @for (slideKey of [autoPlayProgressKey()]; track slideKey) {
             <span class='image-viewer-autoplay-progress-fill'></span>
           }
         </div>
@@ -325,6 +333,7 @@
               type='button'
               class='image-viewer-btn image-viewer-slideshow-btn'
               [class.is-active]='autoPlayEnabled()'
+              [attr.aria-pressed]='autoPlayEnabled()'
               (click)='toggleAutoPlay()'
               [title]='autoPlayEnabled() ? "Pause slideshow (Space)" : "Start slideshow (Space)"'
             >
@@ -424,8 +433,10 @@
             type='button'
             class='image-viewer-seg-btn'
             [class.is-active]='gridTilePreset() === "sm"'
+            [attr.aria-pressed]='gridTilePreset() === "sm"'
             (click)='setGridTilePreset("sm")'
             title='Compact tiles'
+            aria-label='Compact tiles'
           >
             S
           </button>
@@ -433,8 +444,10 @@
             type='button'
             class='image-viewer-seg-btn'
             [class.is-active]='gridTilePreset() === "md"'
+            [attr.aria-pressed]='gridTilePreset() === "md"'
             (click)='setGridTilePreset("md")'
             title='Medium tiles'
+            aria-label='Medium tiles'
           >
             M
           </button>
@@ -442,8 +455,10 @@
             type='button'
             class='image-viewer-seg-btn'
             [class.is-active]='gridTilePreset() === "lg"'
+            [attr.aria-pressed]='gridTilePreset() === "lg"'
             (click)='setGridTilePreset("lg")'
             title='Large tiles'
+            aria-label='Large tiles'
           >
             L
           </button>

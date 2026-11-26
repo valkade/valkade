@@ -11,6 +11,7 @@ import {
   OnDestroy,
   output,
   signal,
+  untracked,
   viewChild,
   ViewEncapsulation,
 } from '@angular/core';
@@ -112,6 +113,8 @@ const AUTO_PLAY_SELECT_OPTIONS: readonly { id: string; label: string }[] =
     label: `${intervalMs / 1000}s`,
   }));
 
+let nextImageViewerRibbonId = 1;
+
 @Component({
   selector: 'app-image-viewer',
   imports: [LucideAngularModule, PillSelectComponent],
@@ -124,6 +127,8 @@ export class ImageViewerComponent implements OnDestroy {
   private readonly electron = inject(ElectronService);
   private readonly zone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
+
+  protected readonly ribbonId = `image-viewer-controls-ribbon-${nextImageViewerRibbonId++}`;
 
   private readonly toolbarRef = viewChild<ElementRef<HTMLElement>>('toolbarHeader');
   private readonly toolbarUtilitiesRef = viewChild<ElementRef<HTMLElement>>('toolbarUtilities');
@@ -166,6 +171,7 @@ export class ImageViewerComponent implements OnDestroy {
   protected readonly galleryRevision = signal(0);
   protected readonly autoPlayEnabled = signal(false);
   protected readonly autoPlayIntervalMs = signal(3000);
+  protected readonly autoPlayCycle = signal(0);
   protected readonly galleryHeightPx = signal(DEFAULT_GALLERY_HEIGHT_PX);
 
   protected readonly gridFilter = signal('');
@@ -250,13 +256,21 @@ export class ImageViewerComponent implements OnDestroy {
 
   protected readonly isFit = computed(() => this.zoom() === null);
 
+  protected readonly canZoom = computed(
+    () => !!this.imageSrc() && !this.loadError() && this.naturalWidth() > 0 && this.naturalHeight() > 0,
+  );
+
   protected readonly fitScale = computed(() =>
     computeFitScale(
       this.naturalWidth(),
       this.naturalHeight(),
-      Math.max(1, this.stageWidthPx() - 48),
-      Math.max(1, this.stageHeightPx() - 48),
+      Math.max(1, this.stageWidthPx()),
+      Math.max(1, this.stageHeightPx()),
     ),
+  );
+
+  protected readonly autoPlayProgressKey = computed(
+    () => `${this.normalizedRelativePath()}|${this.autoPlayIntervalMs()}|${this.autoPlayCycle()}`,
   );
 
   /** True when the main image is rendered via GPU `translate3d + scale`. */
@@ -395,7 +409,8 @@ export class ImageViewerComponent implements OnDestroy {
   });
 
   protected readonly gridLayout = computed(() => {
-    const availW = Math.max(200, this.gridViewportWidth() - GRID_PAD_PX * 2);
+    const rawW = this.gridViewportWidth();
+    const availW = rawW > 0 ? Math.max(80, rawW - GRID_PAD_PX * 2) : 200;
     const target = GRID_TILE_TARGET_WIDTH[this.gridTilePreset()];
     const columns = Math.max(1, Math.floor((availW + GRID_GAP_PX) / (target + GRID_GAP_PX)));
     const cellWidth = Math.floor((availW - (columns - 1) * GRID_GAP_PX) / columns);
@@ -405,12 +420,13 @@ export class ImageViewerComponent implements OnDestroy {
 
   protected readonly gridWindow = computed(() => {
     const { columns, cellHeight } = this.gridLayout();
+    const rawH = this.gridViewportHeight();
     return computeGridVirtualWindow({
       itemCount: this.filteredGridItems().length,
       columns,
       rowHeightPx: cellHeight,
       gapPx: GRID_GAP_PX,
-      viewportHeightPx: Math.max(200, this.gridViewportHeight() - GRID_PAD_PX * 2),
+      viewportHeightPx: rawH > 0 ? Math.max(80, rawH - GRID_PAD_PX * 2) : 200,
       scrollTopPx: this.gridScrollTop(),
       overscanRows: 3,
     });
@@ -538,6 +554,7 @@ export class ImageViewerComponent implements OnDestroy {
 
     // Auto-play timer synced to state.
     effect(() => {
+      this.active();
       this.autoPlayEnabled();
       this.autoPlayIntervalMs();
       this.relativePath();
@@ -607,6 +624,8 @@ export class ImageViewerComponent implements OnDestroy {
     this.detachStageListeners();
     this.detachFilmstripListeners();
     this.detachGridListeners();
+    this.preloader.invalidate();
+    this.folderPathsCache.clear();
     window.removeEventListener('keydown', this.keydownHandler);
   }
 
@@ -619,12 +638,18 @@ export class ImageViewerComponent implements OnDestroy {
   }
 
   protected actualSize(): void {
+    if (!this.canZoom()) {
+      return;
+    }
     this.zoom.set(1);
     this.panX.set(0);
     this.panY.set(0);
   }
 
   protected toggleFitOrActual(): void {
+    if (!this.canZoom()) {
+      return;
+    }
     if (this.isFit()) {
       const target = this.fitScale() >= 0.98 ? 2 : 1;
       this.zoom.set(target);
@@ -636,14 +661,34 @@ export class ImageViewerComponent implements OnDestroy {
   }
 
   protected zoomIn(): void {
-    const base = this.zoom() ?? this.fitScale();
-    this.zoom.set(clampZoom(base * ZOOM_STEP, IMAGE_VIEWER_MIN_ZOOM, IMAGE_VIEWER_MAX_ZOOM));
+    this.stepZoomAroundCenter(ZOOM_STEP);
   }
 
   protected zoomOut(): void {
-    const base = this.zoom() ?? this.fitScale();
-    const next = clampZoom(base / ZOOM_STEP, IMAGE_VIEWER_MIN_ZOOM, IMAGE_VIEWER_MAX_ZOOM);
-    this.zoom.set(next);
+    this.stepZoomAroundCenter(1 / ZOOM_STEP);
+  }
+
+  private stepZoomAroundCenter(multiplier: number): void {
+    if (!this.canZoom()) {
+      return;
+    }
+    const currentZoom = this.effectiveZoom();
+    const nextZoom = clampZoom(
+      currentZoom * multiplier,
+      IMAGE_VIEWER_MIN_ZOOM,
+      IMAGE_VIEWER_MAX_ZOOM,
+    );
+    const nextPan = computeZoomPanForPointer({
+      currentZoom,
+      nextZoom,
+      panX: this.panX(),
+      panY: this.panY(),
+      pointerOffsetX: 0,
+      pointerOffsetY: 0,
+    });
+    this.zoom.set(nextZoom);
+    this.panX.set(nextPan.panX);
+    this.panY.set(nextPan.panY);
   }
 
   protected cycleBackdrop(): void {
@@ -691,11 +736,17 @@ export class ImageViewerComponent implements OnDestroy {
 
   protected clearGridFilter(): void {
     this.gridFilter.set('');
+    const gridEl = this.gridRef()?.nativeElement;
+    if (gridEl) {
+      gridEl.scrollTop = 0;
+      this.gridScrollTop.set(0);
+    }
     this.gridSearchInputRef()?.nativeElement.focus();
   }
 
-  protected onStageDoubleClick(): void {
-    if (this.loadError() || !this.imageSrc()) {
+  protected onStageDoubleClick(event?: MouseEvent): void {
+    const target = event?.target as HTMLElement | null;
+    if (target?.closest('button') || !this.canZoom()) {
       return;
     }
     this.toggleFitOrActual();
@@ -973,10 +1024,18 @@ export class ImageViewerComponent implements OnDestroy {
         });
         this.stageResizeObserver.observe(el);
       }
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 || rect.height > 0) {
-        this.stageWidthPx.set(Math.round(rect.width));
-        this.stageHeightPx.set(Math.round(rect.height));
+      const style = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+      const padX = style
+        ? (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
+        : 0;
+      const padY = style
+        ? (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0)
+        : 0;
+      const contentW = Math.round(Math.max(0, el.clientWidth - padX));
+      const contentH = Math.round(Math.max(0, el.clientHeight - padY));
+      if (contentW > 0 || contentH > 0) {
+        this.stageWidthPx.set(contentW);
+        this.stageHeightPx.set(contentH);
       }
     });
   }
@@ -1171,7 +1230,13 @@ export class ImageViewerComponent implements OnDestroy {
     }
     if (Math.abs(ev.deltaY) > Math.abs(ev.deltaX) && ev.deltaY !== 0) {
       ev.preventDefault();
-      el.scrollLeft += ev.deltaY;
+      const deltaPx =
+        ev.deltaMode === 1
+          ? ev.deltaY * 24
+          : ev.deltaMode === 2
+            ? ev.deltaY * Math.max(1, el.clientWidth)
+            : ev.deltaY;
+      el.scrollLeft += deltaPx;
     }
   }
 
@@ -1317,8 +1382,22 @@ export class ImageViewerComponent implements OnDestroy {
 
   private onWorkspaceFilesChanged(event: WorkspaceFilesChangedMessage): void {
     const root = this.workspacePath().trim();
+    if (!root || !this.workspaceRootsEqual(root, event.workspacePath)) {
+      return;
+    }
+    // Evict any cached folder listings affected by this workspace change so returning to
+    // another folder later does not briefly hydrate stale thumbnails.
+    const rootPrefix = `${root}|`;
+    for (const key of Array.from(this.folderPathsCache.keys())) {
+      if (!key.startsWith(rootPrefix)) continue;
+      const cachedFolder = key.slice(rootPrefix.length);
+      if (workspaceChangeAffectsGalleryFolder(cachedFolder, event.paths, event.previousPaths)) {
+        this.folderPathsCache.delete(key);
+      }
+    }
+
     const rel = this.relativePath()?.trim();
-    if (!root || !rel || !this.workspaceRootsEqual(root, event.workspacePath)) {
+    if (!rel) {
       return;
     }
     const galleryFolder = parentFolderRelativePath(rel);
@@ -1480,6 +1559,9 @@ export class ImageViewerComponent implements OnDestroy {
       if (this.toolbarOverflowing() && this.ribbonExpanded()) {
         event.preventDefault();
         this.ribbonExpanded.set(false);
+      } else if (this.viewMode() === 'grid' && this.gridFilter()) {
+        event.preventDefault();
+        this.clearGridFilter();
       } else if (this.viewMode() === 'grid') {
         event.preventDefault();
         this.viewMode.set('viewer');
@@ -1589,6 +1671,7 @@ export class ImageViewerComponent implements OnDestroy {
   private syncAutoPlayTimer(): void {
     this.stopAutoPlay();
     if (
+      !this.active() ||
       !this.autoPlayEnabled() ||
       !this.hasGallery() ||
       this.viewMode() !== 'viewer' ||
@@ -1597,6 +1680,7 @@ export class ImageViewerComponent implements OnDestroy {
     ) {
       return;
     }
+    untracked(() => this.autoPlayCycle.update((n) => n + 1));
     const generation = this.autoPlayTimerGeneration;
     this.autoPlayTimer = setInterval(() => {
       if (generation !== this.autoPlayTimerGeneration || !this.autoPlayEnabled()) {
@@ -1631,7 +1715,8 @@ export class ImageViewerComponent implements OnDestroy {
     const stride = thumbSize + THUMB_GAP_PX;
     const itemCenter = THUMB_PAD_X_PX + index * stride + thumbSize / 2;
     const targetLeft = Math.max(0, itemCenter - el.clientWidth / 2);
-    const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    const totalScrollWidth = this.filmstripWindow().totalWidthPx + THUMB_PAD_X_PX * 2;
+    const maxLeft = Math.max(0, Math.max(el.scrollWidth, totalScrollWidth) - el.clientWidth);
     const clamped = Math.min(maxLeft, targetLeft);
     // Avoid micro-scrolling if the active tile is already comfortably within the middle 60%.
     const margin = el.clientWidth * 0.2;
@@ -1640,11 +1725,19 @@ export class ImageViewerComponent implements OnDestroy {
     if (itemLeft >= el.scrollLeft + margin && itemRight <= el.scrollLeft + el.clientWidth - margin) {
       return;
     }
+    const effectiveBehavior: ScrollBehavior =
+      behavior === 'smooth' && Math.abs(clamped - el.scrollLeft) > Math.max(1, el.clientWidth) * 2
+        ? 'instant'
+        : behavior;
     if (typeof el.scrollTo === 'function') {
-      el.scrollTo({ left: clamped, behavior });
+      el.scrollTo({ left: clamped, behavior: effectiveBehavior });
     } else {
       el.scrollLeft = clamped;
     }
-    this.filmstripScrollLeft.set(clamped);
+    // For instant jumps update the virtual window immediately; for smooth scrolls let the
+    // native scroll listener track el.scrollLeft so intermediate tiles stay rendered.
+    if (effectiveBehavior !== 'smooth' || typeof el.scrollTo !== 'function') {
+      this.filmstripScrollLeft.set(clamped);
+    }
   }
 }

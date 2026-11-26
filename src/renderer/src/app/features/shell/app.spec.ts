@@ -1712,11 +1712,74 @@ describe('App', () => {
     expect(root.querySelector('.app-settings-backdrop')).not.toBeNull();
     expect(content.hasAttribute('inert')).toBe(true);
 
+    const openSettingsSpy = vi.fn();
+    api['openSettingsWindow'] = openSettingsSpy;
+    const backdrop = root.querySelector('.app-settings-backdrop') as HTMLElement;
+    backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    backdrop.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(openSettingsSpy).toHaveBeenCalledTimes(1);
+
     onVisibility?.({}, false);
     fixture.detectChanges();
 
     expect(layout.classList.contains('app-layout--settings-open')).toBe(false);
     expect(root.querySelector('.app-settings-backdrop')).toBeNull();
     expect(content.hasAttribute('inert')).toBe(false);
+  });
+
+  it('retargets the emitting split slot when an unfocused image viewer navigates', async () => {
+    refs = stubElectronApi([], {
+      currentWorkspaceId: 'ws-1',
+      workspaces: [{ id: 'ws-1', name: 'Demo', path: '/ws', createdAt: '2026-01-01T00:00:00.000Z' }],
+    });
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const app = fixture.componentInstance as unknown as {
+      editorGrid: {
+        (): { columns: Array<{ id: string; slots: Array<{ id: string; tabs: Array<{ relativePath?: string }>; activeTabId: string | null }> }> };
+        set: (v: unknown) => void;
+      };
+      focusedSlotId: { set: (id: string) => void };
+      onImageViewerNavigate: (slotId: string, payload: { relativePath: string }) => void;
+    };
+
+    app.editorGrid.set({
+      columnSizes: [0.5, 0.5],
+      columns: [
+        {
+          id: 'col-1',
+          rowSizes: [1],
+          slots: [
+            {
+              id: 'slot-1',
+              tabs: [{ relativePath: 'photos/a.png', outsideWorkspace: false }],
+              activeTabId: 'file:rel:photos/a.png',
+            },
+          ],
+        },
+        {
+          id: 'col-2',
+          rowSizes: [1],
+          slots: [
+            {
+              id: 'slot-2',
+              tabs: [{ relativePath: 'icons/logo.png', outsideWorkspace: false }],
+              activeTabId: 'file:rel:icons/logo.png',
+            },
+          ],
+        },
+      ],
+    });
+    app.focusedSlotId.set('slot-2');
+
+    // Navigation emitted by slot-1 must update slot-1, leaving focused slot-2 untouched.
+    app.onImageViewerNavigate('slot-1', { relativePath: 'photos/b.png' });
+
+    const layout = app.editorGrid();
+    expect(layout.columns[0]!.slots[0]!.activeTabId).toBe('file:rel:photos/b.png');
+    expect(layout.columns[1]!.slots[0]!.activeTabId).toBe('file:rel:icons/logo.png');
   });
 });

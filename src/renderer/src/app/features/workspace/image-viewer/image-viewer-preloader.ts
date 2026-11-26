@@ -41,11 +41,16 @@ export class ImagePreloadCache {
       return pending;
     }
 
-    const promise = new Promise<DecodedImageRecord | null>((resolve) => {
-      const img = new Image();
-      img.decoding = 'async';
+    const img = new Image();
+    img.decoding = 'async';
 
+    let promise!: Promise<DecodedImageRecord | null>;
+    promise = new Promise<DecodedImageRecord | null>((resolve) => {
       const finishLoaded = () => {
+        if (this.inFlight.get(url) !== promise) {
+          resolve(null);
+          return;
+        }
         const record: DecodedImageRecord = {
           url,
           naturalWidth: img.naturalWidth,
@@ -68,21 +73,25 @@ export class ImagePreloadCache {
         }
       };
       img.onerror = finishError;
-      img.src = url;
     }).finally(() => {
-      this.inFlight.delete(url);
+      if (this.inFlight.get(url) === promise) {
+        this.inFlight.delete(url);
+      }
     });
 
     this.inFlight.set(url, promise);
+    img.src = url;
     return promise;
   }
 
   invalidate(url?: string): void {
     if (url === undefined) {
       this.decoded.clear();
+      this.inFlight.clear();
       return;
     }
     this.decoded.delete(url);
+    this.inFlight.delete(url);
   }
 
   private remember(record: DecodedImageRecord): void {

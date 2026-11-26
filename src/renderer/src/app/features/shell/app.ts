@@ -1129,7 +1129,9 @@ export class App implements OnInit, OnDestroy {
   protected onSettingsBackdropInteract(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    this.electron.openSettingsWindow();
+    if (event.type === 'mousedown') {
+      this.electron.openSettingsWindow();
+    }
   }
 
   async ngOnInit(): Promise<void> {
@@ -2352,13 +2354,21 @@ export class App implements OnInit, OnDestroy {
     fn: (tabs: readonly ChatFileTab[]) => ChatFileTab[],
     activeTabId?: string | null,
   ): void {
-    const focusedId = this.ensureFocusedSlotId();
+    this.updateSlotTabs(this.ensureFocusedSlotId(), fn, activeTabId);
+  }
+
+  /** Rewrite one slot's tab list; `activeTabId` (when given) becomes active. */
+  private updateSlotTabs(
+    slotId: string,
+    fn: (tabs: readonly ChatFileTab[]) => ChatFileTab[],
+    activeTabId?: string | null,
+  ): void {
     this.editorGrid.update((layout) => ({
       ...layout,
       columns: layout.columns.map((c) => ({
         ...c,
         slots: c.slots.map((s) => {
-          if (s.id !== focusedId) {
+          if (s.id !== slotId) {
             return s;
           }
           const tabs = fn(s.tabs);
@@ -2953,12 +2963,13 @@ export class App implements OnInit, OnDestroy {
     this.focusedWorkspaceMonaco()?.revealDiagnostic(d);
   }
 
-  protected onImageViewerNavigate(payload: { relativePath: string }): void {
+  protected onImageViewerNavigate(slotId: string, payload: { relativePath: string }): void {
     const newPath = normalizePathSlashes(payload.relativePath);
     if (!newPath) {
       return;
     }
-    const oldPath = this.activeFileRelativePath();
+    const targetSlot = slotById(this.editorGrid(), slotId);
+    const oldPath = targetSlot ? editorGridSlotView(targetSlot).activeRelativePath : this.activeFileRelativePath();
     if (!oldPath || normalizePathSlashes(oldPath) === newPath) {
       return;
     }
@@ -2966,7 +2977,9 @@ export class App implements OnInit, OnDestroy {
     if (!isViewableImagePath(oldPath)) {
       return;
     }
-    this.updateFocusedSlotTabs(
+    const resolvedSlotId = targetSlot ? targetSlot.id : this.ensureFocusedSlotId();
+    this.updateSlotTabs(
+      resolvedSlotId,
       (tabs) => retargetFileTabPath(tabs, oldPath, newPath),
       chatFileTabId({ relativePath: newPath, outsideWorkspace: false }),
     );

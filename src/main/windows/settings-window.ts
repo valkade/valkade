@@ -170,15 +170,44 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
     mainWindow.webContents.send('settings-window-visibility-changed', isOpen);
   };
 
+  const mainIsMinimized = (): boolean =>
+    typeof mainWindow.isMinimized === 'function' && mainWindow.isMinimized();
+
+  const effectiveMainBounds = (): WindowRect | null =>
+    mainIsMinimized() ? null : safeGetBounds(mainWindow);
+
   const centerOnMain = (sw: BrowserWindow): void => {
-    if (sw.isDestroyed() || mainWindow.isDestroyed()) return;
+    if (sw.isDestroyed() || mainWindow.isDestroyed() || mainIsMinimized()) return;
     const next = settingsWindowBounds(safeGetBounds(mainWindow), workAreaOf(mainWindow));
-    if (typeof next.x === 'number' && typeof next.y === 'number' && typeof sw.setBounds === 'function') {
-      sw.setBounds({ x: next.x, y: next.y, width: next.width, height: next.height });
+    if (typeof next.x !== 'number' || typeof next.y !== 'number' || typeof sw.setBounds !== 'function') {
+      return;
     }
+    const current = safeGetBounds(sw);
+    if (
+      current &&
+      current.x === next.x &&
+      current.y === next.y &&
+      current.width === next.width &&
+      current.height === next.height
+    ) {
+      return;
+    }
+    const sizeChanged = !current || current.width !== next.width || current.height !== next.height;
+    if (sizeChanged && typeof sw.setResizable === 'function') {
+      sw.setResizable(true);
+      try {
+        sw.setBounds({ x: next.x, y: next.y, width: next.width, height: next.height });
+      } finally {
+        if (!sw.isDestroyed()) {
+          sw.setResizable(false);
+        }
+      }
+      return;
+    }
+    sw.setBounds({ x: next.x, y: next.y, width: next.width, height: next.height });
   };
 
-  if (mainState.settingsWindow) {
+  if (mainState.settingsWindow && !mainState.settingsWindow.isDestroyed()) {
     notifyVisibility(true);
     centerOnMain(mainState.settingsWindow);
     if (tab) {
@@ -192,7 +221,7 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
 
   const icon = resolveAppIconPath();
   const parentOpts = settingsModalParentOptions(mainWindow);
-  const initialBounds = settingsWindowBounds(safeGetBounds(mainWindow), workAreaOf(mainWindow));
+  const initialBounds = settingsWindowBounds(effectiveMainBounds(), workAreaOf(mainWindow));
   mainState.settingsWindow = new BrowserWindow({
     ...initialBounds,
     ...parentOpts,
@@ -244,6 +273,9 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
   if (typeof mainWindow.on === 'function') {
     mainWindow.on('move', onMainGeometryChanged);
     mainWindow.on('resize', onMainGeometryChanged);
+    mainWindow.on('maximize', onMainGeometryChanged);
+    mainWindow.on('unmaximize', onMainGeometryChanged);
+    mainWindow.on('restore', onMainGeometryChanged);
     if (!parentOpts.modal) {
       mainWindow.on('focus', onMainFocus);
     }
@@ -264,6 +296,9 @@ export function createSettingsWindow(tab?: SettingsWindowTab): void {
       if (typeof mainWindow.removeListener === 'function') {
         mainWindow.removeListener('move', onMainGeometryChanged);
         mainWindow.removeListener('resize', onMainGeometryChanged);
+        mainWindow.removeListener('maximize', onMainGeometryChanged);
+        mainWindow.removeListener('unmaximize', onMainGeometryChanged);
+        mainWindow.removeListener('restore', onMainGeometryChanged);
         mainWindow.removeListener('focus', onMainFocus);
       }
     }
