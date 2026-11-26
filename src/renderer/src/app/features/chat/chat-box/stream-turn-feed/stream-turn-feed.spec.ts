@@ -13,10 +13,13 @@ const read: TurnFeedItem = {
     toolChainState: 'complete',
   },
 };
-const thinking: TurnFeedItem = {
-  kind: 'thought',
-  part: { streamTag: 'reasoning', label: 'Model reasoning', text: 'Now the second file', thoughtStartedAt: Date.now() },
-};
+/** A thought that started just now: built per test, so the elapsed time shown stays under a second. */
+function thinking(): Extract<TurnFeedItem, { kind: 'thought' }> {
+  return {
+    kind: 'thought',
+    part: { streamTag: 'reasoning', label: 'Model reasoning', text: 'Now the second file', thoughtStartedAt: Date.now() },
+  };
+}
 /** Tools from two LLM steps: the search is the open preview, the read has landed. */
 const readStep: TurnFeedItem = { kind: 'tool', part: { ...read.part, toolBatch: 'step-1' } } as TurnFeedItem;
 const searching: TurnFeedItem = {
@@ -103,7 +106,7 @@ describe('StreamTurnFeedComponent folded turn work', () => {
 
 describe('StreamTurnFeedComponent activity blocks', () => {
   it('keeps the streaming reasoning box in view under a closed block (live preview display)', () => {
-    const el = render([read, thinking], 'preview');
+    const el = render([read, thinking()], 'preview');
     const block = el.querySelector('.stream-turn-feed__activity');
     expect(block?.classList.contains('stream-turn-feed__activity--open')).toBe(false);
     expect(block?.querySelector('.stream-turn-feed__activity-body')).toBeNull();
@@ -114,7 +117,7 @@ describe('StreamTurnFeedComponent activity blocks', () => {
   });
 
   it('folds a compact thinking pill into the closed block pill (compact pill display)', () => {
-    const el = render([read, thinking], 'pill');
+    const el = render([read, thinking()], 'pill');
     const block = el.querySelector('.stream-turn-feed__activity');
     expect(block?.querySelector('.stream-turn-feed__preview')).toBeNull();
     expect(block?.querySelector('.stream-tool-pill__name')?.getAttribute('aria-label')).toBe('Thinking');
@@ -194,7 +197,7 @@ describe('StreamTurnFeedComponent activity blocks', () => {
       { streamTag: toolTrailStatusStreamTag('c1'), label: 'run_command', text: 'Command id: `abc12345`', toolChainState: 'complete' },
       { streamTag: lane, label: 'npm run dev', text: '' },
       { streamTag: 'clara', label: '', text: 'Now the search.' },
-      thinking.part,
+      thinking().part,
       (searching as Extract<TurnFeedItem, { kind: 'tool' }>).part,
     ];
     const fixture = TestBed.createComponent(StreamTurnFeedComponent);
@@ -216,7 +219,7 @@ describe('StreamTurnFeedComponent activity blocks', () => {
   });
 
   it('hides the block pill while the first thought streams in its reasoning box', () => {
-    const el = render([thinking], 'preview');
+    const el = render([thinking()], 'preview');
     const block = el.querySelector('.stream-turn-feed__activity');
     expect(block?.querySelector('app-stream-tool-pill')).toBeNull();
     expect(block?.querySelector('.stream-turn-feed__preview-body')?.textContent).toContain('Now the second file');
