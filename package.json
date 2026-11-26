@@ -1,6 +1,6 @@
 {
   "name": "valkade",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "ValkAde — Your local-first agentic dev environment.",
   "main": "dist/main/index.js",
   "private": true,
