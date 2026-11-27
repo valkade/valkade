@@ -346,7 +346,7 @@ class RuntimeConnectionRequest(BaseModel):
 
     id: str
     name: str
-    provider: Literal['openai', 'lmstudio', 'llamacpp', 'openai-compatible', 'openrouter', 'anthropic']
+    provider: Literal['openai', 'lmstudio', 'llamacpp', 'openai-compatible', 'openrouter', 'anthropic', 'claude-cli']
     baseUrl: str = ''
     model: str
     apiKey: str = ''

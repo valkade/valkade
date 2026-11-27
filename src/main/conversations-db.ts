@@ -157,6 +157,16 @@ function migrateTurnFilesTable(database: SqliteDatabase): void {
   `);
 }
 
+function migrateClaudeCliSessionsTable(database: SqliteDatabase): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS claude_cli_sessions (
+      conversation_id TEXT PRIMARY KEY NOT NULL,
+      session_id TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
 /** Add custom_title when upgrading from older DBs (idempotent). */
 function migrateCustomTitleColumn(database: SqliteDatabase): void {
   const cols = database.prepare('PRAGMA table_info(conversations)').all() as { name: string }[];
@@ -287,6 +297,7 @@ export function openConversationsDb(): void {
   migrateComposerColumn(database);
   migrateFileJournalTable(database);
   migrateTurnFilesTable(database);
+  migrateClaudeCliSessionsTable(database);
   importLegacyJsonIfNeeded(database);
   db = database;
 }
@@ -490,11 +501,13 @@ export function deleteConversationById(id: string): string[] {
   const ids = [id, ...listChildConversationIds(id)];
   const deleteJournal = database.prepare('DELETE FROM conversation_file_journal WHERE conversation_id = ?');
   const deleteTurnFiles = database.prepare('DELETE FROM conversation_turn_files WHERE conversation_id = ?');
+  const deleteClaudeSession = database.prepare('DELETE FROM claude_cli_sessions WHERE conversation_id = ?');
   const deleteConv = database.prepare('DELETE FROM conversations WHERE id = ?');
   const tx = database.transaction(() => {
     for (const convId of ids) {
       deleteJournal.run(convId);
       deleteTurnFiles.run(convId);
+      deleteClaudeSession.run(convId);
       deleteConv.run(convId);
     }
   });
@@ -534,11 +547,13 @@ export function deleteConversationsByWorkspaceId(workspaceId: string): string[] 
   const database = getDb();
   const deleteJournal = database.prepare('DELETE FROM conversation_file_journal WHERE conversation_id = ?');
   const deleteTurnFiles = database.prepare('DELETE FROM conversation_turn_files WHERE conversation_id = ?');
+  const deleteClaudeSession = database.prepare('DELETE FROM claude_cli_sessions WHERE conversation_id = ?');
   const deleteConv = database.prepare('DELETE FROM conversations WHERE id = ?');
   const tx = database.transaction(() => {
     for (const id of ids) {
       deleteJournal.run(id);
       deleteTurnFiles.run(id);
+      deleteClaudeSession.run(id);
       deleteConv.run(id);
     }
   });
@@ -858,7 +873,43 @@ export function openConversationsDbForTests(dbPath: string): void {
   migrateComposerColumn(database);
   migrateFileJournalTable(database);
   migrateTurnFilesTable(database);
+  migrateClaudeCliSessionsTable(database);
   db = database;
+}
+
+/** Claude Code CLI `--resume` session id bound to a ValkAde conversation, or null when none. */
+export function getClaudeCliSessionId(conversationId: string): string | null {
+  const id = conversationId.trim();
+  if (!id || !db) {
+    return null;
+  }
+  const row = db
+    .prepare('SELECT session_id FROM claude_cli_sessions WHERE conversation_id = ?')
+    .get(id) as { session_id: string } | undefined;
+  return row?.session_id?.trim() || null;
+}
+
+/** Persist the Claude Code CLI session id returned by `init` so later turns resume it. */
+export function setClaudeCliSessionId(conversationId: string, sessionId: string): void {
+  const id = conversationId.trim();
+  const sid = sessionId.trim();
+  if (!id || !sid || !db) {
+    return;
+  }
+  db.prepare(
+    `INSERT INTO claude_cli_sessions (conversation_id, session_id, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(conversation_id) DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at`,
+  ).run(id, sid, new Date().toISOString());
+}
+
+/** Forget a stored Claude Code CLI session id (e.g. when starting fresh). */
+export function deleteClaudeCliSessionId(conversationId: string): void {
+  const id = conversationId.trim();
+  if (!id || !db) {
+    return;
+  }
+  db.prepare('DELETE FROM claude_cli_sessions WHERE conversation_id = ?').run(id);
 }
 
 /** Most recently updated top-level conversations (sub-agent conversations are not listed). */

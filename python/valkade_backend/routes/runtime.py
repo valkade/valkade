@@ -437,11 +437,19 @@ async def set_runtime_config(request: RuntimeConfigRequest) -> dict[str, bool]:
         'yes' if request.contextCompression is not None else 'no',
     )
 
-    # Preload CPU FastEmbed embeddings as soon as the chat model is connected.
+    # Preload CPU FastEmbed embeddings as soon as the chat model is connected, and kick off
+    # background workspace indexing for any attached session whose corpus was skipped earlier.
     active_conn = state.get_active_connection()
     try:
-        from valkade_backend.workspace_index.embeddings_factory import preload_embedding_model
+        from valkade_backend.workspace_index.embeddings_factory import embeddings_available, preload_embedding_model
+        from valkade_backend.workspace_index.incremental import schedule_semantic_index_background
+
         preload_embedding_model(active_conn)
+        emb_ok, _ = embeddings_available(active_conn)
+        if emb_ok:
+            for sid, sess in list(state.sessions.items()):
+                if (sess.workspace_path or '').strip():
+                    schedule_semantic_index_background(sid, ensure_corpus=True)
     except Exception:
         logger.debug('embeddings preload trigger failed', exc_info=True)
 

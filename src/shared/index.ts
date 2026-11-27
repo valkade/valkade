@@ -388,13 +388,37 @@ export {
   DEFAULT_URL_SOURCE_NAME,
   PINNED_OPENROUTER_PROVIDER_ID,
   PINNED_ANTHROPIC_PROVIDER_ID,
+  PINNED_CLAUDE_CLI_PROVIDER_ID,
   OPENROUTER_DEFAULT_BASE_URL,
   isPinnedLmStudioProviderId,
   isPinnedLlamaServerUrlProviderId,
   isPinnedOpenRouterProviderId,
   isPinnedAnthropicProviderId,
+  isPinnedClaudeCliProviderId,
   isPinnedLlmSourceId,
 } from './llm-provider-ids';
+export type {
+  ClaudeCliModelOption,
+  ClaudeCliMutationResult,
+  ClaudeCliRateLimitWindow,
+  ClaudeCliSettings,
+  ClaudeCliStatus,
+  ClaudeCliStatusResult,
+  ClaudeCliUsageSummary,
+} from './claude-cli-ipc';
+export {
+  CLAUDE_CLI_AUTOCOMPACT_OPTIONS,
+  CLAUDE_CLI_BRIDGE_MUTATING_TOOLS,
+  CLAUDE_CLI_BRIDGE_READ_TOOLS,
+  CLAUDE_CLI_MODELS,
+  DEFAULT_CLAUDE_CLI_MODEL_ID,
+  DEFAULT_CLAUDE_CLI_SETTINGS,
+  claudeCliReasoningCaps,
+  claudeCliSourceLabel,
+  emptyClaudeCliUsageSummary,
+  findClaudeCliModel,
+  normalizeClaudeCliSettings,
+} from './claude-cli-ipc';
 export { lmStudioOpenAiBaseUrlToRestOrigin } from './lm-studio-url';
 export type {
   LmStudioLoadOptions,
@@ -570,6 +594,8 @@ export {
   toolTargetFromRunningDetail,
 } from './tool-pill-label';
 export type { ActivityHeadline, ToolPillCategory, ToolPillFamily, ToolPillLabel } from './tool-pill-label';
+export { classifyShellCommand } from './shell-command-intent';
+export type { ShellCommandIntent } from './shell-command-intent';
 export type { ParsedAgentStreamPayload } from './stream-payload';
 export { parseAgentStreamPayload, parseAgentStreamValue } from './stream-payload';
 export type {

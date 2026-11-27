@@ -37,6 +37,7 @@ import {
   shouldIgnoreWhitespaceOnlyModelChunkDuringTool,
   appendAndMergeReadToolPreviewChunk,
   findReadToolTrailTargetIndex,
+  toolTargetFromRunningDetail,
   toolTrailStatusIdFromStreamTag,
   toolTrailStatusStreamTag,
 } from '@shared/index';
@@ -266,18 +267,18 @@ export class ConversationSessionService {
         continue;
       }
       const parts = this.backgroundStreamParts.get(id) ?? [];
-      const runLabels = [...(this.backgroundToolRuns.get(id)?.values() ?? [])];
-      const toolsActive = runLabels.length > 0 || parts.some(isInFlightToolPart);
+      const runningTools = [...(this.backgroundToolRuns.get(id)?.values() ?? [])];
+      const toolsActive = runningTools.length > 0 || parts.some(isInFlightToolPart);
       const finalText = this.pendingFinalText.get(id);
-      const latestRunLabel = runLabels[runLabels.length - 1];
+      const latestRun = runningTools[runningTools.length - 1];
       const activity = resolveTurnActivity({
         feed: buildTurnFeed(parts, finalText),
         primaryLiveText: resolvePrimaryStreamLiveText(finalText, parts, toolsActive),
         toolsActive,
         // The latest live run names the spinner; parts are the fallback once runs settle.
         toolKind:
-          latestRunLabel != null
-            ? toolSpinnerKind(latestRunLabel, '')
+          latestRun != null
+            ? toolSpinnerKind(latestRun.label, '', latestRun.command)
             : inFlightToolSpinnerKind(parts, toolsActive),
         awaitingReview: this.backgroundAwaitingReview.has(id),
       });
@@ -285,7 +286,7 @@ export class ConversationSessionService {
         activity,
         spinner: turnActivitySpinner(
           activity,
-          latestRunLabel != null ? toolGlyph(latestRunLabel, '') : inFlightToolGlyph(parts, toolsActive),
+          latestRun != null ? toolGlyph(latestRun.label, '', latestRun.command) : inFlightToolGlyph(parts, toolsActive),
         ),
       });
     }
@@ -294,8 +295,8 @@ export class ConversationSessionService {
 
   private activeConversation: Conversation | null = null;
   private readonly backgroundStreamParts = new Map<string, StreamPart[]>();
-  /** Running tool statuses (id -> label) for streaming conversations that are not active. */
-  private readonly backgroundToolRuns = new Map<string, Map<string, string>>();
+  /** Running tool statuses (id -> label + command target) for streaming conversations that are not active. */
+  private readonly backgroundToolRuns = new Map<string, Map<string, { label: string; command: string }>>();
   /** Background conversations whose live turn is blocked on a HITL card. */
   private readonly backgroundAwaitingReview = new Set<string>();
   /** Bumped whenever the background maps change so {@link conversationActivity} recomputes. */
@@ -1682,7 +1683,12 @@ export class ConversationSessionService {
     }
     const runs = new Map(this.backgroundToolRuns.get(conversationId) ?? []);
     if (status.state === 'running') {
-      runs.set(status.id, status.label ?? '');
+      const prev = runs.get(status.id);
+      const detailTarget = toolTargetFromRunningDetail(status.detail ?? '');
+      runs.set(status.id, {
+        label: status.label ?? '',
+        command: detailTarget || prev?.command || '',
+      });
     } else if (status.state === 'complete' || status.state === 'error') {
       runs.delete(status.id);
     } else {

@@ -31,6 +31,8 @@ import type {
   LlmModelProfile,
   LlmOptimizationPreset,
   LlmProviderConfig,
+  LlmReasoningEffort,
+  ClaudeCliSettings,
   LmStudioModelCard,
   LmStudioSettings,
   OpenAiCompatEndpoint,
@@ -154,6 +156,7 @@ import {
   isPinnedLlamaServerUrlProviderId,
   isPinnedOpenRouterProviderId,
   isPinnedAnthropicProviderId,
+  isPinnedClaudeCliProviderId,
   OPENROUTER_DEFAULT_BASE_URL,
   type GgufProfile,
   type GpuVramCardUsage,
@@ -590,13 +593,14 @@ export class SettingsStore {
     const tab = this.tabs.find((t) => t.id === parent) ?? this.tabs[0];
     return { label: tab.label, description: tab.description, parentLabel: null as string | null };
   });
-  /** Pinned sources first: LM Studio, remote llama URL, OpenRouter, Claude; then other sources, then local models, each in file order. */
+  /** Pinned sources first: LM Studio, remote llama URL, OpenRouter, Claude, Claude Code; then other sources, then local models, each in file order. */
   readonly sourcesOrdered = computed(() => {
     const list = this.llmProviders();
     const pinLm = list.find((p) => isPinnedLmStudioProviderId(p.id));
     const pinUrl = list.find((p) => isPinnedLlamaServerUrlProviderId(p.id));
     const pinOpenRouter = list.find((p) => isPinnedOpenRouterProviderId(p.id));
     const pinAnthropic = list.find((p) => isPinnedAnthropicProviderId(p.id));
+    const pinClaudeCli = list.find((p) => isPinnedClaudeCliProviderId(p.id));
     const rest = list.filter((p) => !isPinnedLlmSourceId(p.id));
     const head: LlmProviderConfig[] = [];
     if (pinLm) {
@@ -610,6 +614,9 @@ export class SettingsStore {
     }
     if (pinAnthropic) {
       head.push(pinAnthropic);
+    }
+    if (pinClaudeCli) {
+      head.push(pinClaudeCli);
     }
     return [
       ...head,
@@ -1420,6 +1427,49 @@ export class SettingsStore {
     });
   }
 
+  /** Mirror a Claude Code CLI model pick into the draft without marking Settings dirty. */
+  mirrorClaudeCliModel(model: { id: string; displayName: string; contextWindowTokens: number }): void {
+    const profile = this.llmProviders().find((p) => p.provider === 'claude-cli')?.models[0];
+    if (!profile) {
+      return;
+    }
+    this.applyLlmModelPatch(profile.id, {
+      model: model.id,
+      name: model.displayName,
+      contextWindowTokens: model.contextWindowTokens,
+    });
+  }
+
+  /** Mirror a Claude Code CLI effort pick into the draft without marking Settings dirty. */
+  mirrorClaudeCliEffort(effort: LlmReasoningEffort): void {
+    const profile = this.llmProviders().find((p) => p.provider === 'claude-cli')?.models[0];
+    if (!profile) {
+      return;
+    }
+    this.applyLlmModelPatch(profile.id, { reasoningEffort: effort });
+  }
+
+  /** Mirror Claude Code CLI bridge / configDir settings into the draft without marking Settings dirty. */
+  mirrorClaudeCliSettings(patch: Partial<ClaudeCliSettings>): void {
+    const provider = this.llmProviders().find((p) => p.provider === 'claude-cli');
+    if (!provider) {
+      return;
+    }
+    this.applyProviderPatch(provider.id, {
+      claudeCli: {
+        configDir: '',
+        autoCompact: 'auto',
+        fastMode: false,
+        routeApprovals: true,
+        captureTurnDiffs: true,
+        promptIdleCompaction: false,
+        bridgeWorkspaceTools: true,
+        ...provider.claudeCli,
+        ...patch,
+      },
+    });
+  }
+
   isPinnedSource(providerId: string): boolean {
     return isPinnedLlmSourceId(providerId);
   }
@@ -1745,7 +1795,7 @@ export class SettingsStore {
     changes: Partial<
       Pick<
         LlmProviderConfig,
-        'name' | 'customName' | 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl' | 'customHeaders'
+        'name' | 'customName' | 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl' | 'claudeCli' | 'customHeaders'
       >
     >,
   ): void {
@@ -1830,7 +1880,10 @@ export class SettingsStore {
       return 'OpenRouter';
     }
     if (kind === 'anthropic') {
-      return 'Anthropic';
+      return 'Anthropic API';
+    }
+    if (kind === 'claude-cli') {
+      return 'Subscription · CLI';
     }
     return 'OpenAI';
   }
@@ -3975,7 +4028,7 @@ export class SettingsStore {
     changes: Partial<
       Pick<
         LlmProviderConfig,
-        'name' | 'customName' | 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl'
+        'name' | 'customName' | 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl' | 'claudeCli'
       >
     >,
   ): void {

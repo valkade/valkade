@@ -20,6 +20,7 @@ export function mergeLlmProviderModel(provider: LlmProviderConfig, model: LlmMod
     embeddingsModel: provider.embeddingsModel,
     ...(embBase ? { embeddingsBaseUrl: embBase } : {}),
     ...(provider.customHeaders?.length ? { customHeaders: provider.customHeaders } : {}),
+    ...(provider.claudeCli ? { claudeCli: provider.claudeCli } : {}),
   };
 }
 

@@ -488,3 +488,99 @@
 .claude-model-card__hint {
   margin: 0;
 }
+
+/* Claude Code (Subscription) pane */
+.claude-cli-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.claude-cli-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--t-border-subtle);
+  background: var(--t-bg-deep);
+  font-size: 12px;
+}
+
+.claude-cli-callout p {
+  margin: 0;
+  color: var(--t-text-muted, var(--t-muted));
+}
+
+.claude-cli-callout--warn {
+  border-color: var(--t-warn);
+}
+
+.claude-cli-callout--err {
+  border-color: var(--t-danger);
+}
+
+.claude-status--warn {
+  color: var(--t-warn);
+}
+
+.claude-cli-dir-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 24rem;
+}
+
+.claude-cli-dir-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.claude-cli-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 10px;
+}
+
+.claude-cli-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--t-border-subtle);
+  background: var(--t-bg-deep);
+  font-size: 12px;
+}
+
+.claude-cli-meter__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.claude-cli-meter__track {
+  height: 6px;
+  background: var(--t-border-subtle);
+  overflow: hidden;
+}
+
+.claude-cli-meter__fill {
+  height: 100%;
+  background: var(--t-primary);
+  transition: width 0.2s ease;
+}
+
+.claude-cli-meter__fill.is-warn {
+  background: var(--t-warn);
+}
+
+.claude-cli-meter__fill.is-err {
+  background: var(--t-danger);
+}
+
+.claude-cli-bridge {
+  max-width: none;
+}

@@ -35,6 +35,7 @@ from valkade_backend.routes.audio import router as audio_router
 from valkade_backend.routes.build_plan import router as build_plan_router
 from valkade_backend.routes.chat import router as chat_router
 from valkade_backend.routes.checkpoint import router as checkpoint_router
+from valkade_backend.routes.claude_bridge import router as claude_bridge_router
 from valkade_backend.routes.conversation_title import router as conversation_title_router
 from valkade_backend.routes.deps import router as deps_router
 from valkade_backend.routes.log import router as log_router
@@ -194,6 +195,7 @@ app.add_middleware(
 app.add_middleware(SidecarBearerAuthMiddleware)
 app.include_router(runtime_router)
 app.include_router(mcp_router)
+app.include_router(claude_bridge_router)
 app.include_router(deps_router)
 app.include_router(session_router)
 app.include_router(chat_router)

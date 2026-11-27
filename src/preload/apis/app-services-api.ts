@@ -110,6 +110,13 @@ export const createAppServicesApi = (ipcRenderer: PreloadIpc) => ({
   anthropicSetApiKey: (payload: { apiKey: string }) => ipcRenderer.invoke('anthropic:set-api-key', payload),
   anthropicClearApiKey: () => ipcRenderer.invoke('anthropic:clear-api-key'),
   anthropicSetModel: (payload: { modelId: string }) => ipcRenderer.invoke('anthropic:set-model', payload),
+  /** Claude Code (Subscription): probes local `claude` CLI; never handles OAuth tokens. */
+  claudeCliStatus: (payload?: { refresh?: boolean }) => ipcRenderer.invoke('claude-cli:status', payload),
+  claudeCliSetModel: (payload: { modelId: string }) => ipcRenderer.invoke('claude-cli:set-model', payload),
+  claudeCliSetEffort: (payload: { effort: string }) => ipcRenderer.invoke('claude-cli:set-effort', payload),
+  claudeCliUpdateSettings: (payload: { settings: Record<string, unknown> }) =>
+    ipcRenderer.invoke('claude-cli:update-settings', payload),
+  claudeCliLogin: () => ipcRenderer.invoke('claude-cli:login'),
   lmStudioListModels: (payload: { baseUrl: string; apiKey?: string }) => ipcRenderer.invoke('lm-studio:list-models', payload),
   lmStudioLoadModel: (payload: { baseUrl: string; model: string; apiKey?: string; options?: Record<string, unknown> }) =>
     ipcRenderer.invoke('lm-studio:load-model', payload),

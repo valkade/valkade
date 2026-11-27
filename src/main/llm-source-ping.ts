@@ -13,6 +13,7 @@ import { parseAllowedHttpUrl } from '../shared/safe-http-url';
 import { unwrapSecret } from '../shared/types/app-config';
 import { getAnthropicApiKey } from './anthropic-key-store';
 import { pingAnthropicApi } from './anthropic-models';
+import { pingClaudeCli } from './claude-cli-status';
 import { envProxyFetch } from './env-proxy-fetch';
 import { ensureOpenAiV1Base, normalizeBindAllHostToLocalhost } from './python/workspace-sync';
 
@@ -164,6 +165,9 @@ export async function pingLlmSource(modelId: string, config: AppConfig): Promise
   // These two send no default model, so a blank pick fails however healthy the provider is.
   if ((provider.provider === 'anthropic' || provider.provider === 'openrouter' || provider.provider === 'openai-compatible') && !(model.model ?? '').trim()) {
     return { ok: false, error: `Choose a ${provider.name} model in Settings to send` };
+  }
+  if (provider.provider === 'claude-cli') {
+    return pingClaudeCli(provider);
   }
   return provider.provider === 'anthropic' ? pingAnthropic(provider.name) : pingOpenAiCompatible(provider);
 }

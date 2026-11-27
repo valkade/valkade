@@ -593,6 +593,400 @@
                     <p class='openrouter-muted'>Add an API key to load the models it can use.</p>
                   }
                 </div>
+              } @else if (connection.provider === 'claude-cli') {
+                <div class='form-section'>
+                  <div class='form-section__header openrouter-section-head'>
+                    <h5>Claude CLI &amp; Account</h5>
+                    <div class='claude-cli-actions'>
+                      <button
+                        type='button'
+                        class='action-button action-button--compact'
+                        [disabled]='claudeCli.loading()'
+                        (click)='claudeCli.refresh(true)'
+                      >
+                        <lucide-icon name='refresh-cw' [size]='13' />
+                        {{ claudeCli.loading() ? 'Checking…' : 'Re-check' }}
+                      </button>
+                      @if (claudeCli.installed() && !claudeCli.loggedIn()) {
+                        <button
+                          type='button'
+                          class='action-button action-button--primary action-button--compact'
+                          (click)='launchClaudeCliLogin()'
+                        >
+                          Run claude auth login
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                  @if (claudeCli.status(); as st) {
+                    @if (!st.installed) {
+                      <div class='claude-cli-callout claude-cli-callout--warn' role='alert'>
+                        <strong>Claude Code CLI was not found on PATH</strong>
+                        <p>Install the official <code>claude</code> CLI, sign in with <code>claude auth login</code>, then click Re-check.</p>
+                      </div>
+                    } @else if (!st.loggedIn) {
+                      <div class='claude-cli-callout claude-cli-callout--warn' role='alert'>
+                        <strong>Claude CLI is installed, but no account is signed in</strong>
+                        <p>Sign in with your Claude Pro or Max subscription via the official CLI. ValkAde never asks for or stores your Claude.ai password or OAuth token.</p>
+                      </div>
+                    } @else if (claudeCli.rateLimited()) {
+                      <div class='claude-cli-callout claude-cli-callout--err' role='alert'>
+                        <strong>
+                          {{ claudeCliRateLimitTitle() }}
+                          @if (claudeCliResetCountdown(); as rem) {
+                            · resets in {{ rem }}
+                          }
+                        </strong>
+                        <p>{{ st.rateLimitMessage || 'New turns on Claude Code will pause until the window resets, or switch this thread to Claude (API) or a local model.' }}</p>
+                      </div>
+                    }
+
+                    <dl class='openrouter-connection'>
+                      <div>
+                        <dt>CLI binary</dt>
+                        <dd class='claude-key-row'>
+                          @if (st.installed) {
+                            <span class='claude-pill claude-pill--ok'>v{{ st.cliVersion || 'installed' }}</span>
+                            <code>{{ st.cliPath }}</code>
+                          } @else {
+                            <span class='claude-pill claude-pill--warn'>
+                              <lucide-icon name='triangle-alert' [size]='11' />
+                              Not found
+                            </span>
+                          }
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Account</dt>
+                        <dd class='claude-key-row'>
+                          @if (st.loggedIn) {
+                            <strong>{{ st.email || st.orgName || 'Signed in' }}</strong>
+                            <span class='claude-pill claude-pill--ok'>{{ claudeCliSubscriptionBadge() }}</span>
+                          } @else {
+                            <span class='openrouter-muted'>Not signed in</span>
+                          }
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Billing guard</dt>
+                        <dd class='claude-key-row'>
+                          <span class='claude-pill claude-pill--ok'>
+                            <lucide-icon name='shield' [size]='11' />
+                            API key stripped
+                          </span>
+                          <span class='openrouter-muted'>Ignores <code>ANTHROPIC_API_KEY</code> so turns bill your subscription</span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Config dir</dt>
+                        <dd>
+                          @if (claudeCliConfigDirEditing()) {
+                            <form class='claude-cli-dir-form' (ngSubmit)='saveClaudeCliDir()'>
+                              <input
+                                type='text'
+                                name='claudeCliConfigDir'
+                                autocomplete='off'
+                                spellcheck='false'
+                                placeholder='~/.claude'
+                                [ngModel]='claudeCliConfigDirDraft()'
+                                (ngModelChange)='claudeCliConfigDirDraft.set($event)'
+                                (keydown.escape)='cancelClaudeCliDirEdit()'
+                              />
+                              <button type='submit' class='action-button action-button--primary action-button--compact' [disabled]='claudeCli.saving()'>
+                                Save
+                              </button>
+                              <button type='button' class='action-button action-button--compact' (click)='cancelClaudeCliDirEdit()'>
+                                Cancel
+                              </button>
+                            </form>
+                          } @else {
+                            <div class='claude-key-row'>
+                              <code>{{ claudeCliSettings().configDir || st.configDir || '~/.claude' }}</code>
+                              <span class='openrouter-muted'>{{ claudeCliSettings().configDir ? '(custom CLAUDE_CONFIG_DIR)' : '(default)' }}</span>
+                              <button type='button' class='claude-link-button' (click)='beginClaudeCliDirEdit()'>Change</button>
+                            </div>
+                          }
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Status</dt>
+                        <dd>
+                          @if (claudeCli.rateLimited()) {
+                            <span class='claude-status claude-status--error'>
+                              Rate limited
+                              @if (claudeCliResetCountdown(); as rem) {
+                                <span class='openrouter-muted'> · resets in {{ rem }}</span>
+                              }
+                            </span>
+                          } @else if (st.installed && st.loggedIn) {
+                            <span class='claude-status claude-status--ok'>
+                              Ready
+                              @if (claudeCliCheckedAt(); as at) {
+                                <span class='openrouter-muted'> · checked {{ at }}</span>
+                              }
+                            </span>
+                          } @else if (st.installed) {
+                            <span class='claude-status claude-status--warn'>Authentication required</span>
+                          } @else {
+                            <span class='claude-status claude-status--error'>CLI not installed</span>
+                          }
+                        </dd>
+                      </div>
+                    </dl>
+                  } @else {
+                    <p class='openrouter-muted'>Checking local Claude Code CLI…</p>
+                  }
+                </div>
+
+                @if (claudeCli.ready()) {
+                  <hr class='settings-divider' />
+
+                  <div class='form-section'>
+                    <div class='form-section__header openrouter-section-head'>
+                      <h5>Subscription Usage</h5>
+                      <span class='openrouter-muted'>Claude Code transcripts &amp; rate-limit headers</span>
+                    </div>
+                    @if (claudeCli.status()?.usage; as u) {
+                      <div class='claude-cli-usage-grid'>
+                        <div class='claude-cli-meter'>
+                          <div class='claude-cli-meter__top'>
+                            <span>5-hour window</span>
+                            @if (u.fiveHour.utilizationPercent !== undefined) {
+                              <strong>{{ u.fiveHour.utilizationPercent }}%</strong>
+                            } @else {
+                              <span
+                                class='claude-pill'
+                                [class.claude-pill--ok]='u.fiveHour.status === "allowed"'
+                                [class.claude-pill--warn]='u.fiveHour.status === "allowed_warning"'
+                              >{{ claudeCliWindowStatusLabel(u.fiveHour.status) }}</span>
+                            }
+                          </div>
+                          @if (u.fiveHour.utilizationPercent !== undefined) {
+                            <div class='claude-cli-meter__track'>
+                              <div
+                                class='claude-cli-meter__fill'
+                                [class.is-warn]='u.fiveHour.utilizationPercent >= 75 && u.fiveHour.utilizationPercent < 100'
+                                [class.is-err]='u.fiveHour.utilizationPercent >= 100'
+                                [style.width.%]='u.fiveHour.utilizationPercent'
+                              ></div>
+                            </div>
+                          }
+                          <span class='openrouter-muted'>
+                            {{ u.window5hTurns }} messages · {{ formatTokens(u.window5hTokens) || '0' }} tokens
+                            @if (u.window5hCacheReadTokens > 0) {
+                              · {{ formatTokens(u.window5hCacheReadTokens) }} cached
+                            }
+                            @if (formatResetCountdown(u.fiveHour.resetsAt); as rem) {
+                              · resets in {{ rem }}
+                            }
+                          </span>
+                        </div>
+                        <div class='claude-cli-meter'>
+                          <div class='claude-cli-meter__top'>
+                            <span>7-day window</span>
+                            @if (u.sevenDay.utilizationPercent !== undefined) {
+                              <strong>{{ u.sevenDay.utilizationPercent }}%</strong>
+                            } @else {
+                              <span
+                                class='claude-pill'
+                                [class.claude-pill--ok]='u.sevenDay.status === "allowed"'
+                                [class.claude-pill--warn]='u.sevenDay.status === "allowed_warning"'
+                              >{{ claudeCliWindowStatusLabel(u.sevenDay.status) }}</span>
+                            }
+                          </div>
+                          @if (u.sevenDay.utilizationPercent !== undefined) {
+                            <div class='claude-cli-meter__track'>
+                              <div
+                                class='claude-cli-meter__fill'
+                                [class.is-warn]='u.sevenDay.utilizationPercent >= 75 && u.sevenDay.utilizationPercent < 100'
+                                [class.is-err]='u.sevenDay.utilizationPercent >= 100'
+                                [style.width.%]='u.sevenDay.utilizationPercent'
+                              ></div>
+                            </div>
+                          }
+                          <span class='openrouter-muted'>
+                            {{ u.weeklyTurns }} messages · {{ formatTokens(u.weeklyTokens) || '0' }} tokens
+                            @if (u.weeklyCacheReadTokens > 0) {
+                              · {{ formatTokens(u.weeklyCacheReadTokens) }} cached
+                            }
+                            @if (formatResetCountdown(u.sevenDay.resetsAt); as rem7) {
+                              · resets in {{ rem7 }}
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    }
+                    <p class='openrouter-muted'>
+                      Local message &amp; token totals scan all Claude Code sessions in <code>projects/</code>. Exact quota % appears automatically whenever Claude Code emits a <code>rate_limit_event</code>.
+                    </p>
+                  </div>
+                }
+
+                <hr class='settings-divider' />
+
+                <div class='form-section'>
+                  <div class='form-section__header openrouter-section-head'>
+                    <h5>Model &amp; Context</h5>
+                    <span class='openrouter-muted'>{{ claudeCli.models().length }} models from CLI</span>
+                  </div>
+                  <div class='form-grid'>
+                    <label class='field'>
+                      <span>Default model</span>
+                      <app-pill-select
+                        [options]='claudeCliModelOptions()'
+                        [value]='claudeCliModelId()'
+                        (valueChange)='pickClaudeCliModel($event)'
+                        ariaLabel='Claude Code model'
+                      />
+                    </label>
+                    <label class='field'>
+                      <span>Reasoning effort</span>
+                      @if (claudeCliEffortOptions().length > 0) {
+                        <app-pill-select
+                          [options]='claudeCliEffortOptions()'
+                          [value]='claudeCliEffort()'
+                          (valueChange)='pickClaudeCliEffort($event)'
+                          ariaLabel='Claude Code effort'
+                        />
+                      } @else {
+                        <span class='openrouter-muted'>Not supported on this model</span>
+                      }
+                    </label>
+                    <label class='field'>
+                      <span>Auto-compact window</span>
+                      <app-pill-select
+                        [options]='claudeCliAutoCompactOptions()'
+                        [value]='claudeCliAutoCompactValue()'
+                        [disabled]='claudeCli.saving()'
+                        (valueChange)='pickClaudeCliAutoCompact($event)'
+                        ariaLabel='Claude Code auto-compact window'
+                      />
+                    </label>
+                    <label class='field'>
+                      <span>Fast mode</span>
+                      <span class='toggle-row'>
+                        <input
+                          type='checkbox'
+                          [checked]='claudeCliCurrentModel().supportsFastMode && claudeCliSettings().fastMode'
+                          [disabled]='!claudeCliCurrentModel().supportsFastMode || claudeCli.saving()'
+                          (change)='toggleClaudeCliSetting("fastMode", $any($event.target).checked)'
+                        />
+                        <span>
+                          @if (claudeCliCurrentModel().supportsFastMode) {
+                            Enable faster output
+                          } @else {
+                            Not supported on this model
+                          }
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div class='claude-model-card'>
+                    <div class='claude-model-card__head'>
+                      <strong>{{ claudeCliCurrentModel().displayName }}</strong>
+                      <code>{{ claudeCliCurrentModel().id }}</code>
+                      @if (claudeCliCurrentModel().section === 'overflow') {
+                        <span class='claude-pill'>Legacy / extra</span>
+                      }
+                    </div>
+                    @if (claudeCliCurrentModel().description; as desc) {
+                      <p class='openrouter-muted claude-model-card__hint'>{{ desc }}</p>
+                    }
+                    @if (claudeCliCurrentModel().notice; as notice) {
+                      <p class='claude-status claude-status--warn claude-model-card__hint'>{{ notice }}</p>
+                    }
+                    <dl class='claude-facts'>
+                      <div>
+                        <dt>Max context</dt>
+                        <dd>{{ formatTokens(claudeCliCurrentModel().contextWindowTokens) }} tokens</dd>
+                      </div>
+                      <div>
+                        <dt>Max output</dt>
+                        <dd>
+                          @if (claudeCliCurrentModel().maxOutputTokens; as maxOut) {
+                            {{ formatTokens(maxOut) }} tokens
+                          } @else {
+                            —
+                          }
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Effort levels</dt>
+                        <dd>{{ claudeCliCurrentModel().effortLevels.length ? claudeCliCurrentModel().effortLevels.join(' · ') : 'Not supported' }}</dd>
+                      </div>
+                      <div>
+                        <dt>Default effort</dt>
+                        <dd>{{ claudeCliCurrentModel().defaultEffort || '—' }}</dd>
+                      </div>
+                      <div>
+                        <dt>Fast mode</dt>
+                        <dd>{{ claudeCliCurrentModel().supportsFastMode ? 'Supported' : 'No' }}</dd>
+                      </div>
+                      <div>
+                        <dt>Agent engine</dt>
+                        <dd>Claude Code CLI</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+
+                <hr class='settings-divider' />
+
+                <div class='form-section'>
+                  <div class='form-section__header'>
+                    <h5>ValkAde Bridge</h5>
+                  </div>
+                  <div class='form-grid sampling-compact claude-cli-bridge'>
+                    <label class='field'>
+                      <span class='toggle-row'>
+                        <input
+                          type='checkbox'
+                          [checked]='claudeCliSettings().bridgeWorkspaceTools'
+                          [disabled]='claudeCli.saving()'
+                          (change)='toggleClaudeCliSetting("bridgeWorkspaceTools", $any($event.target).checked)'
+                        />
+                        <span>Bridge ValkAde workspace tools via MCP (LSP, terminals, semantic search, screenshots, themes)</span>
+                      </span>
+                    </label>
+                    <label class='field'>
+                      <span class='toggle-row'>
+                        <input
+                          type='checkbox'
+                          [checked]='claudeCliSettings().routeApprovals'
+                          [disabled]='claudeCli.saving()'
+                          (change)='toggleClaudeCliSetting("routeApprovals", $any($event.target).checked)'
+                        />
+                        <span>Route tool approvals &amp; questions to ValkAde cards</span>
+                      </span>
+                    </label>
+                    <label class='field'>
+                      <span class='toggle-row'>
+                        <input
+                          type='checkbox'
+                          [checked]='claudeCliSettings().captureTurnDiffs'
+                          [disabled]='claudeCli.saving()'
+                          (change)='toggleClaudeCliSetting("captureTurnDiffs", $any($event.target).checked)'
+                        />
+                        <span>Capture turn diffs via workspace snapshot for Turn Review</span>
+                      </span>
+                    </label>
+                    <label class='field'>
+                      <span class='toggle-row'>
+                        <input
+                          type='checkbox'
+                          [checked]='false'
+                          disabled
+                        />
+                        <span>
+                          Prompt before resending cold threads after 1h cache expires
+                          <span class='claude-pill'>Coming soon</span>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
               } @else {
                 <div class='form-section'>
                   <div class='form-section__header'>
@@ -648,7 +1042,7 @@
                 </div>
               }
 
-              @if (connection.provider !== 'openrouter' && connection.provider !== 'anthropic' && connection.provider !== 'lmstudio' && connection.provider !== 'openai-compatible') {
+              @if (connection.provider !== 'openrouter' && connection.provider !== 'anthropic' && connection.provider !== 'claude-cli' && connection.provider !== 'lmstudio' && connection.provider !== 'openai-compatible') {
               <hr class='settings-divider' />
 
               <div class='form-section ready-defaults' [attr.data-tutorial]="connection.provider === 'llamacpp' ? 'sources-defaults' : null">

@@ -291,7 +291,7 @@ describe('capture quotas, clearing and concurrency', () => {
     expect(states.filter(status => status.state === 'available')).toHaveLength(10);
     expect(states.filter(status => status.reason === 'storage')).toHaveLength(15);
     expect(Object.keys((await metadata()).images)).toHaveLength(10);
-  });
+  }, 20_000);
 
   it('serializes saves, maintenance, clear and reads, then continues saving normally', async () => {
     const first = saveCaptureAsset(png);

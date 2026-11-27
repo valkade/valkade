@@ -1,5 +1,13 @@
 import { ipcMain } from 'electron';
-import { normalizeConversationComposer, type LlmStatusPayload, type TurnEditedFile } from '../../../shared';
+import { findLlmModelLocation, normalizeConversationComposer, type LlmStatusPayload, type TurnEditedFile } from '../../../shared';
+import { loadConfig } from '../../config/load-save';
+import {
+  hasPendingClaudeCliApproval,
+  hasPendingClaudeCliQuestion,
+  resolveClaudeCliApproval,
+  resolveClaudeCliQuestion,
+  runClaudeCliChatTurn,
+} from '../../claude-cli-runner';
 import { pythonControlFetch, pythonLongFetch, pythonSsePost } from '../../python/http-client';
 import { ensurePythonReady } from '../../python/server';
 import {
@@ -241,24 +249,79 @@ export function registerChatIpc(): void {
         }
       }
 
-      // Sub-agents' own events arrive on their channel (`subagent-events.ts`), not on this stream.
-      const forward = (payload: string): void => {
-        const parsed = parseStreamPayload(payload);
+      const forwardParsed = (parsed: ParsedAgentStreamPayload): void => {
         const card = waitingCardOf(parsed);
         if (card) {
           rememberWaitingCard(conversationId, card);
         }
         dispatchParsedPayload(send, conversationId, parsed);
       };
+      // Sub-agents' own events arrive on their channel (`subagent-events.ts`), not on this stream.
+      const forward = (payload: string): void => {
+        forwardParsed(parseStreamPayload(payload));
+      };
       const completeTurn = (): Promise<void> =>
         replyMessageDone(send, conversationId, 'completed', turn, abortController);
 
+      // Route Claude Code (Subscription) turns to the local `claude` CLI instead of Python.
+      let appConfig: Awaited<ReturnType<typeof loadConfig>> | null = null;
+      try {
+        appConfig = await loadConfig();
+      } catch {
+        appConfig = null;
+      }
+      const targetModelId = conversationSettings.connection_id || appConfig?.activeLlmModelId || '';
+      const targetLoc =
+        appConfig && targetModelId ? findLlmModelLocation(appConfig.llmProviders, targetModelId) : null;
+      if (appConfig && targetLoc?.provider.provider === 'claude-cli') {
+        try {
+          const validStructured = Array.isArray(body.structuredContent)
+            ? (body.structuredContent as Record<string, unknown>[])
+            : undefined;
+          const outcome = await runClaudeCliChatTurn({
+            conversationId,
+            userMessageId: turn.userMessageId,
+            message: msg,
+            structuredContent: validStructured,
+            provider: targetLoc.provider,
+            modelOverride: conversationSettings.model,
+            effortOverride: conversationSettings.reasoning_effort,
+            applyMode,
+            autoApplyMode,
+            composerMode,
+            allowWebAccess: appConfig.workspaceTools?.allowWebAccess === true,
+            workspaceId: turn.workspaceId,
+            workspaceRoot: workspacePathForWorkspaceId(turn.workspaceId) ?? null,
+            workspaceNotes: notes,
+            signal: abortController.signal,
+            emit: forwardParsed,
+          });
+          if (outcome === 'aborted' && wasChatStreamSuperseded(abortController)) {
+            await finalizeTurnEditsSafe(conversationId, turn);
+            return;
+          }
+          await replyMessageDone(send, conversationId, outcome, turn, abortController);
+        } catch (err) {
+          console.error('[Chat] Claude Code CLI turn failed:', err);
+          send('message-chunk', conversationId, `Error: ${err instanceof Error ? err.message : String(err)}`);
+          await replyMessageDone(send, conversationId, 'error', turn, abortController);
+        } finally {
+          endChatStream(conversationId, abortController);
+        }
+        return;
+      }
+
       try {
         // A model load can take a while, and Stop must not have to wait for it.
-        await Promise.race([
-          ensureActiveLmStudioModelLoaded(conversationSettings.connection_id),
-          new Promise((resolve) => abortController.signal.addEventListener('abort', resolve, { once: true })),
-        ]);
+        if (!abortController.signal.aborted) {
+          await Promise.race([
+            ensureActiveLmStudioModelLoaded(conversationSettings.connection_id),
+            new Promise((resolve) => abortController.signal.addEventListener('abort', resolve, { once: true })),
+          ]);
+        }
+        if (abortController.signal.aborted) {
+          throw new Error('Aborted');
+        }
         const res = await pythonSsePost('/chat/stream', body, abortController.signal);
 
         if (!res.ok || !res.body) {
@@ -344,6 +407,15 @@ export function registerChatIpc(): void {
         assertTrustedMainRendererOrThrow(event);
       } catch {
         return { ok: false, error: 'Untrusted IPC sender' };
+      }
+      if (
+        acceptCommandRequestId &&
+        acceptCommandAction &&
+        hasPendingClaudeCliApproval(conversationId, acceptCommandRequestId)
+      ) {
+        const ok = resolveClaudeCliApproval(conversationId, acceptCommandRequestId, acceptCommandAction, note ?? '');
+        forgetWaitingCard(conversationId, acceptCommandRequestId);
+        return { ok, batchComplete: true };
       }
       try {
         const res = await pythonControlFetch('/chat/agent-continue', {
@@ -432,6 +504,11 @@ export function registerChatIpc(): void {
         assertTrustedMainRendererOrThrow(event);
       } catch {
         return { ok: false, error: 'Untrusted IPC sender' };
+      }
+      if (requestId && hasPendingClaudeCliQuestion(conversationId, requestId)) {
+        const ok = resolveClaudeCliQuestion(conversationId, requestId, action ?? 'submit', answers ?? []);
+        forgetWaitingCard(conversationId, requestId);
+        return { ok };
       }
       try {
         const res = await pythonControlFetch('/chat/agent-question-answers', {

@@ -300,6 +300,24 @@ describe('openRunCommandLane', () => {
     const opened = openRunCommandLane([status], lane, 'npm test');
     expect(markToolExecStreamComplete(opened, lane, 1, 'boom')[1]).toMatchObject({ text: 'boom', runComplete: true, exitCode: 1 });
   });
+
+  it('preserves the longer toolTarget from the matching run_command status row when the lane label is truncated', () => {
+    const fullCmd = "(Get-Content src/app/component.ts -Raw) -replace 'old', 'new' | Set-Content src/app/component.ts";
+    const statusWithTarget = {
+      streamTag: toolTrailStatusStreamTag('call-edit'),
+      label: 'run_command',
+      text: fullCmd,
+      toolTarget: fullCmd,
+      toolChainState: 'running' as const,
+    };
+    const opened = openRunCommandLane([statusWithTarget], lane, '(Get-Content src/app/compon…');
+    expect(opened[1]).toEqual({
+      streamTag: lane,
+      label: '(Get-Content src/app/compon…',
+      text: '',
+      toolTarget: fullCmd,
+    });
+  });
 });
 
 describe('approval cards in the timeline', () => {

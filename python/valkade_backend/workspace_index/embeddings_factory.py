@@ -18,7 +18,9 @@ from valkade_backend.workspace_index.fastembed_backend import (
 
 logger = logging.getLogger('valkade.workspace_index.embeddings')
 
-_CHAT_EMBEDDING_PROVIDERS = frozenset({'openai', 'lmstudio', 'llamacpp', 'openai-compatible', 'openrouter'})
+_CHAT_EMBEDDING_PROVIDERS = frozenset(
+    {'openai', 'lmstudio', 'llamacpp', 'openai-compatible', 'openrouter', 'anthropic', 'claude-cli'}
+)
 _logged_backend_choice: set[str] = set()
 _preload_lock = threading.Lock()
 _preloaded_key: str | None = None

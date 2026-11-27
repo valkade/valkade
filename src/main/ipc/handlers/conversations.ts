@@ -2,7 +2,9 @@ import { ipcMain } from 'electron';
 import { assertTrustedMainRenderer, assertTrustedMainRendererOrThrow } from '../assert-trusted-renderer';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
-import { normalizeConversationComposer, type ConversationFile } from '../../../shared';
+import { findLlmModelLocation, normalizeConversationComposer, type ConversationFile } from '../../../shared';
+import { clearClaudeCliConversationState, suggestClaudeCliConversationTitle } from '../../claude-cli-runner';
+import { loadConfig } from '../../config/load-save';
 import { FIRST_THEME_ID } from '../../constants';
 import { mainState } from '../../state';
 import {
@@ -186,6 +188,7 @@ export function registerConversationsIpc(): void {
     deleteConversationById(id);
     for (const deletedId of ids) {
       forgetConversationRenderer(deletedId);
+      clearClaudeCliConversationState(deletedId);
     }
     noteMainWindowConversationsChanged(event);
   });
@@ -222,17 +225,38 @@ export function registerConversationsIpc(): void {
       return { ok: false as const, reason: 'not_due' as const };
     }
     try {
-      const res = await pythonControlFetch('/conversation/suggest-title', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: id }),
-      });
-      if (!res.ok) {
-        console.error('[Main] maybe-auto-title: Python returned', res.status);
-        return { ok: false as const, reason: 'python_error' as const };
+      let rawTitle = '';
+      let appConfig: Awaited<ReturnType<typeof loadConfig>> | null = null;
+      try {
+        appConfig = await loadConfig();
+      } catch {
+        appConfig = null;
       }
-      const data = (await res.json()) as { title?: string };
-      const raw = (data.title ?? '').trim().replace(/\s+/g, ' ');
+      const targetModelId = conv.composer?.modelId || appConfig?.activeLlmModelId || '';
+      const targetLoc =
+        appConfig && targetModelId ? findLlmModelLocation(appConfig.llmProviders, targetModelId) : null;
+
+      if (targetLoc?.provider.provider === 'claude-cli') {
+        rawTitle = await suggestClaudeCliConversationTitle({
+          messages: conv.messages,
+          provider: targetLoc.provider,
+          modelOverride: conv.composer?.claudeModel,
+        });
+      } else {
+        const res = await pythonControlFetch('/conversation/suggest-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: id }),
+        });
+        if (!res.ok) {
+          console.error('[Main] maybe-auto-title: Python returned', res.status);
+          return { ok: false as const, reason: 'python_error' as const };
+        }
+        const data = (await res.json()) as { title?: string };
+        rawTitle = data.title ?? '';
+      }
+
+      const raw = rawTitle.trim().replace(/\s+/g, ' ');
       const safe = raw.replace(/[\r\n]+/g, ' ').slice(0, 120);
       if (!safe) {
         return { ok: false as const, reason: 'empty_title' as const };

@@ -20,10 +20,10 @@ export interface SubagentSource {
   launchable: boolean;
 }
 
-/** One source for roles, or null for a provider no role can use (no model preset, image generation). */
+/** One source for roles, or null for a provider no role can use (no model preset, image generation, CLI-only). */
 export function subagentSource(provider: LlmProviderConfig, label: string): SubagentSource | null {
   const model = provider.models[0];
-  if (!model || provider.provider === 'python-t2i') {
+  if (!model || provider.provider === 'python-t2i' || provider.provider === 'claude-cli') {
     return null;
   }
   const managed = provider.provider === 'llamacpp' && !isPinnedLlamaServerUrlProviderId(provider.id);
