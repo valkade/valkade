@@ -233,6 +233,32 @@ export function killProcessTree(child: ChildProcess): void {
   }
 }
 
+/** Cancel and resolve any pending approval or question cards for a conversation so waiters never hang. */
+function cancelConversationPendingCards(conversationId: string): void {
+  for (const [reqId, p] of pendingApprovals.entries()) {
+    if (p.conversationId === conversationId) {
+      pendingApprovals.delete(reqId);
+      p.resolve('cancel', '');
+    }
+  }
+  for (const [reqId, q] of pendingQuestions.entries()) {
+    if (q.conversationId === conversationId) {
+      pendingQuestions.delete(reqId);
+      q.resolve('cancel', []);
+    }
+  }
+}
+
+/** Clear in-memory Claude CLI session state for a conversation (called on delete or timeline rewind). */
+export function clearClaudeCliConversationState(conversationId: string): void {
+  const id = conversationId.trim();
+  if (!id) {
+    return;
+  }
+  sessionAllowedTools.delete(id);
+  cancelConversationPendingCards(id);
+}
+
 /** Kill every active Claude CLI subprocess (called on app quit). */
 export function killAllClaudeCliProcesses(): void {
   for (const child of activeChildren.values()) {
@@ -322,10 +348,23 @@ export function buildClaudeCliArgs(opts: {
   if (model) {
     args.push('--model', model);
   }
+  const modelMeta = findClaudeCliModel(model, getCachedClaudeCliModels());
 
-  const effort = opts.effort.trim().toLowerCase();
-  if (effort === 'low' || effort === 'medium' || effort === 'high' || effort === 'xhigh' || effort === 'max') {
-    args.push('--effort', effort);
+  const rawEffort = opts.effort.trim().toLowerCase();
+  const validEfforts = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+  if (validEfforts.has(rawEffort)) {
+    if (!modelMeta) {
+      args.push('--effort', rawEffort);
+    } else if (modelMeta.effortLevels.length > 0) {
+      const effectiveEffort = modelMeta.effortLevels.includes(rawEffort)
+        ? rawEffort
+        : modelMeta.defaultEffort && modelMeta.effortLevels.includes(modelMeta.defaultEffort)
+          ? modelMeta.defaultEffort
+          : '';
+      if (effectiveEffort) {
+        args.push('--effort', effectiveEffort);
+      }
+    }
   }
 
   const autoCompact = (opts.settings.autoCompact ?? 'auto').trim().toLowerCase();
@@ -334,7 +373,6 @@ export function buildClaudeCliArgs(opts: {
   }
 
   if (opts.settings.fastMode) {
-    const modelMeta = findClaudeCliModel(model, getCachedClaudeCliModels());
     if (!modelMeta || modelMeta.supportsFastMode) {
       args.push('--settings', JSON.stringify({ fastMode: true }));
     }
@@ -365,9 +403,11 @@ export function buildClaudeCliArgs(opts: {
   if (readOnly) {
     args.push('--permission-mode', 'plan');
     disallowed.add('Edit');
+    disallowed.add('MultiEdit');
     disallowed.add('Write');
     disallowed.add('NotebookEdit');
     disallowed.add('Bash');
+    disallowed.add('PowerShell');
     if (bridgeActive) {
       disallowed.add('mcp__valkade__lsp_rename_symbol');
     }
@@ -431,6 +471,7 @@ export function formatClaudeToolLabel(toolName: string): string {
     case 'Grep':
       return 'Search code';
     case 'Bash':
+    case 'PowerShell':
       return 'Run command';
     case 'WebSearch':
       return 'Web search';
@@ -479,7 +520,7 @@ function summarizeToolInput(toolName: string, input: unknown, workspaceRoot: str
     return '';
   }
   const rec = input as Record<string, unknown>;
-  if (toolName === 'Bash' && typeof rec['command'] === 'string') {
+  if ((toolName === 'Bash' || toolName === 'PowerShell') && typeof rec['command'] === 'string') {
     return rec['command'].trim().slice(0, 140);
   }
   if (toolName === 'mcp__valkade__lsp_rename_symbol') {
@@ -596,7 +637,7 @@ function buildAcceptCommandFromControl(
 ): AcceptCommandPayload {
   const rec = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
   const commandText =
-    toolName === 'Bash' && typeof rec['command'] === 'string'
+    (toolName === 'Bash' || toolName === 'PowerShell') && typeof rec['command'] === 'string'
       ? rec['command']
       : summarizeToolInput(toolName, input) || JSON.stringify(rec).slice(0, 300);
 
@@ -707,19 +748,31 @@ export function parseClaudeRateLimitReset(text: string, now: number = Date.now()
   if (!isLimited) {
     return { limited: false, resetAt: 0 };
   }
-  const hm = lower.match(/(\d+)\s*h(?:ours?)?\s*(?:(\d+)\s*m)?/);
-  if (hm) {
-    const hours = Number.parseInt(hm[1], 10) || 0;
-    const mins = Number.parseInt(hm[2] || '0', 10) || 0;
-    const ms = (hours * 60 + mins) * 60_000;
-    if (ms > 0) {
-      return { limited: true, resetAt: now + ms };
+  // Avoid mistaking "5-hour" / "5 hour" window descriptions for the actual reset countdown.
+  const withoutWindowLabel = lower.replace(/\b5[\s-]+hour\b/g, ' ');
+  const parseDurationMs = (src: string): number => {
+    const hm = src.match(/(\d+)\s*h(?:ours?|rs?)?\s*(?:(\d+)\s*m(?:in(?:ute)?s?)?)?/);
+    if (hm) {
+      const hours = Number.parseInt(hm[1], 10) || 0;
+      const mins = Number.parseInt(hm[2] || '0', 10) || 0;
+      const ms = (hours * 60 + mins) * 60_000;
+      if (ms > 0) {
+        return ms;
+      }
     }
-  }
-  const mOnly = lower.match(/(\d+)\s*min(?:ute)?s?/);
-  if (mOnly) {
-    const mins = Number.parseInt(mOnly[1], 10) || 30;
-    return { limited: true, resetAt: now + mins * 60_000 };
+    const mOnly = src.match(/(\d+)\s*m(?:in(?:ute)?s?)\b/);
+    if (mOnly) {
+      const mins = Number.parseInt(mOnly[1], 10) || 0;
+      if (mins > 0) {
+        return mins * 60_000;
+      }
+    }
+    return 0;
+  };
+  const resetClause = withoutWindowLabel.match(/(?:resets?|try again|retry|wait)\s+(?:in\s+)?(.+)/);
+  const ms = (resetClause ? parseDurationMs(resetClause[1]!) : 0) || parseDurationMs(withoutWindowLabel);
+  if (ms > 0) {
+    return { limited: true, resetAt: now + ms };
   }
   // Default 60-minute backoff indicator when exact reset isn't stated.
   return { limited: true, resetAt: now + 60 * 60_000 };
@@ -1052,558 +1105,602 @@ export async function runClaudeCliChatTurn(opts: ClaudeCliTurnOptions): Promise<
   const cwd = opts.workspaceRoot?.trim() || homedir();
 
   let snapshot: ClaudeCliTurnSnapshot | null = null;
-  if (settings.captureTurnDiffs && opts.workspaceRoot?.trim() && opts.applyMode && opts.composerMode !== 'ask') {
-    try {
-      snapshot = await captureWorkspacePreTurnSnapshot(opts.workspaceRoot);
-    } catch (err) {
-      console.warn('[claude-cli] Pre-turn snapshot failed:', err);
-    }
-  }
+  let child: ChildProcess | null = null;
+  let onAbort: (() => void) | null = null;
 
-  if (opts.signal.aborted) {
-    await cleanupMcpConfig();
-    return 'aborted';
-  }
-
-  const child = spawnImpl(cliPath, args, {
-    cwd,
-    env,
-    stdio: ['pipe', 'pipe', 'pipe'],
-    windowsHide: true,
-  });
-  activeChildren.set(opts.conversationId, child);
-
-  let stderrBuf = '';
-  let stdoutBuf = '';
-  let streamedAnyText = false;
-  let sawResult = false;
-  let turnFailed = false;
-  let batchSeq = 0;
-  let currentBatchId = '';
-  const toolInfoById = new Map<
-    string,
-    { name: string; detail: string; startedAt: number; toolBatch: string; toolDiff?: string }
-  >();
-
-  const onAbort = (): void => {
-    killProcessTree(child);
-  };
-  opts.signal.addEventListener('abort', onAbort, { once: true });
-
-  const handleControlRequest = async (msg: Record<string, unknown>): Promise<void> => {
-    const requestId = typeof msg['request_id'] === 'string' ? msg['request_id'] : '';
-    const req =
-      msg['request'] && typeof msg['request'] === 'object' && !Array.isArray(msg['request'])
-        ? (msg['request'] as Record<string, unknown>)
-        : null;
-    if (!requestId || !req) {
-      return;
-    }
-
-    const subtype = typeof req['subtype'] === 'string' ? req['subtype'] : '';
-    if (subtype !== 'can_use_tool') {
-      writeJsonLine(child, {
-        type: 'control_response',
-        request_id: requestId,
-        response: { subtype: 'success' },
-      });
-      return;
-    }
-
-    const toolName = typeof req['tool_name'] === 'string' ? req['tool_name'] : 'Tool';
-    const input = req['input'];
-
-    if (snapshot) {
-      await snapshot.captureBeforeToolEdit(toolName, input);
-    }
-
-    // Special case: AskUserQuestion maps to ValkAde's native agent_question card.
-    if (toolName === 'AskUserQuestion') {
-      const built = buildAgentQuestionFromControl(requestId, input);
-      if (built) {
-        const result = await new Promise<{
-          action: 'submit' | 'cancel';
-          answers: { questionId: string; optionId?: string; otherText?: string }[];
-        }>((resolve) => {
-          pendingQuestions.set(requestId, {
-            conversationId: opts.conversationId,
-            requestId,
-            questions: built.meta,
-            resolve: (action, answers) => resolve({ action, answers }),
-          });
-          opts.emit({ type: 'agent_question', agentQuestion: built.payload });
-        });
-
-        if (result.action === 'cancel' || opts.signal.aborted) {
-          writeJsonLine(child, {
-            type: 'control_response',
-            request_id: requestId,
-            response: { subtype: 'success', behavior: 'deny', message: 'User cancelled the question prompt.' },
-          });
-          return;
-        }
-
-        const answersMap: Record<string, string> = {};
-        for (const q of built.meta) {
-          const ans = result.answers.find((a) => a.questionId === q.id);
-          if (!ans) {
-            continue;
-          }
-          const picked =
-            (ans.otherText && ans.otherText.trim()) ||
-            (ans.optionId ? q.optionLabelById.get(ans.optionId) : '') ||
-            '';
-          if (picked) {
-            answersMap[q.prompt] = picked;
-          }
-        }
-        const updatedInput =
-          input && typeof input === 'object' && !Array.isArray(input)
-            ? { ...(input as Record<string, unknown>), answers: answersMap }
-            : { answers: answersMap };
-        writeJsonLine(child, {
-          type: 'control_response',
-          request_id: requestId,
-          response: { subtype: 'success', behavior: 'allow', updatedInput },
-        });
-        return;
+  try {
+    if (settings.captureTurnDiffs && opts.workspaceRoot?.trim() && opts.applyMode && opts.composerMode !== 'ask') {
+      try {
+        snapshot = await captureWorkspacePreTurnSnapshot(opts.workspaceRoot);
+      } catch (err) {
+        console.warn('[claude-cli] Pre-turn snapshot failed:', err);
       }
     }
-
-    // Read-only ValkAde MCP bridge tools are always auto-allowed, even when Auto Run is off.
-    if (isReadOnlyValkadeBridgeTool(toolName)) {
-      writeJsonLine(child, {
-        type: 'control_response',
-        request_id: requestId,
-        response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
-      });
-      return;
-    }
-
-    // Session-remembered tool approvals pass straight through.
-    const allowedSet = sessionAllowedTools.get(opts.conversationId);
-    if (allowedSet?.has(toolName)) {
-      writeJsonLine(child, {
-        type: 'control_response',
-        request_id: requestId,
-        response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
-      });
-      return;
-    }
-
-    const card = buildAcceptCommandFromControl(requestId, toolName, input);
-    const decision = await new Promise<{ action: AcceptCommandAction; note: string }>((resolve) => {
-      pendingApprovals.set(requestId, {
-        conversationId: opts.conversationId,
-        requestId,
-        toolName,
-        resolve: (action, note) => resolve({ action, note }),
-      });
-      opts.emit({ type: 'accept_command', acceptCommand: card });
-    });
 
     if (opts.signal.aborted) {
-      return;
+      return 'aborted';
     }
 
-    if (decision.action === 'confirm' || decision.action === 'confirm_session') {
-      if (decision.action === 'confirm_session') {
-        let set = sessionAllowedTools.get(opts.conversationId);
-        if (!set) {
-          set = new Set<string>();
-          sessionAllowedTools.set(opts.conversationId, set);
-        }
-        set.add(toolName);
-      }
-      writeJsonLine(child, {
-        type: 'control_response',
-        request_id: requestId,
-        response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
-      });
-    } else {
-      const reason = decision.note.trim() || `User denied ${toolName} in ValkAde.`;
-      writeJsonLine(child, {
-        type: 'control_response',
-        request_id: requestId,
-        response: { subtype: 'success', behavior: 'deny', message: reason },
-      });
-    }
-  };
+    // Prepare user content (including reading attached workspace images) BEFORE spawning so
+    // child error/close listeners are attached synchronously with zero await window.
+    const userContent = await buildClaudeUserMessageContent(
+      opts.message,
+      opts.structuredContent,
+      opts.workspaceRoot,
+    );
 
-  const handleLine = async (rawLine: string): Promise<void> => {
-    const trimmed = rawLine.trim();
-    if (!trimmed) {
-      return;
-    }
-    let msg: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return;
-      }
-      msg = parsed as Record<string, unknown>;
-    } catch {
-      return;
+    if (opts.signal.aborted) {
+      return 'aborted';
     }
 
-    const type = typeof msg['type'] === 'string' ? msg['type'] : '';
+    child = spawnImpl(cliPath, args, {
+      cwd,
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    const spawnedChild = child;
+    activeChildren.set(opts.conversationId, spawnedChild);
 
-    if (type === 'system' && msg['subtype'] === 'init') {
-      const sid = typeof msg['session_id'] === 'string' ? msg['session_id'].trim() : '';
-      if (sid) {
-        setClaudeCliSessionId(opts.conversationId, sid);
-      }
-      return;
-    }
+    let stderrBuf = '';
+    let stdoutBuf = '';
+    let streamedAnyText = false;
+    let streamedTextInCurrentMessage = false;
+    let sawResult = false;
+    let turnFailed = false;
+    let batchSeq = 0;
+    let currentBatchId = '';
+    const toolInfoById = new Map<
+      string,
+      { name: string; detail: string; startedAt: number; toolBatch: string; toolDiff?: string }
+    >();
 
-    if (type === 'control_request') {
-      await handleControlRequest(msg);
-      return;
-    }
-
-    if (type === 'rate_limit_event') {
-      const info =
-        msg['rate_limit_info'] && typeof msg['rate_limit_info'] === 'object' && !Array.isArray(msg['rate_limit_info'])
-          ? (msg['rate_limit_info'] as Record<string, unknown>)
-          : null;
-      if (info) {
-        await recordClaudeCliRateLimitEvent({
-          rateLimitType: typeof info['rateLimitType'] === 'string' ? info['rateLimitType'] : undefined,
-          status: typeof info['status'] === 'string' ? info['status'] : undefined,
-          utilization: typeof info['utilization'] === 'number' ? info['utilization'] : undefined,
-          resetsAt: typeof info['resetsAt'] === 'number' ? info['resetsAt'] : undefined,
-        });
-      }
-      return;
-    }
-
-    if (type === 'stream_event') {
-      const ev =
-        msg['event'] && typeof msg['event'] === 'object' && !Array.isArray(msg['event'])
-          ? (msg['event'] as Record<string, unknown>)
-          : null;
-      if (!ev) {
-        return;
-      }
-      const evType = typeof ev['type'] === 'string' ? ev['type'] : '';
-      if (evType === 'content_block_delta') {
-        const delta =
-          ev['delta'] && typeof ev['delta'] === 'object' && !Array.isArray(ev['delta'])
-            ? (ev['delta'] as Record<string, unknown>)
-            : null;
-        if (!delta) {
+    // Attach error/close listeners synchronously before any await so fast exits or spawn errors are never missed.
+    const exitCodePromise = new Promise<number | null>((resolve) => {
+      let resolved = false;
+      const settle = (code: number | null): void => {
+        if (resolved) {
           return;
         }
-        if (delta['type'] === 'text_delta' && typeof delta['text'] === 'string' && delta['text']) {
-          streamedAnyText = true;
-          opts.emit({ type: 'chunk', delta: delta['text'] });
-        } else if (delta['type'] === 'thinking_delta' && typeof delta['thinking'] === 'string' && delta['thinking']) {
-          opts.emit({ type: 'chunk', delta: delta['thinking'], streamTag: 'thinking' });
-        }
-      } else if (evType === 'message_start') {
-        currentBatchId = `cc-batch-${++batchSeq}`;
-      } else if (evType === 'content_block_start') {
-        const block =
-          ev['content_block'] && typeof ev['content_block'] === 'object' && !Array.isArray(ev['content_block'])
-            ? (ev['content_block'] as Record<string, unknown>)
-            : null;
-        if (block?.['type'] === 'tool_use') {
-          const id = typeof block['id'] === 'string' ? block['id'] : `tool-${Date.now()}`;
-          const name = typeof block['name'] === 'string' ? block['name'] : 'Tool';
-          const toolBatch = currentBatchId || `cc-batch-${++batchSeq}`;
-          const prev = toolInfoById.get(id);
-          toolInfoById.set(id, {
-            name,
-            detail: prev?.detail ?? '',
-            startedAt: prev?.startedAt ?? Date.now(),
-            toolBatch,
-          });
-          opts.emit({
-            type: 'status',
-            status: {
-              id,
-              label: name,
-              detail: prev?.detail ?? '',
-              state: 'running',
-              source: 'tool',
-              toolBatch,
-            },
-          });
-        }
-      }
-      return;
-    }
+        resolved = true;
+        cancelConversationPendingCards(opts.conversationId);
+        resolve(code);
+      };
+      spawnedChild.once('error', (err) => {
+        stderrBuf += err.message;
+        settle(1);
+      });
+      spawnedChild.once('close', (code) => {
+        settle(code);
+      });
+    });
 
-    if (type === 'assistant') {
-      const message =
-        msg['message'] && typeof msg['message'] === 'object' && !Array.isArray(msg['message'])
-          ? (msg['message'] as Record<string, unknown>)
+    onAbort = (): void => {
+      cancelConversationPendingCards(opts.conversationId);
+      killProcessTree(spawnedChild);
+    };
+    opts.signal.addEventListener('abort', onAbort, { once: true });
+
+    const handleControlRequest = async (msg: Record<string, unknown>): Promise<void> => {
+      const requestId = typeof msg['request_id'] === 'string' ? msg['request_id'] : '';
+      const req =
+        msg['request'] && typeof msg['request'] === 'object' && !Array.isArray(msg['request'])
+          ? (msg['request'] as Record<string, unknown>)
           : null;
-      const content = Array.isArray(message?.['content']) ? message!['content'] : [];
-      const assistantBatch = currentBatchId || `cc-batch-${++batchSeq}`;
-      for (const block of content) {
-        if (!block || typeof block !== 'object' || Array.isArray(block)) {
-          continue;
-        }
-        const b = block as Record<string, unknown>;
-        if (b['type'] === 'tool_use') {
-          const id = typeof b['id'] === 'string' ? b['id'] : `tool-${Date.now()}`;
-          const name = typeof b['name'] === 'string' ? b['name'] : 'Tool';
-          const detail = summarizeToolInput(name, b['input'], opts.workspaceRoot);
-          const toolDiff = buildClaudeEditToolDiff(name, b['input']);
-          const prev = toolInfoById.get(id);
-          const startedAt = prev?.startedAt ?? Date.now();
-          const toolBatch = prev?.toolBatch || assistantBatch;
-          toolInfoById.set(id, { name, detail, startedAt, toolBatch, toolDiff });
-          if (snapshot) {
-            await snapshot.captureBeforeToolEdit(name, b['input']);
-          }
-          opts.emit({
-            type: 'status',
-            status: {
-              id,
-              label: name,
-              detail,
-              state: 'running',
-              source: 'tool',
-              toolBatch,
-            },
-          });
-        } else if (b['type'] === 'text' && typeof b['text'] === 'string' && b['text'] && !streamedAnyText) {
-          streamedAnyText = true;
-          opts.emit({ type: 'chunk', delta: b['text'] });
-        }
+      if (!requestId || !req) {
+        return;
       }
-      return;
-    }
 
-    if (type === 'user') {
-      const message =
-        msg['message'] && typeof msg['message'] === 'object' && !Array.isArray(msg['message'])
-          ? (msg['message'] as Record<string, unknown>)
-          : null;
-      const content = Array.isArray(message?.['content']) ? message!['content'] : [];
-      for (const block of content) {
-        if (!block || typeof block !== 'object' || Array.isArray(block)) {
-          continue;
-        }
-        const b = block as Record<string, unknown>;
-        if (b['type'] === 'tool_result' && typeof b['tool_use_id'] === 'string') {
-          const id = b['tool_use_id'];
-          const info = toolInfoById.get(id);
-          const isErr = b['is_error'] === true;
-          const resultText = extractToolResultText(b['content']).trim();
-          const durationMs = info ? Math.max(0, Date.now() - info.startedAt) : undefined;
-          const detail =
-            isErr && resultText
-              ? `${info?.detail ? `${info.detail} — ` : ''}${resultText.slice(0, 140)}`
-              : info?.detail ?? '';
-          if (
-            resultText &&
-            !isErr &&
-            (info?.name === 'Read' ||
-              info?.name === 'Grep' ||
-              info?.name === 'Glob' ||
-              info?.name === 'Bash' ||
-              info?.name?.startsWith('mcp__valkade__'))
-          ) {
-            opts.emit({
-              type: 'tool_read_chunk',
-              statusId: id,
-              delta: resultText.slice(0, 4_000),
-            });
-          }
-          if (!isErr && info?.name === 'mcp__valkade__propose_theme') {
-            await drainValkadeBridgeEvents(opts.conversationId, opts.emit);
-          }
-          opts.emit({
-            type: 'status',
-            status: {
-              id,
-              label: info?.name ?? 'Tool',
-              detail,
-              state: isErr ? 'error' : 'complete',
-              source: 'tool',
-              ...(info?.toolBatch ? { toolBatch: info.toolBatch } : {}),
-              ...(!isErr && info?.toolDiff ? { toolDiff: info.toolDiff } : {}),
-              ...(durationMs !== undefined ? { durationMs } : {}),
-            },
-          });
-        }
-      }
-      return;
-    }
-
-    if (type === 'result') {
-      sawResult = true;
-      const sid = typeof msg['session_id'] === 'string' ? msg['session_id'].trim() : '';
-      if (sid) {
-        setClaudeCliSessionId(opts.conversationId, sid);
-      }
-      const usage =
-        msg['usage'] && typeof msg['usage'] === 'object' && !Array.isArray(msg['usage'])
-          ? (msg['usage'] as Record<string, unknown>)
-          : null;
-      const inTok = typeof usage?.['input_tokens'] === 'number' ? usage['input_tokens'] : 0;
-      const outTok = typeof usage?.['output_tokens'] === 'number' ? usage['output_tokens'] : 0;
-      const cacheRead = typeof usage?.['cache_read_input_tokens'] === 'number' ? usage['cache_read_input_tokens'] : 0;
-      const cacheCreate =
-        typeof usage?.['cache_creation_input_tokens'] === 'number' ? usage['cache_creation_input_tokens'] : 0;
-      const durationMs = typeof msg['duration_ms'] === 'number' ? msg['duration_ms'] : undefined;
-
-      if (inTok > 0 || outTok > 0 || cacheRead > 0) {
-        const promptTotal = inTok + cacheRead + cacheCreate;
-        opts.emit({
-          type: 'token_usage',
-          inputTokens: promptTotal,
-          outputTokens: outTok,
-          totalTokens: promptTotal + outTok,
-          ...(durationMs && durationMs > 0 ? { generationMs: durationMs } : {}),
+      const subtype = typeof req['subtype'] === 'string' ? req['subtype'] : '';
+      if (subtype !== 'can_use_tool') {
+        writeJsonLine(spawnedChild, {
+          type: 'control_response',
+          request_id: requestId,
+          response: { subtype: 'success' },
         });
+        return;
       }
 
-      const isError = msg['is_error'] === true || msg['subtype'] === 'error_during_execution';
-      const resultText = typeof msg['result'] === 'string' ? msg['result'].trim() : '';
-      const rateLimit = isError ? parseClaudeRateLimitReset(resultText || stderrBuf) : { limited: false, resetAt: 0 };
+      const toolName = typeof req['tool_name'] === 'string' ? req['tool_name'] : 'Tool';
+      const input = req['input'];
 
-      await recordClaudeCliTurnUsage({
-        ...(rateLimit.limited
-          ? {
-              rateLimitedUntil: rateLimit.resetAt,
-              rateLimitMessage: resultText || 'Claude subscription rate limit reached.',
+      if (snapshot) {
+        await snapshot.captureBeforeToolEdit(toolName, input);
+      }
+
+      // Special case: AskUserQuestion maps to ValkAde's native agent_question card.
+      if (toolName === 'AskUserQuestion') {
+        const built = buildAgentQuestionFromControl(requestId, input);
+        if (built) {
+          const result = await new Promise<{
+            action: 'submit' | 'cancel';
+            answers: { questionId: string; optionId?: string; otherText?: string }[];
+          }>((resolve) => {
+            if (opts.signal.aborted) {
+              resolve({ action: 'cancel', answers: [] });
+              return;
             }
-          : { clearRateLimit: !isError }),
+            pendingQuestions.set(requestId, {
+              conversationId: opts.conversationId,
+              requestId,
+              questions: built.meta,
+              resolve: (action, answers) => resolve({ action, answers }),
+            });
+            opts.emit({ type: 'agent_question', agentQuestion: built.payload });
+          });
+
+          if (result.action === 'cancel' || opts.signal.aborted) {
+            writeJsonLine(spawnedChild, {
+              type: 'control_response',
+              request_id: requestId,
+              response: { subtype: 'success', behavior: 'deny', message: 'User cancelled the question prompt.' },
+            });
+            return;
+          }
+
+          const answersMap: Record<string, string> = {};
+          for (const q of built.meta) {
+            const ans = result.answers.find((a) => a.questionId === q.id);
+            if (!ans) {
+              continue;
+            }
+            const picked =
+              (ans.otherText && ans.otherText.trim()) ||
+              (ans.optionId ? q.optionLabelById.get(ans.optionId) : '') ||
+              '';
+            if (picked) {
+              answersMap[q.prompt] = picked;
+            }
+          }
+          const updatedInput =
+            input && typeof input === 'object' && !Array.isArray(input)
+              ? { ...(input as Record<string, unknown>), answers: answersMap }
+              : { answers: answersMap };
+          writeJsonLine(spawnedChild, {
+            type: 'control_response',
+            request_id: requestId,
+            response: { subtype: 'success', behavior: 'allow', updatedInput },
+          });
+          return;
+        }
+      }
+
+      // Read-only ValkAde MCP bridge tools are always auto-allowed, even when Auto Run is off.
+      if (isReadOnlyValkadeBridgeTool(toolName)) {
+        writeJsonLine(spawnedChild, {
+          type: 'control_response',
+          request_id: requestId,
+          response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
+        });
+        return;
+      }
+
+      // Session-remembered tool approvals pass straight through.
+      const allowedSet = sessionAllowedTools.get(opts.conversationId);
+      if (allowedSet?.has(toolName)) {
+        writeJsonLine(spawnedChild, {
+          type: 'control_response',
+          request_id: requestId,
+          response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
+        });
+        return;
+      }
+
+      const card = buildAcceptCommandFromControl(requestId, toolName, input);
+      const decision = await new Promise<{ action: AcceptCommandAction; note: string }>((resolve) => {
+        if (opts.signal.aborted) {
+          resolve({ action: 'cancel', note: '' });
+          return;
+        }
+        pendingApprovals.set(requestId, {
+          conversationId: opts.conversationId,
+          requestId,
+          toolName,
+          resolve: (action, note) => resolve({ action, note }),
+        });
+        opts.emit({ type: 'accept_command', acceptCommand: card });
       });
 
-      if (isError) {
-        turnFailed = true;
-        const detail = resultText || 'Claude Code returned an error.';
+      if (opts.signal.aborted) {
+        return;
+      }
+
+      if (decision.action === 'confirm' || decision.action === 'confirm_session') {
+        if (decision.action === 'confirm_session') {
+          let set = sessionAllowedTools.get(opts.conversationId);
+          if (!set) {
+            set = new Set<string>();
+            sessionAllowedTools.set(opts.conversationId, set);
+          }
+          set.add(toolName);
+        }
+        writeJsonLine(spawnedChild, {
+          type: 'control_response',
+          request_id: requestId,
+          response: { subtype: 'success', behavior: 'allow', updatedInput: input ?? {} },
+        });
+      } else {
+        const reason = decision.note.trim() || `User denied ${toolName} in ValkAde.`;
+        writeJsonLine(spawnedChild, {
+          type: 'control_response',
+          request_id: requestId,
+          response: { subtype: 'success', behavior: 'deny', message: reason },
+        });
+      }
+    };
+
+    const handleLine = async (rawLine: string): Promise<void> => {
+      const trimmed = rawLine.trim();
+      if (!trimmed) {
+        return;
+      }
+      let msg: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          return;
+        }
+        msg = parsed as Record<string, unknown>;
+      } catch {
+        return;
+      }
+
+      const type = typeof msg['type'] === 'string' ? msg['type'] : '';
+
+      if (type === 'system' && msg['subtype'] === 'init') {
+        const sid = typeof msg['session_id'] === 'string' ? msg['session_id'].trim() : '';
+        if (sid) {
+          setClaudeCliSessionId(opts.conversationId, sid);
+        }
+        return;
+      }
+
+      if (type === 'control_request') {
+        await handleControlRequest(msg);
+        return;
+      }
+
+      if (type === 'rate_limit_event') {
+        const info =
+          msg['rate_limit_info'] && typeof msg['rate_limit_info'] === 'object' && !Array.isArray(msg['rate_limit_info'])
+            ? (msg['rate_limit_info'] as Record<string, unknown>)
+            : null;
+        if (info) {
+          await recordClaudeCliRateLimitEvent({
+            rateLimitType: typeof info['rateLimitType'] === 'string' ? info['rateLimitType'] : undefined,
+            status: typeof info['status'] === 'string' ? info['status'] : undefined,
+            utilization: typeof info['utilization'] === 'number' ? info['utilization'] : undefined,
+            resetsAt: typeof info['resetsAt'] === 'number' ? info['resetsAt'] : undefined,
+          });
+        }
+        return;
+      }
+
+      if (type === 'stream_event') {
+        const ev =
+          msg['event'] && typeof msg['event'] === 'object' && !Array.isArray(msg['event'])
+            ? (msg['event'] as Record<string, unknown>)
+            : null;
+        if (!ev) {
+          return;
+        }
+        const evType = typeof ev['type'] === 'string' ? ev['type'] : '';
+        if (evType === 'content_block_delta') {
+          const delta =
+            ev['delta'] && typeof ev['delta'] === 'object' && !Array.isArray(ev['delta'])
+              ? (ev['delta'] as Record<string, unknown>)
+              : null;
+          if (!delta) {
+            return;
+          }
+          if (delta['type'] === 'text_delta' && typeof delta['text'] === 'string' && delta['text']) {
+            streamedAnyText = true;
+            streamedTextInCurrentMessage = true;
+            opts.emit({ type: 'chunk', delta: delta['text'] });
+          } else if (delta['type'] === 'thinking_delta' && typeof delta['thinking'] === 'string' && delta['thinking']) {
+            opts.emit({ type: 'chunk', delta: delta['thinking'], streamTag: 'thinking' });
+          }
+        } else if (evType === 'message_start') {
+          currentBatchId = `cc-batch-${++batchSeq}`;
+          streamedTextInCurrentMessage = false;
+        } else if (evType === 'content_block_start') {
+          const block =
+            ev['content_block'] && typeof ev['content_block'] === 'object' && !Array.isArray(ev['content_block'])
+              ? (ev['content_block'] as Record<string, unknown>)
+              : null;
+          if (block?.['type'] === 'tool_use') {
+            const id = typeof block['id'] === 'string' ? block['id'] : `tool-${Date.now()}`;
+            const name = typeof block['name'] === 'string' ? block['name'] : 'Tool';
+            const toolBatch = currentBatchId || `cc-batch-${++batchSeq}`;
+            const prev = toolInfoById.get(id);
+            toolInfoById.set(id, {
+              name,
+              detail: prev?.detail ?? '',
+              startedAt: prev?.startedAt ?? Date.now(),
+              toolBatch,
+            });
+            opts.emit({
+              type: 'status',
+              status: {
+                id,
+                label: name,
+                detail: prev?.detail ?? '',
+                state: 'running',
+                source: 'tool',
+                toolBatch,
+              },
+            });
+          }
+        }
+        return;
+      }
+
+      if (type === 'assistant') {
+        const message =
+          msg['message'] && typeof msg['message'] === 'object' && !Array.isArray(msg['message'])
+            ? (msg['message'] as Record<string, unknown>)
+            : null;
+        const content = Array.isArray(message?.['content']) ? message!['content'] : [];
+        const assistantBatch = currentBatchId || `cc-batch-${++batchSeq}`;
+        for (const block of content) {
+          if (!block || typeof block !== 'object' || Array.isArray(block)) {
+            continue;
+          }
+          const b = block as Record<string, unknown>;
+          if (b['type'] === 'tool_use') {
+            const id = typeof b['id'] === 'string' ? b['id'] : `tool-${Date.now()}`;
+            const name = typeof b['name'] === 'string' ? b['name'] : 'Tool';
+            const detail = summarizeToolInput(name, b['input'], opts.workspaceRoot);
+            const toolDiff = buildClaudeEditToolDiff(name, b['input']);
+            const prev = toolInfoById.get(id);
+            const startedAt = prev?.startedAt ?? Date.now();
+            const toolBatch = prev?.toolBatch || assistantBatch;
+            toolInfoById.set(id, { name, detail, startedAt, toolBatch, toolDiff });
+            if (snapshot) {
+              await snapshot.captureBeforeToolEdit(name, b['input']);
+            }
+            opts.emit({
+              type: 'status',
+              status: {
+                id,
+                label: name,
+                detail,
+                state: 'running',
+                source: 'tool',
+                toolBatch,
+              },
+            });
+          } else if (
+            b['type'] === 'text' &&
+            typeof b['text'] === 'string' &&
+            b['text'] &&
+            !streamedTextInCurrentMessage
+          ) {
+            streamedAnyText = true;
+            opts.emit({ type: 'chunk', delta: b['text'] });
+          }
+        }
+        streamedTextInCurrentMessage = false;
+        return;
+      }
+
+      if (type === 'user') {
+        const message =
+          msg['message'] && typeof msg['message'] === 'object' && !Array.isArray(msg['message'])
+            ? (msg['message'] as Record<string, unknown>)
+            : null;
+        const content = Array.isArray(message?.['content']) ? message!['content'] : [];
+        for (const block of content) {
+          if (!block || typeof block !== 'object' || Array.isArray(block)) {
+            continue;
+          }
+          const b = block as Record<string, unknown>;
+          if (b['type'] === 'tool_result' && typeof b['tool_use_id'] === 'string') {
+            const id = b['tool_use_id'];
+            const info = toolInfoById.get(id);
+            const isErr = b['is_error'] === true;
+            const resultText = extractToolResultText(b['content']).trim();
+            const durationMs = info ? Math.max(0, Date.now() - info.startedAt) : undefined;
+            const detail =
+              isErr && resultText
+                ? `${info?.detail ? `${info.detail} — ` : ''}${resultText.slice(0, 140)}`
+                : info?.detail ?? '';
+            if (
+              resultText &&
+              !isErr &&
+              (info?.name === 'Read' ||
+                info?.name === 'Grep' ||
+                info?.name === 'Glob' ||
+                info?.name === 'Bash' ||
+                info?.name === 'PowerShell' ||
+                info?.name?.startsWith('mcp__valkade__'))
+            ) {
+              opts.emit({
+                type: 'tool_read_chunk',
+                statusId: id,
+                delta: resultText.slice(0, 4_000),
+              });
+            }
+            if (!isErr && info?.name === 'mcp__valkade__propose_theme') {
+              await drainValkadeBridgeEvents(opts.conversationId, opts.emit);
+            }
+            opts.emit({
+              type: 'status',
+              status: {
+                id,
+                label: info?.name ?? 'Tool',
+                detail,
+                state: isErr ? 'error' : 'complete',
+                source: 'tool',
+                ...(info?.toolBatch ? { toolBatch: info.toolBatch } : {}),
+                ...(!isErr && info?.toolDiff ? { toolDiff: info.toolDiff } : {}),
+                ...(durationMs !== undefined ? { durationMs } : {}),
+              },
+            });
+          }
+        }
+        return;
+      }
+
+      if (type === 'result') {
+        sawResult = true;
+        const sid = typeof msg['session_id'] === 'string' ? msg['session_id'].trim() : '';
+        if (sid) {
+          setClaudeCliSessionId(opts.conversationId, sid);
+        }
+        const usage =
+          msg['usage'] && typeof msg['usage'] === 'object' && !Array.isArray(msg['usage'])
+            ? (msg['usage'] as Record<string, unknown>)
+            : null;
+        const inTok = typeof usage?.['input_tokens'] === 'number' ? usage['input_tokens'] : 0;
+        const outTok = typeof usage?.['output_tokens'] === 'number' ? usage['output_tokens'] : 0;
+        const cacheRead = typeof usage?.['cache_read_input_tokens'] === 'number' ? usage['cache_read_input_tokens'] : 0;
+        const cacheCreate =
+          typeof usage?.['cache_creation_input_tokens'] === 'number' ? usage['cache_creation_input_tokens'] : 0;
+        const durationMs = typeof msg['duration_ms'] === 'number' ? msg['duration_ms'] : undefined;
+
+        if (inTok > 0 || outTok > 0 || cacheRead > 0 || cacheCreate > 0) {
+          const promptTotal = inTok + cacheRead + cacheCreate;
+          opts.emit({
+            type: 'token_usage',
+            inputTokens: promptTotal,
+            outputTokens: outTok,
+            totalTokens: promptTotal + outTok,
+            ...(durationMs && durationMs > 0 ? { generationMs: durationMs } : {}),
+          });
+        }
+
+        const isError = msg['is_error'] === true || msg['subtype'] === 'error_during_execution';
+        const resultText = typeof msg['result'] === 'string' ? msg['result'].trim() : '';
+        const rateLimit = isError ? parseClaudeRateLimitReset(resultText || stderrBuf) : { limited: false, resetAt: 0 };
+
+        await recordClaudeCliTurnUsage({
+          ...(rateLimit.limited
+            ? {
+                rateLimitedUntil: rateLimit.resetAt,
+                rateLimitMessage: resultText || 'Claude subscription rate limit reached.',
+              }
+            : { clearRateLimit: !isError }),
+        });
+
+        if (isError) {
+          turnFailed = true;
+          const detail = resultText || 'Claude Code returned an error.';
+          opts.emit({
+            type: 'status',
+            status: {
+              id: 'claude-cli-error',
+              label: rateLimit.limited ? 'Claude subscription limit reached' : 'Claude Code error',
+              detail,
+              state: 'error',
+              source: 'agent',
+            },
+          });
+          if (!streamedAnyText) {
+            opts.emit({ type: 'chunk', delta: detail });
+          }
+        } else if (resultText && !streamedAnyText) {
+          streamedAnyText = true;
+          opts.emit({ type: 'chunk', delta: resultText });
+        }
+
+        // Close stdin so the persistent stream-json process terminates cleanly after this turn.
+        if (spawnedChild.stdin && !spawnedChild.stdin.destroyed) {
+          spawnedChild.stdin.end();
+        }
+      }
+    };
+
+    let chain: Promise<void> = Promise.resolve();
+    const enqueueLine = (line: string): void => {
+      chain = chain.then(() =>
+        handleLine(line).catch((err) => {
+          console.warn('[claude-cli] Error handling stream line:', err);
+        }),
+      );
+    };
+
+    spawnedChild.stdout?.setEncoding('utf-8');
+    spawnedChild.stdout?.on('data', (chunk: string) => {
+      stdoutBuf += chunk;
+      const lines = stdoutBuf.split('\n');
+      stdoutBuf = lines.pop() ?? '';
+      for (const line of lines) {
+        enqueueLine(line);
+      }
+    });
+
+    spawnedChild.stderr?.setEncoding('utf-8');
+    spawnedChild.stderr?.on('data', (chunk: string) => {
+      if (stderrBuf.length < 16_384) {
+        stderrBuf += chunk;
+      }
+    });
+
+    // Send the user prompt (with any attached images / workspace file blocks) over NDJSON stdin.
+    writeJsonLine(spawnedChild, {
+      type: 'user',
+      message: { role: 'user', content: userContent },
+    });
+
+    const exitCode = await exitCodePromise;
+
+    if (stdoutBuf.trim()) {
+      enqueueLine(stdoutBuf);
+    }
+    await chain;
+
+    const hadMcpBridge = Boolean(mcpConfigPath);
+    await cleanupMcpConfig();
+    if (hadMcpBridge && !opts.signal.aborted) {
+      await drainValkadeBridgeEvents(opts.conversationId, opts.emit);
+    }
+
+    if (snapshot) {
+      try {
+        await recordClaudeCliTurnDiffsToJournal(snapshot, opts.conversationId, opts.userMessageId);
+      } catch (err) {
+        console.warn('[claude-cli] Post-turn diff journal failed:', err);
+      }
+    }
+
+    if (opts.signal.aborted) {
+      return 'aborted';
+    }
+
+    if (turnFailed || (!sawResult && exitCode !== 0)) {
+      if (!sawResult) {
+        const msg = stderrBuf.trim() || `Claude Code exited with code ${exitCode ?? 'unknown'}.`;
+        const rl = parseClaudeRateLimitReset(msg);
+        if (rl.limited) {
+          await recordClaudeCliTurnUsage({ rateLimitedUntil: rl.resetAt, rateLimitMessage: msg });
+        }
         opts.emit({
           type: 'status',
           status: {
-            id: 'claude-cli-error',
-            label: rateLimit.limited ? 'Claude subscription limit reached' : 'Claude Code error',
-            detail,
+            id: 'claude-cli-exit',
+            label: rl.limited ? 'Claude subscription limit reached' : 'Claude Code failed',
+            detail: msg,
             state: 'error',
             source: 'agent',
           },
         });
         if (!streamedAnyText) {
-          opts.emit({ type: 'chunk', delta: detail });
+          opts.emit({ type: 'chunk', delta: `Error: ${msg}` });
         }
-      } else if (resultText && !streamedAnyText) {
-        streamedAnyText = true;
-        opts.emit({ type: 'chunk', delta: resultText });
       }
-
-      // Close stdin so the persistent stream-json process terminates cleanly after this turn.
-      if (child.stdin && !child.stdin.destroyed) {
-        child.stdin.end();
-      }
+      return 'error';
     }
-  };
 
-  let chain: Promise<void> = Promise.resolve();
-  child.stdout?.setEncoding('utf-8');
-  child.stdout?.on('data', (chunk: string) => {
-    stdoutBuf += chunk;
-    const lines = stdoutBuf.split('\n');
-    stdoutBuf = lines.pop() ?? '';
-    for (const line of lines) {
-      chain = chain.then(() => handleLine(line));
+    return 'completed';
+  } finally {
+    if (onAbort) {
+      opts.signal.removeEventListener('abort', onAbort);
     }
-  });
-
-  child.stderr?.setEncoding('utf-8');
-  child.stderr?.on('data', (chunk: string) => {
-    if (stderrBuf.length < 16_384) {
-      stderrBuf += chunk;
+    if (child && activeChildren.get(opts.conversationId) === child) {
+      activeChildren.delete(opts.conversationId);
     }
-  });
-
-  // Send the user prompt (with any attached images / workspace file blocks) over NDJSON stdin.
-  const userContent = await buildClaudeUserMessageContent(
-    opts.message,
-    opts.structuredContent,
-    opts.workspaceRoot,
-  );
-  writeJsonLine(child, {
-    type: 'user',
-    message: { role: 'user', content: userContent },
-  });
-
-  const exitCode = await new Promise<number | null>((resolve) => {
-    child.once('error', (err) => {
-      stderrBuf += err.message;
-      resolve(1);
-    });
-    child.once('close', (code) => {
-      resolve(code);
-    });
-  });
-
-  if (stdoutBuf.trim()) {
-    chain = chain.then(() => handleLine(stdoutBuf));
+    cancelConversationPendingCards(opts.conversationId);
+    await cleanupMcpConfig();
   }
-  await chain;
-
-  const hadMcpBridge = Boolean(mcpConfigPath);
-  await cleanupMcpConfig();
-  if (hadMcpBridge && !opts.signal.aborted) {
-    await drainValkadeBridgeEvents(opts.conversationId, opts.emit);
-  }
-
-  opts.signal.removeEventListener('abort', onAbort);
-  if (activeChildren.get(opts.conversationId) === child) {
-    activeChildren.delete(opts.conversationId);
-  }
-  // Clean up any unanswered cards tied to this conversation.
-  for (const [reqId, p] of pendingApprovals.entries()) {
-    if (p.conversationId === opts.conversationId) {
-      pendingApprovals.delete(reqId);
-    }
-  }
-  for (const [reqId, q] of pendingQuestions.entries()) {
-    if (q.conversationId === opts.conversationId) {
-      pendingQuestions.delete(reqId);
-    }
-  }
-
-  if (snapshot) {
-    try {
-      await recordClaudeCliTurnDiffsToJournal(snapshot, opts.conversationId, opts.userMessageId);
-    } catch (err) {
-      console.warn('[claude-cli] Post-turn diff journal failed:', err);
-    }
-  }
-
-  if (opts.signal.aborted) {
-    return 'aborted';
-  }
-
-  if (turnFailed || (!sawResult && exitCode !== 0)) {
-    if (!sawResult) {
-      const msg = stderrBuf.trim() || `Claude Code exited with code ${exitCode ?? 'unknown'}.`;
-      const rl = parseClaudeRateLimitReset(msg);
-      if (rl.limited) {
-        await recordClaudeCliTurnUsage({ rateLimitedUntil: rl.resetAt, rateLimitMessage: msg });
-      }
-      opts.emit({
-        type: 'status',
-        status: {
-          id: 'claude-cli-exit',
-          label: rl.limited ? 'Claude subscription limit reached' : 'Claude Code failed',
-          detail: msg,
-          state: 'error',
-          source: 'agent',
-        },
-      });
-      if (!streamedAnyText) {
-        opts.emit({ type: 'chunk', delta: `Error: ${msg}` });
-      }
-    }
-    return 'error';
-  }
-
-  return 'completed';
 }

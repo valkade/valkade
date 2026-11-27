@@ -711,7 +711,11 @@ export async function scanClaudeCliProjectUsage(
         (typeof obj['requestId'] === 'string' && obj['requestId'].trim()) ||
         `anon-${++fallbackCounter}`;
       const prev = seenMsgUsage.get(msgId);
-      if (!prev || billable >= prev.billableTokens) {
+      if (
+        !prev ||
+        billable > prev.billableTokens ||
+        (billable === prev.billableTokens && cacheRead >= prev.cacheReadTokens)
+      ) {
         seenMsgUsage.set(msgId, { ts, billableTokens: billable, cacheReadTokens: cacheRead });
       }
     }
@@ -789,8 +793,20 @@ export async function recordClaudeCliRateLimitEvent(
     data.rateLimitedUntil = resetsAt && resetsAt > now ? resetsAt : now + 60 * 60_000;
     data.rateLimitMessage = 'Claude subscription limit reached.';
   } else if (status === 'allowed') {
-    delete data.rateLimitedUntil;
-    delete data.rateLimitMessage;
+    const active5h = normalizeRateWindow(data.fiveHour, now);
+    const active7d = normalizeRateWindow(data.sevenDay, now);
+    const otherRejectedUntil =
+      active5h.status === 'rejected'
+        ? active5h.resetsAt
+        : active7d.status === 'rejected'
+          ? active7d.resetsAt
+          : undefined;
+    if (otherRejectedUntil && otherRejectedUntil > now) {
+      data.rateLimitedUntil = otherRejectedUntil;
+    } else if (active5h.status !== 'rejected' && active7d.status !== 'rejected') {
+      delete data.rateLimitedUntil;
+      delete data.rateLimitMessage;
+    }
   }
 
   await persistRateLimit(data);
@@ -831,10 +847,20 @@ export async function recordClaudeCliTurnUsage(opts: {
       observedAt: now,
     };
     changed = true;
-  } else if (opts.clearRateLimit && (data.rateLimitedUntil || data.rateLimitMessage)) {
-    delete data.rateLimitedUntil;
-    delete data.rateLimitMessage;
-    changed = true;
+  } else if (opts.clearRateLimit) {
+    if (data.rateLimitedUntil || data.rateLimitMessage) {
+      delete data.rateLimitedUntil;
+      delete data.rateLimitMessage;
+      changed = true;
+    }
+    if (data.fiveHour?.status === 'rejected') {
+      delete data.fiveHour;
+      changed = true;
+    }
+    if (data.sevenDay?.status === 'rejected') {
+      delete data.sevenDay;
+      changed = true;
+    }
   }
 
   if (changed) {
@@ -892,11 +918,15 @@ export async function getClaudeCliStatus(opts?: {
   const rlData = await ensureRateLimitLoaded();
   const fiveHour = normalizeRateWindow(rlData.fiveHour, now);
   const sevenDay = normalizeRateWindow(rlData.sevenDay, now);
+  const rejectedUntil = Math.max(
+    fiveHour.status === 'rejected' && fiveHour.resetsAt && fiveHour.resetsAt > now ? fiveHour.resetsAt : 0,
+    sevenDay.status === 'rejected' && sevenDay.resetsAt && sevenDay.resetsAt > now ? sevenDay.resetsAt : 0,
+  );
   const rateLimitedUntil =
     typeof rlData.rateLimitedUntil === 'number' && rlData.rateLimitedUntil > now
       ? rlData.rateLimitedUntil
-      : fiveHour.status === 'rejected' && fiveHour.resetsAt
-        ? fiveHour.resetsAt
+      : rejectedUntil > now
+        ? rejectedUntil
         : undefined;
   const rateLimitMessage = rateLimitedUntil ? rlData.rateLimitMessage : undefined;
 

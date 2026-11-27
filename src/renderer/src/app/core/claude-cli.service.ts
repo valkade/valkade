@@ -29,11 +29,20 @@ export class ClaudeCliService {
   readonly ready = computed(() => this.installed() && this.loggedIn());
   readonly rateLimited = computed(() => {
     const st = this.status();
+    const now = Date.now();
     const until = st?.rateLimitedUntil;
-    if (typeof until === 'number' && until > Date.now()) {
+    if (typeof until === 'number' && until > now) {
       return true;
     }
-    return st?.usage?.fiveHour?.status === 'rejected' || st?.usage?.sevenDay?.status === 'rejected';
+    const fiveHour = st?.usage?.fiveHour;
+    if (fiveHour?.status === 'rejected' && (!fiveHour.resetsAt || fiveHour.resetsAt > now)) {
+      return true;
+    }
+    const sevenDay = st?.usage?.sevenDay;
+    if (sevenDay?.status === 'rejected' && (!sevenDay.resetsAt || sevenDay.resetsAt > now)) {
+      return true;
+    }
+    return false;
   });
 
   private loadGen = 0;
@@ -79,13 +88,16 @@ export class ClaudeCliService {
 
   async updateSettings(settings: Partial<ClaudeCliSettings>): Promise<boolean> {
     this.saving.set(true);
-    this.loadGen += 1;
+    const gen = ++this.loadGen;
+    this.loading.set(false);
     try {
       const res = await this.electron.claudeCliUpdateSettings({ settings });
-      if (res.ok && res.status) {
+      if (gen === this.loadGen && res.ok && res.status) {
         this.status.set(res.status);
       }
-      this.error.set(res.ok ? '' : res.error);
+      if (gen === this.loadGen) {
+        this.error.set(res.ok ? '' : res.error);
+      }
       return res.ok;
     } finally {
       this.saving.set(false);

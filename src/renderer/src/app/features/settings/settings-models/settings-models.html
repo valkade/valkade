@@ -633,7 +633,7 @@
                     } @else if (claudeCli.rateLimited()) {
                       <div class='claude-cli-callout claude-cli-callout--err' role='alert'>
                         <strong>
-                          5-hour subscription limit reached
+                          {{ claudeCliRateLimitTitle() }}
                           @if (claudeCliResetCountdown(); as rem) {
                             · resets in {{ rem }}
                           }

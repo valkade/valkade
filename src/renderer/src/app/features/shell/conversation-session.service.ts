@@ -1687,7 +1687,7 @@ export class ConversationSessionService {
       const detailTarget = toolTargetFromRunningDetail(status.detail ?? '');
       runs.set(status.id, {
         label: status.label ?? '',
-        command: prev?.command || detailTarget,
+        command: detailTarget || prev?.command || '',
       });
     } else if (status.state === 'complete' || status.state === 'error') {
       runs.delete(status.id);

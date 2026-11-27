@@ -66,6 +66,9 @@ describe('classifyShellCommand', () => {
     expect(classifyShellCommand('New-Item -ItemType File -Force src/new.ts')).toBe('write');
     expect(classifyShellCommand('[IO.File]::WriteAllText("src/new.ts", $text)')).toBe('write');
     expect(classifyShellCommand('echo "hello" > src/new.txt')).toBe('write');
+    expect(classifyShellCommand('echo "hello" > "src/new.txt"')).toBe('write');
+    expect(classifyShellCommand("echo 'hello' >> 'out file.txt'")).toBe('write');
+    expect(classifyShellCommand('Set-Content src/new.ts "const x = s.replace(\'a\', \'b\')"')).toBe('write');
     expect(classifyShellCommand("cat << 'EOF' > src/new.ts\nexport const x = 1;\nEOF")).toBe('write');
     expect(classifyShellCommand('touch src/new.ts')).toBe('write');
     expect(classifyShellCommand('mkdir src/newdir')).toBe('write');
@@ -110,7 +113,10 @@ describe('classifyShellCommand', () => {
       ),
     ).toBe('write');
     expect(classifyShellCommand('bash -c "rg foo src/"')).toBe('search');
+    expect(classifyShellCommand('bash -lc "rg foo src/"')).toBe('search');
     expect(classifyShellCommand('cmd /c "dir src"')).toBe('list');
+    // Single-quoted Windows trailing backslash must not swallow the rest of the command.
+    expect(classifyShellCommand("Get-ChildItem 'src\\dir\\' | Select-String 'foo'")).toBe('search');
   });
 
   it('keeps build, test, git, and filtered stdout pipelines as run', () => {
@@ -123,6 +129,7 @@ describe('classifyShellCommand', () => {
     expect(classifyShellCommand('git diff --stat')).toBe('run');
     expect(classifyShellCommand('git commit -m "Update > arrow"')).toBe('run');
     expect(classifyShellCommand('echo "a > b"')).toBe('run');
+    expect(classifyShellCommand('echo "hi" > "/dev/null"')).toBe('run');
     expect(classifyShellCommand('npm run build >$null 2>&1')).toBe('run');
     expect(classifyShellCommand('sc query Spooler')).toBe('run');
     expect(classifyShellCommand('sc.exe stop MyService')).toBe('run');

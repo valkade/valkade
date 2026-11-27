@@ -20,9 +20,11 @@ import {
   truncateMessagesAfterUserTurn,
 } from '../../../shared';
 import { loadConfigSync } from '../../config/load-save';
+import { clearClaudeCliConversationState } from '../../claude-cli-runner';
 import { applyTimelineInvertActions } from '../../conversation-timeline';
 import {
   appendConversationFileJournal,
+  deleteClaudeCliSessionId,
   deleteConversationById,
   deleteConversationFileJournalForUserIds,
   getConversationById,
@@ -265,6 +267,9 @@ export function registerConversationTimelineIpc(): void {
       conv.updatedAt = new Date().toISOString();
       upsertConversation(conv);
       deleteConversationFileJournalForUserIds(conversationId, [...invertIds]);
+      // Rewound history diverges from Claude Code CLI's saved session; start a fresh CLI session next turn.
+      deleteClaudeCliSessionId(conversationId);
+      clearClaudeCliConversationState(conversationId);
       deleteChildConversations(childIds);
       if (childIds.length > 0) {
         noteMainWindowConversationsChanged(event);

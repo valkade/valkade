@@ -138,7 +138,8 @@ export function registerClaudeCliIpc(): void {
     async (event, payload: { settings?: Partial<ClaudeCliSettings> }): Promise<ClaudeCliMutationResult> => {
       assertTrustedAppRenderer(event);
       const patch = payload?.settings && typeof payload.settings === 'object' ? payload.settings : {};
-      let nextSettings: ClaudeCliSettings = await currentClaudeCliSettings();
+      const prevSettings = await currentClaudeCliSettings();
+      let nextSettings: ClaudeCliSettings = prevSettings;
       const config = await updateConfig((cfg) => {
         const provider = cfg.llmProviders.find((p) => p.id === PINNED_CLAUDE_CLI_PROVIDER_ID);
         if (!provider) {
@@ -151,9 +152,12 @@ export function registerClaudeCliIpc(): void {
         provider.claudeCli = merged;
         nextSettings = merged;
       });
-      resetClaudeCliStatusCache();
+      const configDirChanged = prevSettings.configDir !== nextSettings.configDir;
+      if (configDirChanged) {
+        resetClaudeCliStatusCache();
+      }
       await publish(config);
-      const statusRes = await getClaudeCliStatus({ refresh: true, configDir: nextSettings.configDir });
+      const statusRes = await getClaudeCliStatus({ refresh: configDirChanged, configDir: nextSettings.configDir });
       return { ok: true, status: statusRes.status };
     },
   );

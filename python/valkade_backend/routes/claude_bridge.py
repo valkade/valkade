@@ -54,6 +54,7 @@ _SEMANTIC_BRIDGE_BUILD_WAIT_SEC = 20.0
 _SEMANTIC_BRIDGE_QUERY_TIMEOUT_SEC = 25.0
 
 _MAX_PENDING_EVENTS_PER_SESSION = 32
+_MAX_PENDING_EVENT_SESSIONS = 64
 _PENDING_BRIDGE_EVENTS: dict[str, deque[dict[str, Any]]] = {}
 
 _PROPOSE_THEME_MCP_DESCRIPTION = (
@@ -68,6 +69,9 @@ _PROPOSE_THEME_MCP_DESCRIPTION = (
 def _enqueue_bridge_event(session_id: str, event: dict[str, Any]) -> None:
     q = _PENDING_BRIDGE_EVENTS.get(session_id)
     if q is None:
+        while len(_PENDING_BRIDGE_EVENTS) >= _MAX_PENDING_EVENT_SESSIONS:
+            oldest = next(iter(_PENDING_BRIDGE_EVENTS))
+            _PENDING_BRIDGE_EVENTS.pop(oldest, None)
         q = deque(maxlen=_MAX_PENDING_EVENTS_PER_SESSION)
         _PENDING_BRIDGE_EVENTS[session_id] = q
     q.append(event)
@@ -96,13 +100,14 @@ def _ensure_bridge_session_workspace(
     sess = state.get_session(session_id)
     root = (workspace_root or '').strip()
     wid = (workspace_id or '').strip()
-    if root and not (sess.workspace_path or '').strip():
+    if root:
         try:
             resolved = str(Path(root).expanduser().resolve())
         except OSError:
             resolved = root
-        sess.workspace_path = resolved
-    if wid and not (sess.workspace_id or '').strip():
+        if resolved != (sess.workspace_path or '').strip():
+            sess.workspace_path = resolved
+    if wid and wid != (sess.workspace_id or '').strip():
         sess.workspace_id = wid
 
 
@@ -290,6 +295,7 @@ async def _run_semantic_bridge(session_id: str, arguments: dict[str, Any]) -> tu
         # First-ever build: run it on a daemon background thread and wait briefly so small
         # workspaces still answer on the first call, while large ones never time out MCP.
         done_evt = threading.Event()
+        build_error: list[str] = []
 
         def _build_in_bg() -> None:
             try:
@@ -300,8 +306,9 @@ async def _run_semantic_bridge(session_id: str, arguments: dict[str, Any]) -> tu
                     fingerprint_override=None,
                     embedding_model_id=mid,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.warning('Background semantic build failed for %s', root, exc_info=True)
+                build_error.append(f'{type(exc).__name__}: {exc}')
             finally:
                 done_evt.set()
 
@@ -312,6 +319,8 @@ async def _run_semantic_bridge(session_id: str, arguments: dict[str, Any]) -> tu
                 'Semantic index build started in the background for this workspace and is still indexing. '
                 'Use Grep/Glob/Read for now and retry `retrieve_workspace_semantic` in a moment.'
             ), False
+        if build_error:
+            return f'Tool error: Semantic index build failed: {build_error[0]}', True
 
     # Index exists on disk (or just finished building): run the actual semantic query with a bounded wait.
     tok_sid = state.current_session_id.set(session_id)

@@ -15,6 +15,7 @@ import {
   pingClaudeCli,
   readClaudeCliCachedModelCatalog,
   recordClaudeCliRateLimitEvent,
+  recordClaudeCliTurnUsage,
   scanClaudeCliProjectUsage,
 } from './claude-cli-status';
 import { createPinnedClaudeCliProvider } from './config/defaults';
@@ -224,6 +225,46 @@ describe('claude-cli-status', () => {
     expect(res.status.usage.fiveHour.status).toBe('allowed_warning');
     expect(res.status.usage.fiveHour.utilizationPercent).toBe(82);
     expect(res.status.usage.fiveHour.resetsAt).toBe(resetSec * 1000);
+  });
+
+  it('clears rejected rate-limit window after a successful turn and preserves active rejection across unrelated window events', async () => {
+    const now = Date.now();
+    const until = now + 45 * 60_000;
+    await recordClaudeCliTurnUsage({
+      rateLimitedUntil: until,
+      rateLimitMessage: '5-hour limit reached',
+      now,
+    });
+
+    // An unrelated seven_day allowed event must not wipe the active fiveHour rejection.
+    await recordClaudeCliRateLimitEvent({
+      rateLimitType: 'seven_day',
+      status: 'allowed',
+      utilization: 0.25,
+      resetsAt: Math.floor((now + 3 * 24 * 60 * 60_000) / 1000),
+      now,
+    });
+    const stillLimited = await getClaudeCliStatus({ refresh: true });
+    expect(stillLimited.status.rateLimitedUntil).toBe(until);
+    expect(stillLimited.status.usage.fiveHour.status).toBe('rejected');
+
+    // A successful turn clears both rateLimitedUntil and the rejected fiveHour window.
+    await recordClaudeCliTurnUsage({ clearRateLimit: true, now: now + 1000 });
+    const cleared = await getClaudeCliStatus({ refresh: true });
+    expect(cleared.status.rateLimitedUntil).toBeUndefined();
+    expect(cleared.status.usage.fiveHour.status).toBe('unknown');
+
+    // A rejected seven_day window also sets rateLimitedUntil.
+    const sevenResetSec = Math.floor((now + 2 * 60 * 60_000) / 1000);
+    await recordClaudeCliRateLimitEvent({
+      rateLimitType: 'seven_day',
+      status: 'rejected',
+      utilization: 1,
+      resetsAt: sevenResetSec,
+      now,
+    });
+    const weeklyLimited = await getClaudeCliStatus({ refresh: true });
+    expect(weeklyLimited.status.rateLimitedUntil).toBe(sevenResetSec * 1000);
   });
 
   it('parses, reads, and merges Claude Code model-catalog *-cc.json cache with 1M/200K metadata', async () => {

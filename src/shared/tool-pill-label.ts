@@ -96,6 +96,7 @@ const TOOL_SPECS: Readonly<Record<string, ToolSpec>> = {
   MultiEdit: { verb: 'Edit', category: 'edit' },
   NotebookEdit: { verb: 'Edit notebook', category: 'edit' },
   Bash: { verb: 'Run', category: 'run' },
+  PowerShell: { verb: 'Run', category: 'run' },
   TaskOutput: { verb: 'Command output', category: 'run' },
   TaskStop: { verb: 'Stop command', category: 'run' },
   WebSearch: { verb: 'Web search', category: 'web' },

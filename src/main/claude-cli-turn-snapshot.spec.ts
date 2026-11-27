@@ -6,7 +6,11 @@ import {
   captureWorkspacePreTurnSnapshot,
   recordClaudeCliTurnDiffsToJournal,
 } from './claude-cli-turn-snapshot';
-import { closeConversationsDbForTests, openConversationsDbForTests } from './conversations-db';
+import {
+  closeConversationsDbForTests,
+  listConversationFileJournalForTurn,
+  openConversationsDbForTests,
+} from './conversations-db';
 import { finalizeTurnEdits, getTurnFileDiff } from './turn-edits';
 
 describe('claude-cli-turn-snapshot', () => {
@@ -56,5 +60,23 @@ describe('claude-cli-turn-snapshot', () => {
       expect(diff.before).toBe('const a = 1;\n');
       expect(diff.after).toBe('const a = 1;\nconst b = 2;\n');
     }
+  });
+
+  it('preserves CRLF newline metadata and ignores .valkade internals', async () => {
+    const crlfPath = path.join(workspaceDir, 'win.ts');
+    await fs.writeFile(crlfPath, 'const x = 1;\r\nconst y = 2;\r\n', 'utf-8');
+    await fs.mkdir(path.join(workspaceDir, '.valkade'), { recursive: true });
+
+    const snapshot = await captureWorkspacePreTurnSnapshot(workspaceDir);
+    await snapshot.captureBeforeToolEdit('Edit', { file_path: crlfPath });
+    await fs.writeFile(crlfPath, 'const x = 1;\r\nconst y = 3;\r\n', 'utf-8');
+    await fs.writeFile(path.join(workspaceDir, '.valkade', 'state.json'), '{"ok":true}\n', 'utf-8');
+
+    const written = await recordClaudeCliTurnDiffsToJournal(snapshot, 'conv-crlf', 'turn-crlf');
+    expect(written).toBe(1);
+    const rows = listConversationFileJournalForTurn('conv-crlf', 'turn-crlf');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.relativePath).toBe('win.ts');
+    expect(rows[0]?.beforeNewline).toBe('crlf');
   });
 });

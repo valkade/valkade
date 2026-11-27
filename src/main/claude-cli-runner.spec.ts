@@ -13,6 +13,7 @@ import {
   type ParsedAgentStreamPayload,
   type ThemeProposalPayload,
 } from '../shared';
+import { subagentSource } from '../shared/subagent-sources';
 import {
   buildClaudeCliArgs,
   buildClaudeUserMessageContent,
@@ -100,11 +101,32 @@ describe('claude-cli-runner', () => {
     expect(args[args.indexOf('--permission-mode') + 1]).toBe('plan');
     const disallowed = args[args.indexOf('--disallowedTools') + 1] ?? '';
     expect(disallowed).toContain('Edit');
+    expect(disallowed).toContain('MultiEdit');
     expect(disallowed).toContain('Write');
     expect(disallowed).toContain('Bash');
+    expect(disallowed).toContain('PowerShell');
     expect(disallowed).toContain('WebSearch');
     expect(disallowed).toContain('CronCreate');
     expect(args).toContain('--append-system-prompt');
+  });
+
+  it('omits --effort for models that do not support reasoning effort (e.g. Haiku 4.5)', () => {
+    const args = buildClaudeCliArgs({
+      modelId: 'claude-haiku-4-5-20251001',
+      effort: 'high',
+      sessionId: null,
+      applyMode: true,
+      autoApplyMode: true,
+      composerMode: 'agent',
+      allowWebAccess: false,
+      settings: { ...DEFAULT_CLAUDE_CLI_SETTINGS },
+      workspaceNotes: [],
+    });
+    expect(args).not.toContain('--effort');
+  });
+
+  it('excludes claude-cli from Python LangGraph subagent sources', () => {
+    expect(subagentSource(createPinnedClaudeCliProvider(), 'Claude Code')).toBeNull();
   });
 
   it('builds manual + host permission-prompt args in Editor mode when routeApprovals is enabled', () => {
@@ -161,6 +183,10 @@ describe('claude-cli-runner', () => {
     const res = parseClaudeRateLimitReset('5-hour usage limit reached; resets in 1h 30m', now);
     expect(res.limited).toBe(true);
     expect(res.resetAt).toBe(now + 90 * 60_000);
+    // "5 hour" window label must not be mistaken for a 5-hour countdown when actual reset is in minutes.
+    const resMins = parseClaudeRateLimitReset('Your 5 hour usage limit resets in 20 minutes.', now);
+    expect(resMins.limited).toBe(true);
+    expect(resMins.resetAt).toBe(now + 20 * 60_000);
   });
 
   it('streams text, tool pills, approval cards, AskUserQuestion, and token usage end-to-end', async () => {
@@ -561,5 +587,65 @@ describe('claude-cli-runner', () => {
     expect(capturedArgs[capturedArgs.indexOf('--tools') + 1]).toBe('');
     expect(capturedArgs[capturedArgs.indexOf('--output-format') + 1]).toBe('text');
     expect(capturedEnv?.['ANTHROPIC_API_KEY']).toBeUndefined();
+  });
+
+  it('aborts cleanly without deadlocking when a pending approval card is unanswered and removes temp MCP config', async () => {
+    const fake = createFakeChildProcess();
+    let mcpPath = '';
+    configureClaudeCliStatusForTests({ resolveExe: async () => '/usr/local/bin/claude' });
+    setClaudeCliSpawnForTests(((_cmd: string, args: readonly string[]) => {
+      const idx = args.indexOf('--mcp-config');
+      if (idx >= 0) {
+        mcpPath = args[idx + 1] ?? '';
+      }
+      return fake.child;
+    }) as unknown as typeof import('child_process').spawn);
+    setClaudeCliBridgeForTests({
+      bridgeUrl: 'http://127.0.0.1:5124/claude-bridge/mcp',
+      sidecarToken: 'tok-abort-test',
+    });
+
+    const controller = new AbortController();
+    const provider = createPinnedClaudeCliProvider();
+    provider.claudeCli = { ...DEFAULT_CLAUDE_CLI_SETTINGS, captureTurnDiffs: false, bridgeWorkspaceTools: true };
+
+    let sawCard = false;
+    const turnPromise = runClaudeCliChatTurn({
+      conversationId: 'conv-abort-pending',
+      userMessageId: 'msg-abort',
+      message: 'Run something',
+      provider,
+      applyMode: true,
+      autoApplyMode: false,
+      composerMode: 'agent',
+      allowWebAccess: false,
+      workspaceRoot: null,
+      workspaceNotes: [],
+      signal: controller.signal,
+      emit: (p) => {
+        if (p.type === 'accept_command') {
+          sawCard = true;
+          // User clicks Stop while approval card is waiting; process exits shortly after.
+          controller.abort();
+          setTimeout(() => fake.finish(1), 5);
+        }
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 15));
+    fake.stdout.write(
+      `${JSON.stringify({
+        type: 'control_request',
+        request_id: 'req-stuck-1',
+        request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'rm -rf tmp' } },
+      })}\n`,
+    );
+
+    const outcome = await turnPromise;
+    expect(sawCard).toBe(true);
+    expect(outcome).toBe('aborted');
+    expect(hasPendingClaudeCliApproval('conv-abort-pending', 'req-stuck-1')).toBe(false);
+    expect(mcpPath).toBeTruthy();
+    await expect(fs.stat(mcpPath)).rejects.toThrow();
   });
 });

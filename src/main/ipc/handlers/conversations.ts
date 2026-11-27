@@ -3,7 +3,7 @@ import { assertTrustedMainRenderer, assertTrustedMainRendererOrThrow } from '../
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { findLlmModelLocation, normalizeConversationComposer, type ConversationFile } from '../../../shared';
-import { suggestClaudeCliConversationTitle } from '../../claude-cli-runner';
+import { clearClaudeCliConversationState, suggestClaudeCliConversationTitle } from '../../claude-cli-runner';
 import { loadConfig } from '../../config/load-save';
 import { FIRST_THEME_ID } from '../../constants';
 import { mainState } from '../../state';
@@ -188,6 +188,7 @@ export function registerConversationsIpc(): void {
     deleteConversationById(id);
     for (const deletedId of ids) {
       forgetConversationRenderer(deletedId);
+      clearClaudeCliConversationState(deletedId);
     }
     noteMainWindowConversationsChanged(event);
   });

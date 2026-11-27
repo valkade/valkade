@@ -46,6 +46,7 @@ const RUN_TOOL_NAMES: ReadonlySet<string> = new Set<string>([
   'list_background_commands',
   'kill_background_command',
   'Bash',
+  'PowerShell',
   'TaskOutput',
   'TaskStop',
 ]);
@@ -186,6 +187,7 @@ const TOOL_GLYPHS: Readonly<Record<string, ToolGlyph>> = {
   MultiEdit: 'edit-snippet',
   NotebookEdit: 'edit-snippet',
   Bash: 'command',
+  PowerShell: 'command',
   TaskOutput: 'wait',
   TaskStop: 'stop-command',
   WebSearch: 'web-search',
@@ -274,8 +276,12 @@ export function streamPartCommandText(part: ToolSpinnerPart): string {
   if (reported) {
     return reported[1]!.trim();
   }
-  // Claude CLI `Bash` rows put the command summary directly as `detail` on completion.
-  if (name === 'Bash' && !/^Tool error:/i.test(text) && !/^User (?:cancelled|declined|dismissed)\b/i.test(text)) {
+  // Claude CLI `Bash` / `PowerShell` rows put the command summary directly as `detail` on completion.
+  if (
+    (name === 'Bash' || name === 'PowerShell') &&
+    !/^Tool error:/i.test(text) &&
+    !/^User (?:cancelled|declined|dismissed)\b/i.test(text)
+  ) {
     return readToolStatusHeadline(text);
   }
   return '';

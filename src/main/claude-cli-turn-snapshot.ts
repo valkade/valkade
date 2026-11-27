@@ -28,6 +28,9 @@ const IGNORED_DIRS = new Set([
   '.cache',
   'out',
   '.pytest_cache',
+  '.valkade',
+  '.clara',
+  '.nemo',
 ]);
 
 const MAX_WALK_FILES = 15_000;
@@ -42,6 +45,7 @@ interface StatEntry {
 interface CapturedBefore {
   existed: boolean;
   content: string | null;
+  newline: 'lf' | 'crlf';
 }
 
 export interface ClaudeCliTurnSnapshot {
@@ -71,19 +75,21 @@ async function readTextIfSafe(absPath: string): Promise<CapturedBefore> {
   try {
     const st = await fs.stat(absPath);
     if (!st.isFile() || st.size > MAX_SNAPSHOT_BYTES) {
-      return { existed: true, content: null };
+      return { existed: true, content: null, newline: 'lf' };
     }
     const buf = await fs.readFile(absPath);
     if (buf.includes(0)) {
-      return { existed: true, content: null };
+      return { existed: true, content: null, newline: 'lf' };
     }
-    return { existed: true, content: decodeWorkspaceFileContent(buf, 'utf-8') };
+    const rawUtf8 = buf.toString('utf8');
+    const newline: 'lf' | 'crlf' = rawUtf8.includes('\r\n') ? 'crlf' : 'lf';
+    return { existed: true, content: decodeWorkspaceFileContent(buf, 'utf-8'), newline };
   } catch (err) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
     if (code === 'ENOENT' || code === 'ENOTDIR') {
-      return { existed: false, content: null };
+      return { existed: false, content: null, newline: 'lf' };
     }
-    return { existed: true, content: null };
+    return { existed: true, content: null, newline: 'lf' };
   }
 }
 
@@ -177,13 +183,20 @@ export async function captureWorkspacePreTurnSnapshot(workspaceRoot: string): Pr
 
   if (isGitRepo) {
     // Pre-read already-dirty files so git HEAD isn't mistakenly used as the pre-turn baseline.
-    const status = await runGit(root, ['status', '--porcelain', '-uall']);
+    const [prefixRes, status] = await Promise.all([
+      runGit(root, ['rev-parse', '--show-prefix']),
+      runGit(root, ['-c', 'core.quotepath=false', 'status', '--porcelain', '-uall', '--', '.']),
+    ]);
+    const repoPrefix = prefixRes.ok ? prefixRes.stdout.trim().replace(/\\/g, '/') : '';
     if (status.ok && status.stdout) {
       const lines = status.stdout.split(/\r?\n/).filter((l) => l.length >= 4);
       for (const line of lines.slice(0, 200)) {
         const rawPath = line.slice(3).trim();
         const rel = rawPath.includes(' -> ') ? rawPath.split(' -> ').pop()!.trim() : rawPath;
-        const clean = rel.replace(/^"|"$/g, '').replace(/\\/g, '/');
+        let clean = rel.replace(/^"|"$/g, '').replace(/\\/g, '/');
+        if (repoPrefix && clean.startsWith(repoPrefix)) {
+          clean = clean.slice(repoPrefix.length);
+        }
         if (!clean || beforeContentByPath.has(clean)) {
           continue;
         }
@@ -226,15 +239,16 @@ async function resolveBeforeContent(snapshot: ClaudeCliTurnSnapshot, relPath: st
     return cached;
   }
   if (!snapshot.preStats.has(relPath)) {
-    return { existed: false, content: null };
+    return { existed: false, content: null, newline: 'lf' };
   }
   if (snapshot.isGitRepo) {
-    const head = await runGit(snapshot.workspaceRoot, ['show', `HEAD:${relPath}`]);
-    if (head.ok) {
-      return { existed: true, content: head.stdout.replace(/\r\n/g, '\n') };
+    const head = await runGit(snapshot.workspaceRoot, ['show', `HEAD:./${relPath}`]);
+    if (head.ok && !head.stdout.includes('\0')) {
+      const newline: 'lf' | 'crlf' = head.stdout.includes('\r\n') ? 'crlf' : 'lf';
+      return { existed: true, content: head.stdout.replace(/\r\n/g, '\n'), newline };
     }
   }
-  return { existed: true, content: null };
+  return { existed: true, content: null, newline: 'lf' };
 }
 
 /**
@@ -278,7 +292,7 @@ export async function recordClaudeCliTurnDiffsToJournal(
         op,
         beforeContent: op === 'create' ? null : before.content,
         beforeEncoding: 'utf-8',
-        beforeNewline: 'lf',
+        beforeNewline: before.newline,
       });
       written += 1;
     } catch (err) {

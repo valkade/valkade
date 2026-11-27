@@ -245,3 +245,42 @@ def test_semantic_walk_skips_venv_git_and_node_modules_even_when_expose_all_enab
         state.runtime_config.tools.expose_all_workspace_files = prev
 
 
+def test_mcp_semantic_reports_background_build_error_immediately(monkeypatch, tmp_path: Path) -> None:
+    from unittest.mock import MagicMock
+    from valkade_backend.workspace_index import embeddings_factory as ef
+    from valkade_backend.workspace_index import index_build
+
+    monkeypatch.setenv('VALKADE_SIDECAR_AUTH_OPTIONAL', '1')
+    monkeypatch.delenv('VALKADE_SIDECAR_TOKEN', raising=False)
+    monkeypatch.delenv('CLARA_SIDECAR_TOKEN', raising=False)
+    monkeypatch.setattr(ef, 'build_embedding_model', lambda _conn: (MagicMock(), ''))
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError('disk full')
+
+    monkeypatch.setattr(index_build, 'load_or_rebuild_workspace_index', _boom)
+
+    sid = 'claude-bridge-sem-err'
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                '/claude-bridge/mcp',
+                headers={
+                    'X-Valkade-Session-Id': sid,
+                    'X-Valkade-Workspace-Root': str(tmp_path),
+                    'X-Valkade-Workspace-Id': 'ws-sem-err',
+                    'X-Valkade-Apply-Mode': '0',
+                },
+                json=_rpc(
+                    'tools/call',
+                    {'name': 'retrieve_workspace_semantic', 'arguments': {'query': 'auth'}},
+                ),
+            )
+            assert resp.status_code == 200
+            result = resp.json()['result']
+            assert result['isError'] is True
+            assert 'disk full' in result['content'][0]['text']
+    finally:
+        state.sessions.pop(sid, None)
+
+

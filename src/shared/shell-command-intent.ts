@@ -21,9 +21,9 @@ const MUTATION_RANK: Readonly<Record<'edit' | 'write' | 'delete' | 'copy', numbe
   copy: 1,
 };
 
-/** Wrapper shells whose quoted payload holds the actual command (`pwsh -Command "..."`). */
+/** Wrapper shells whose quoted payload holds the actual command (`pwsh -Command "..."`, `bash -lc "..."`). */
 const SHELL_WRAPPER_RE =
-  /^(?:&\s*)?(?:(?:[\w.:\\/-]+[\\/])?(?:pwsh|powershell|bash|sh|zsh|cmd)(?:\.exe)?)\s+(?:(?:-\w+(?:\s+(?!-)(?!\/)[\w.-]+)?|\/\w)\s+)*(?:-(?:c|command)|\/c)\s+([\s\S]+)$/i;
+  /^(?:&\s*)?(?:(?:[\w.:\\/-]+[\\/])?(?:pwsh|powershell|bash|sh|zsh|cmd)(?:\.exe)?)\s+(?:(?:-\w+(?:\s+(?!-)(?!\/)[\w.-]+)?|\/\w)\s+)*(?:-(?:[a-z]*c|command)|\/c)\s+([\s\S]+)$/i;
 
 /** Leading call operator or privilege wrapper (`& `, `sudo `, `command `). */
 const LEADING_PREFIX_RE = /^(?:(?:&\s*)|(?:(?:sudo|command|env(?:\s+[A-Za-z_]\w*=[^\s]+)*)\s+))+/i;
@@ -73,7 +73,7 @@ function stripOuterQuotes(raw: string): string {
         escaped = false;
         continue;
       }
-      if (ch === '\\' || (q === '"' && ch === '`')) {
+      if (q === '"' && (ch === '\\' || ch === '`')) {
         escaped = true;
         continue;
       }
@@ -119,7 +119,7 @@ function maskQuotedStrings(text: string): string {
         out += ' ';
         continue;
       }
-      if (ch === '\\' || (quote === '"' && ch === '`')) {
+      if (quote === '"' && (ch === '\\' || ch === '`')) {
         escaped = true;
         out += ' ';
         continue;
@@ -235,7 +235,7 @@ function splitPipeline(statement: string): string[] {
  */
 function hasFileRedirection(statement: string): boolean {
   const masked = maskQuotedStrings(statement);
-  const re = /(?:^|[\s\w)'"`])([1*]?)>>?(?![=>&])(\s*)([^\s;|&)]+)/g;
+  const re = /(?:^|[\s\w)'"`])([1*]?)>>?(?![=>&])(\s*)("[^"]*"|'[^']*'|[^\s;|&)]+)/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(masked)) !== null) {
     const startIdx = match.index + match[0].indexOf('>');
@@ -244,7 +244,11 @@ function hasFileRedirection(statement: string): boolean {
       continue;
     }
     const targetStart = match.index + match[0].length - match[3]!.length;
-    const rawTarget = statement.slice(targetStart, targetStart + match[3]!.length).replace(/^['"]|['"]$/g, '').toLowerCase();
+    const rawTarget = statement
+      .slice(targetStart, targetStart + match[3]!.length)
+      .replace(/^['"]|['"]$/g, '')
+      .trim()
+      .toLowerCase();
     if (!rawTarget || rawTarget === '$null' || rawTarget === '/dev/null' || rawTarget === 'nul' || rawTarget === 'null') {
       continue;
     }
@@ -601,7 +605,7 @@ export function classifyShellCommand(command: string): ShellCommandIntent {
   let sawSearch = false;
   let sawList = false;
   let sawRun = false;
-  let sawReplace = REPLACE_OP_RE.test(unwrapped);
+  let sawReplace = REPLACE_OP_RE.test(maskQuotedStrings(unwrapped));
 
   const recordMutation = (next: 'edit' | 'write' | 'delete' | 'copy'): void => {
     if (!mutation || MUTATION_RANK[next] > MUTATION_RANK[mutation]) {

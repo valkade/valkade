@@ -223,9 +223,35 @@ export class SettingsModels {
     }
     return /^claude\b/i.test(raw) ? raw : `Claude ${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
   });
+  protected readonly claudeCliRateLimitTitle = computed(() => {
+    const st = this.claudeCli.status();
+    const now = Date.now();
+    const fiveRej =
+      st?.usage?.fiveHour?.status === 'rejected' &&
+      (!st.usage.fiveHour.resetsAt || st.usage.fiveHour.resetsAt > now);
+    const sevenRej =
+      st?.usage?.sevenDay?.status === 'rejected' &&
+      (!st.usage.sevenDay.resetsAt || st.usage.sevenDay.resetsAt > now);
+    if (sevenRej && !fiveRej) {
+      return '7-day subscription limit reached';
+    }
+    if (fiveRej && !sevenRej) {
+      return '5-hour subscription limit reached';
+    }
+    return 'Subscription limit reached';
+  });
   protected readonly claudeCliResetCountdown = computed(() => {
     const st = this.claudeCli.status();
-    const target = st?.rateLimitedUntil ?? st?.usage?.fiveHour?.resetsAt ?? 0;
+    const now = Date.now();
+    const fiveReset =
+      st?.usage?.fiveHour?.status === 'rejected' && st.usage.fiveHour.resetsAt && st.usage.fiveHour.resetsAt > now
+        ? st.usage.fiveHour.resetsAt
+        : 0;
+    const sevenReset =
+      st?.usage?.sevenDay?.status === 'rejected' && st.usage.sevenDay.resetsAt && st.usage.sevenDay.resetsAt > now
+        ? st.usage.sevenDay.resetsAt
+        : 0;
+    const target = st?.rateLimitedUntil ?? Math.max(fiveReset, sevenReset);
     return this.formatResetCountdown(target);
   });
   protected formatResetCountdown(targetMs: number | undefined): string {
