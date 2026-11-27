@@ -594,6 +594,8 @@ export {
   toolTargetFromRunningDetail,
 } from './tool-pill-label';
 export type { ActivityHeadline, ToolPillCategory, ToolPillFamily, ToolPillLabel } from './tool-pill-label';
+export { classifyShellCommand } from './shell-command-intent';
+export type { ShellCommandIntent } from './shell-command-intent';
 export type { ParsedAgentStreamPayload } from './stream-payload';
 export { parseAgentStreamPayload, parseAgentStreamValue } from './stream-payload';
 export type {

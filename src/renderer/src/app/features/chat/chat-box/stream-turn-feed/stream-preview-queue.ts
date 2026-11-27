@@ -12,7 +12,12 @@ import {
   toolStatusStreamPartMeta,
   type TurnFeedItem,
 } from '@shared/index';
-import { toolGlyph, toolSpinnerKind, type PillGlyph, type PillSpinnerKind } from '../tool-spinner-kind';
+import {
+  streamPartToolGlyph,
+  streamPartToolSpinnerKind,
+  type PillGlyph,
+  type PillSpinnerKind,
+} from '../tool-spinner-kind';
 
 /** Min time the live preview pane stays open before a contending event can become a chip. */
 export const PREVIEW_OPEN_DWELL_MS = 450;
@@ -285,7 +290,7 @@ export function previewQueueToolSpinnerKind(
   if (part === 'think') {
     return 'think';
   }
-  return part ? toolSpinnerKind(part.label, part.streamTag) : 'write';
+  return part ? streamPartToolSpinnerKind(part) : 'write';
 }
 
 /** The running tool's own glyph for the live preview pill (`think` for a thinking pill). */
@@ -294,7 +299,7 @@ export function previewQueueToolGlyph(current: TurnFeedItem | undefined, inbound
   if (part === 'think') {
     return 'think';
   }
-  return part ? toolGlyph(part.label, part.streamTag) : 'plug';
+  return part ? streamPartToolGlyph(part) : 'plug';
 }
 
 export function clampCommittedCount(items: readonly TurnFeedItem[], committedCount: number): number {

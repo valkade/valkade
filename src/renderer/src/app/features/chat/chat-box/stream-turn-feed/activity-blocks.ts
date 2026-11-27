@@ -15,7 +15,7 @@ import {
   type TurnFeedItem,
 } from '@shared/index';
 import { auxStreamToolPartPillState } from '../aux-stream-tool-part/aux-stream-tool-part';
-import { toolGlyph, type ToolGlyph } from '../tool-spinner-kind';
+import { streamPartToolGlyph, type ToolGlyph } from '../tool-spinner-kind';
 import type { FeedDisplayRole } from './stream-preview-queue';
 
 /** How a stretch of work renders: one activity block per stretch, in execution order. */
@@ -283,7 +283,7 @@ export function activityGlyphs(items: readonly TurnFeedItem[], landed: readonly 
     if (item?.kind !== 'tool' || isHitlTrailStreamTag(item.part.streamTag)) {
       continue;
     }
-    const glyph = toolGlyph(item.part.label, item.part.streamTag);
+    const glyph = streamPartToolGlyph(item.part);
     if (!glyphs.includes(glyph)) {
       glyphs.push(glyph);
       if (glyphs.length === ACTIVITY_GLYPH_LIMIT) {

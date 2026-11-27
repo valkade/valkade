@@ -165,11 +165,24 @@ const timedLaneCopies = new WeakMap<StreamPart, StreamPart>();
 
 function timedLaneCopy(lane: StreamPart, status: StreamPart): StreamPart {
   const toolBatch = status.toolBatch || lane.toolBatch;
+  const statusTarget = (status.toolTarget ?? '').trim();
+  const toolTarget =
+    lane.toolTarget || (statusTarget.length > lane.label.trim().length ? statusTarget : undefined);
   const cached = timedLaneCopies.get(lane);
-  if (cached && cached.toolDurationMs === status.toolDurationMs && cached.toolBatch === toolBatch) {
+  if (
+    cached &&
+    cached.toolDurationMs === status.toolDurationMs &&
+    cached.toolBatch === toolBatch &&
+    cached.toolTarget === toolTarget
+  ) {
     return cached;
   }
-  const timed: StreamPart = { ...lane, toolDurationMs: status.toolDurationMs, ...(toolBatch ? { toolBatch } : {}) };
+  const timed: StreamPart = {
+    ...lane,
+    toolDurationMs: status.toolDurationMs,
+    ...(toolBatch ? { toolBatch } : {}),
+    ...(toolTarget ? { toolTarget } : {}),
+  };
   timedLaneCopies.set(lane, timed);
   return timed;
 }

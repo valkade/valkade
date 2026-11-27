@@ -67,6 +67,26 @@ function appendStreamPartWithTag(
 }
 
 /**
+ * Full command target from the matching `run_command` status row when the output lane's tab label
+ * was truncated (Python caps lane labels at 28 chars while status details keep up to 200).
+ */
+function matchingRunCommandTarget(parts: readonly StreamPart[], laneLabel: string): string {
+  const trimmed = laneLabel.trim();
+  const prefix = (trimmed.endsWith('…') ? trimmed.slice(0, -1) : trimmed).replace(/\s+/g, ' ');
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i]!;
+    if (part.label.trim() !== 'run_command' || !part.toolTarget) {
+      continue;
+    }
+    const target = part.toolTarget.trim();
+    if (target.length > trimmed.length && (!prefix || target.replace(/\s+/g, ' ').startsWith(prefix))) {
+      return target;
+    }
+  }
+  return '';
+}
+
+/**
  * Open a command's output lane when the command starts, not at its first output, so a quiet
  * command still shows as running. A lane that ends without printing shows nothing from then on
  * (`isQuietCommandLane`), and the saved turn leaves it out.
@@ -81,7 +101,14 @@ export function openRunCommandLane(
   if (!isRunCommandStreamTag(t) || parts.some((p) => p.streamTag === t)) {
     return parts;
   }
-  return appendStreamPartWithTag(parts, t, '', label, now);
+  const target = matchingRunCommandTarget(parts, label);
+  const next = appendStreamPartWithTag(parts, t, '', label, now);
+  if (!target) {
+    return next;
+  }
+  const lastIdx = next.length - 1;
+  next[lastIdx] = { ...next[lastIdx]!, toolTarget: target };
+  return next;
 }
 
 /**

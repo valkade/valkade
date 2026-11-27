@@ -16,8 +16,8 @@ import {
   PLANNER_STREAM_TAG,
 } from '@shared/index';
 import {
-  toolGlyph,
-  toolSpinnerKind,
+  streamPartToolGlyph,
+  streamPartToolSpinnerKind,
   type PrefillSpinnerKind,
   type SpinnerKind,
   type ToolGlyph,
@@ -647,13 +647,13 @@ export function inFlightToolSpinnerKind(
   toolsActive: boolean,
 ): ToolSpinnerKind | null {
   const part = latestInFlightToolPart(parts, toolsActive);
-  return part ? toolSpinnerKind(part.label, part.streamTag) : null;
+  return part ? streamPartToolSpinnerKind(part) : null;
 }
 
 /** Glyph of the latest in-flight tool part: the icon its pill shows (`null` when no tool is running). */
 export function inFlightToolGlyph(parts: readonly StreamPart[], toolsActive: boolean): ToolGlyph | null {
   const part = latestInFlightToolPart(parts, toolsActive);
-  return part ? toolGlyph(part.label, part.streamTag) : null;
+  return part ? streamPartToolGlyph(part) : null;
 }
 
 /** A turn's prefill word and spinner, keyed on the conversation and its message count. */

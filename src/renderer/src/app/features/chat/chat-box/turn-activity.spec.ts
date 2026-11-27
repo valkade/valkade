@@ -8,7 +8,7 @@ import {
   resolveTurnActivity,
   turnActivitySpinner,
 } from './chat-box-display';
-import { toolGlyph, toolSpinnerKind } from './tool-spinner-kind';
+import { streamPartToolGlyph, streamPartToolSpinnerKind, toolGlyph, toolSpinnerKind } from './tool-spinner-kind';
 
 describe('resolveTurnActivity', () => {
   const thought: TurnFeedItem = {
@@ -145,6 +145,67 @@ describe('toolGlyph', () => {
     expect(toolGlyph('npm test', 'run-command:abc')).toBe('command');
     expect(toolGlyph('mcp__blender__get_objects_summary', '')).toBe('plug');
     expect(toolGlyph('', '')).toBe('plug');
+  });
+
+  it('maps Claude Code CLI built-in tools and mcp__valkade__ tools instead of falling back to plug', () => {
+    expect(toolGlyph('Bash', '')).toBe('command');
+    expect(toolSpinnerKind('Bash', '')).toBe('run');
+    expect(toolGlyph('Read', '')).toBe('read-file');
+    expect(toolSpinnerKind('Read', '')).toBe('read');
+    expect(toolGlyph('Glob', '')).toBe('list');
+    expect(toolSpinnerKind('Glob', '')).toBe('read');
+    expect(toolGlyph('Grep', '')).toBe('search');
+    expect(toolSpinnerKind('Grep', '')).toBe('read');
+    expect(toolGlyph('Edit', '')).toBe('edit-snippet');
+    expect(toolGlyph('Write', '')).toBe('write-file');
+    expect(toolGlyph('WebSearch', '')).toBe('web-search');
+    expect(toolSpinnerKind('WebSearch', '')).toBe('web');
+    expect(toolGlyph('mcp__valkade__run_command', '')).toBe('command');
+    expect(toolGlyph('mcp__valkade__read_workspace_file', '')).toBe('read-file');
+  });
+
+  it('detects PowerShell and shell reads and edits on run_command, Bash, and output lanes', () => {
+    expect(toolGlyph('run_command', '', 'Get-Content src/app.ts')).toBe('read-file');
+    expect(toolSpinnerKind('run_command', '', 'Get-Content src/app.ts')).toBe('read');
+    expect(toolGlyph('run_command', '', 'Select-String -Path src/*.ts -Pattern "foo"')).toBe('search');
+    expect(toolSpinnerKind('run_command', '', 'Select-String -Path src/*.ts -Pattern "foo"')).toBe('read');
+    expect(toolGlyph('run_command', '', 'Get-ChildItem src -Recurse')).toBe('list');
+    expect(toolSpinnerKind('run_command', '', 'Get-ChildItem src -Recurse')).toBe('read');
+
+    expect(
+      toolGlyph('run_command', '', "(Get-Content src/app.ts -Raw) -replace 'a', 'b' | Set-Content src/app.ts"),
+    ).toBe('edit-snippet');
+    expect(
+      toolSpinnerKind('run_command', '', "(Get-Content src/app.ts -Raw) -replace 'a', 'b' | Set-Content src/app.ts"),
+    ).toBe('write');
+    expect(toolGlyph('Bash', '', 'Set-Content -Path src/new.ts -Value "hello"')).toBe('write-file');
+    expect(toolSpinnerKind('Bash', '', 'Set-Content -Path src/new.ts -Value "hello"')).toBe('write');
+    expect(toolGlyph('Bash', '', 'Remove-Item -Force tmp.txt')).toBe('delete');
+    expect(toolGlyph('Bash', '', 'Copy-Item a.ts b.ts')).toBe('copy');
+    expect(toolGlyph('Get-Content src/app.ts', 'run-command:abc')).toBe('read-file');
+    expect(toolSpinnerKind('Get-Content src/app.ts', 'run-command:abc')).toBe('read');
+
+    const editPart: StreamPart = {
+      streamTag: toolTrailStatusStreamTag('cmd-1'),
+      label: 'run_command',
+      text: "(Get-Content src/app.ts -Raw) -replace 'old', 'new' | Set-Content src/app.ts",
+      toolTarget: "(Get-Content src/app.ts -Raw) -replace 'old', 'new' | Set-Content src/app.ts",
+      toolChainState: 'running',
+    };
+    expect(streamPartToolGlyph(editPart)).toBe('edit-snippet');
+    expect(streamPartToolSpinnerKind(editPart)).toBe('write');
+    expect(inFlightToolGlyph([editPart], true)).toBe('edit-snippet');
+    expect(inFlightToolSpinnerKind([editPart], true)).toBe('write');
+
+    const readPart: StreamPart = {
+      streamTag: toolTrailStatusStreamTag('cmd-2'),
+      label: 'Bash',
+      text: 'Get-Content README.md',
+      toolTarget: 'Get-Content README.md',
+      toolChainState: 'running',
+    };
+    expect(inFlightToolGlyph([readPart], true)).toBe('read-file');
+    expect(inFlightToolSpinnerKind([readPart], true)).toBe('read');
   });
 });
 
