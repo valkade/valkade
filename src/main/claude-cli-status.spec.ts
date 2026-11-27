@@ -228,6 +228,11 @@ describe('claude-cli-status', () => {
   });
 
   it('clears rejected rate-limit window after a successful turn and preserves active rejection across unrelated window events', async () => {
+    configureClaudeCliStatusForTests({
+      resolveExe: async () => null,
+      usageFilePath: usagePath,
+      skipTranscriptScan: true,
+    });
     const now = Date.now();
     const until = now + 45 * 60_000;
     await recordClaudeCliTurnUsage({
