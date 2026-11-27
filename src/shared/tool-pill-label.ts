@@ -87,6 +87,31 @@ const TOOL_SPECS: Readonly<Record<string, ToolSpec>> = {
   spawn_subagent: { verb: 'Sub-agent', category: 'other' },
   wait_for_subagents: { verb: 'Waiting for sub-agents', category: 'other' },
   stop_subagent: { verb: 'Stop sub-agent', category: 'other' },
+  // Claude Code CLI built-in tools
+  Read: { verb: 'Read', category: 'read' },
+  Glob: { verb: 'List', category: 'list' },
+  Grep: { verb: 'Search', category: 'search' },
+  Write: { verb: 'Write', category: 'edit' },
+  Edit: { verb: 'Edit', category: 'edit' },
+  MultiEdit: { verb: 'Edit', category: 'edit' },
+  NotebookEdit: { verb: 'Edit notebook', category: 'edit' },
+  Bash: { verb: 'Run', category: 'run' },
+  TaskOutput: { verb: 'Command output', category: 'run' },
+  TaskStop: { verb: 'Stop command', category: 'run' },
+  WebSearch: { verb: 'Web search', category: 'web' },
+  WebFetch: { verb: 'Fetch', category: 'web' },
+  LSP: { verb: 'LSP', category: 'lsp' },
+  Agent: { verb: 'Sub-agent', category: 'other' },
+  Skill: { verb: 'Skill', category: 'other' },
+  ToolSearch: { verb: 'Tool search', category: 'search' },
+  TodoWrite: { verb: 'Tasks', category: 'other' },
+  TaskCreate: { verb: 'Create task', category: 'other' },
+  TaskUpdate: { verb: 'Update task', category: 'other' },
+  TaskList: { verb: 'List tasks', category: 'other' },
+  EnterPlanMode: { verb: 'Enter plan mode', category: 'other' },
+  ExitPlanMode: { verb: 'Exit plan mode', category: 'other' },
+  AskUserQuestion: { verb: 'Ask question', category: 'other' },
+  EnterWorktree: { verb: 'Worktree', category: 'other' },
 };
 
 /** `lsp_update_typescript_file` / `lsp_create_java_file`: language-routed full-file writes. */
@@ -110,7 +135,7 @@ export function humanizeToolName(name: string): string {
 
 function toolSpec(name: string): ToolSpec {
   const n = name.trim();
-  const spec = TOOL_SPECS[n];
+  const spec = TOOL_SPECS[n] ?? (n.startsWith('mcp__valkade__') ? TOOL_SPECS[stripMcpPrefix(n)] : undefined);
   if (spec) {
     return spec;
   }

@@ -29,10 +29,13 @@ import {
   defaultMonacoWorkspaceEditorSettings,
   getDefaultContextCompression,
   inferContextWindowTokens,
+  DEFAULT_CLAUDE_CLI_MODEL_ID,
+  DEFAULT_CLAUDE_CLI_SETTINGS,
   PINNED_LM_STUDIO_PROVIDER_ID,
   PINNED_LLAMA_SERVER_URL_PROVIDER_ID,
   PINNED_OPENROUTER_PROVIDER_ID,
   PINNED_ANTHROPIC_PROVIDER_ID,
+  PINNED_CLAUDE_CLI_PROVIDER_ID,
   OPENROUTER_DEFAULT_BASE_URL,
   TTS_SPEECH_SPEED_DEFAULT,
 } from '../../shared';
@@ -201,12 +204,46 @@ export function createPinnedAnthropicProvider(): LlmProviderConfig {
   };
 }
 
+function defaultClaudeCliModelProfile(): LlmModelProfile {
+  return {
+    id: 'default-claude-cli',
+    name: 'Opus 5.5',
+    model: DEFAULT_CLAUDE_CLI_MODEL_ID,
+    contextWindowTokens: 1_000_000,
+    reasoningEffort: 'high',
+    thinkingMode: 'default',
+    samplingPreset: 'provider-default',
+    architectureHint: 'auto',
+    temperature: 0,
+    parallelToolCalls: true,
+    optimizationPreset: 'generic',
+    maxOutputTokens: 0,
+  };
+}
+
+/**
+ * Pinned Claude Code (Subscription) row (stable id; never deleted in UI). Uses the locally
+ * installed `claude` CLI authenticated via `claude auth login` — never carries an API key.
+ */
+export function createPinnedClaudeCliProvider(): LlmProviderConfig {
+  return {
+    id: PINNED_CLAUDE_CLI_PROVIDER_ID,
+    name: 'Claude Code',
+    provider: 'claude-cli',
+    baseUrl: '',
+    apiKey: SecretValue.of(''),
+    claudeCli: { ...DEFAULT_CLAUDE_CLI_SETTINGS },
+    models: [defaultClaudeCliModelProfile()],
+  };
+}
+
 export function getDefaultLlmProviders(): LlmProviderConfig[] {
   return [
     createPinnedLmStudioProvider(),
     createPinnedLlamaServerUrlProvider(),
     createPinnedOpenRouterProvider(),
     createPinnedAnthropicProvider(),
+    createPinnedClaudeCliProvider(),
     createLocalManagedLlamaProvider(),
   ];
 }

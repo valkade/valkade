@@ -91,6 +91,20 @@
                         {{ lmStudioLoadedCount() }} loaded
                       }
                     </span>
+                  } @else if (item.kind === 'claude-cli') {
+                    <span class="provider-picker__pane-sub">
+                      @if (claudeCli.loading()) {
+                        Checking…
+                      } @else if (claudeCli.rateLimited()) {
+                        Rate limited
+                      } @else if (claudeCli.ready()) {
+                        Subscription · Ready
+                      } @else if (claudeCli.installed()) {
+                        Sign-in required
+                      } @else {
+                        CLI not found
+                      }
+                    </span>
                   } @else if (item.kind === 'anthropic') {
                     <span class="provider-picker__pane-sub">
                       {{ anthropic.configured() ? 'Connected' : 'Not configured' }}
@@ -402,6 +416,51 @@
                       </div>
                     </div>
                   }
+                }
+              }
+
+              <!-- Claude Code (Subscription) pane -->
+              @else if (item.kind === 'claude-cli') {
+                @if (!claudeCli.ready()) {
+                  <div class="provider-picker__empty">
+                    <p>
+                      @if (!claudeCli.installed()) {
+                        Install Claude Code CLI (<code>claude</code>) and sign in to use your Claude subscription.
+                      } @else {
+                        Sign in via <code>claude auth login</code> in Settings to use your Claude subscription.
+                      }
+                    </p>
+                    <button type="button" class="provider-picker__btn" (click)="openSettingsSources()">
+                      Configure in Settings ↗
+                    </button>
+                  </div>
+                } @else {
+                  <div class="provider-picker__list" role="listbox" aria-label="Claude Code models">
+                    @for (row of claudeCliRows(); track row.id) {
+                      <button
+                        type="button"
+                        class="provider-picker__row"
+                        role="option"
+                        [class.is-active]="row.active"
+                        [attr.aria-selected]="row.active"
+                        [disabled]="switchingModel()"
+                        (click)="pickClaudeCliModel(row.id)"
+                      >
+                        <span class="provider-picker__dot is-on" aria-hidden="true"></span>
+                        <span class="provider-picker__row-info">
+                          <span class="provider-picker__row-name">{{ row.label }}</span>
+                          @if (row.meta) {
+                            <span class="provider-picker__row-meta">{{ row.meta }}</span>
+                          }
+                        </span>
+                        <span class="provider-picker__row-status">
+                          @if (row.active) {
+                            <span class="provider-picker__pill provider-picker__pill--active">Active</span>
+                          }
+                        </span>
+                      </button>
+                    }
+                  </div>
                 }
               }
 

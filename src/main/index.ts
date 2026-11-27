@@ -22,6 +22,7 @@ import { createMainWindow } from './windows/main-window';
 import { runPreBootMigrationPrompt } from './windows/migration-window';
 import { registerAllIpc } from './ipc/register-ipc';
 import { killAllWorkspacePtySessions } from './ipc/handlers/workspace-pty';
+import { killAllClaudeCliProcesses } from './claude-cli-runner';
 import { envValkade, setEnvValkade } from './env-valkade';
 import { configureAppDataDir } from './paths';
 import { captureIpcForBrowserBridge, startBrowserBridge } from './dev/browser-bridge';
@@ -214,6 +215,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   try {
     stopAllManagedLlamaServers();
+    killAllClaudeCliProcesses();
     killAllWorkspacePtySessions();
     clearWorkspaceWatcher();
     stopSubagentEventPump();

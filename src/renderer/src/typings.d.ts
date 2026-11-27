@@ -36,6 +36,9 @@ import type {
   OpenRouterListModelsResult,
   AnthropicListModelsResult,
   AnthropicSetModelResult,
+  ClaudeCliMutationResult,
+  ClaudeCliSettings,
+  ClaudeCliStatusResult,
   ChatTemplateReasoningCaps,
   LlmStatus,
   MenuFileCommand,
@@ -501,6 +504,11 @@ declare global {
     anthropicSetApiKey: (payload: { apiKey: string }) => Promise<AnthropicListModelsResult>;
     anthropicClearApiKey: () => Promise<AnthropicListModelsResult>;
     anthropicSetModel: (payload: { modelId: string }) => Promise<AnthropicSetModelResult>;
+    claudeCliStatus: (payload?: { refresh?: boolean }) => Promise<ClaudeCliStatusResult>;
+    claudeCliSetModel: (payload: { modelId: string }) => Promise<ClaudeCliMutationResult>;
+    claudeCliSetEffort: (payload: { effort: string }) => Promise<ClaudeCliMutationResult>;
+    claudeCliUpdateSettings: (payload: { settings: Partial<ClaudeCliSettings> }) => Promise<ClaudeCliMutationResult>;
+    claudeCliLogin: () => Promise<ClaudeCliMutationResult>;
     openAiCompatListModels: (payload: { endpoint: OpenAiCompatEndpoint }) => Promise<OpenAiCompatListResult>;
     openAiCompatTest: (payload: { endpoint: OpenAiCompatEndpoint; model: string }) => Promise<OpenAiCompatTestResult>;
     lmStudioListModels: (payload: { baseUrl: string; apiKey?: string }) => Promise<LmStudioListModelsResult>;

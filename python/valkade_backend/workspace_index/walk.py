@@ -7,14 +7,46 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from valkade_backend.workspace.workspace_ignore import (
+    SEARCH_SKIP_SUFFIXES,
     get_workspace_ignore_rules_cached,
     should_ignore_workspace_entry,
-    workspace_expose_all_files,
 )
-from valkade_backend.workspace.workspace_ignore import SEARCH_SKIP_SUFFIXES
 
-# Same as grep search skips except PDFs are indexed semantically.
-_INDEX_SKIP_SUFFIXES: frozenset[str] = frozenset(x for x in SEARCH_SKIP_SUFFIXES if x != '.pdf')
+# Same as grep search skips except PDFs are indexed semantically, plus compiled/binary artifacts.
+_INDEX_SKIP_SUFFIXES: frozenset[str] = frozenset(
+    {x for x in SEARCH_SKIP_SUFFIXES if x != '.pdf'}
+    | {'.pyc', '.pyo', '.pyd', '.dll', '.exe', '.so', '.dylib', '.whl', '.o', '.obj', '.a', '.lib', '.class', '.jar'}
+)
+
+# Virtualenvs, VCS internals, package caches, and tool bundles are never useful in semantic search,
+# even when Settings → Tools → "Expose all workspace files" disables `.gitignore` filters.
+_SEMANTIC_ALWAYS_IGNORED_DIRS: frozenset[str] = frozenset(
+    {
+        '.git',
+        '.svn',
+        '.hg',
+        '.venv',
+        'venv',
+        'node_modules',
+        '__pycache__',
+        '.pytest_cache',
+        '.mypy_cache',
+        '.ruff_cache',
+        '.angular',
+        '.cache',
+        '.next',
+        '.nuxt',
+        '.clara',
+        '.nemo',
+        '.valkade',
+        'runtime-bundle',
+        'vtsls-bundle',
+    }
+)
+
+
+def _is_always_ignored_semantic_segment(segment: str) -> bool:
+    return segment in _SEMANTIC_ALWAYS_IGNORED_DIRS
 
 
 def iter_index_workspace_files(root: Path, *, max_files: int) -> Iterator[Path]:
@@ -29,6 +61,8 @@ def iter_index_workspace_files(root: Path, *, max_files: int) -> Iterator[Path]:
 
         kept: list[str] = []
         for d in dirnames:
+            if _is_always_ignored_semantic_segment(d):
+                continue
             rel_path = f'{rel_dir}/{d}' if rel_dir else d
             if should_ignore_workspace_entry(d, rel_path, ignore_rules):
                 continue
@@ -42,7 +76,7 @@ def iter_index_workspace_files(root: Path, *, max_files: int) -> Iterator[Path]:
             if should_ignore_workspace_entry(fn, rel_path, ignore_rules):
                 continue
             sfx = Path(fn).suffix.lower()
-            if not workspace_expose_all_files() and sfx in _INDEX_SKIP_SUFFIXES:
+            if sfx in _INDEX_SKIP_SUFFIXES:
                 continue
             count += 1
             yield rdir / fn
@@ -54,12 +88,15 @@ def is_indexable_workspace_relative_path(root: Path, rel_posix: str) -> bool:
     rel = rel_posix.strip().replace('\\', '/').lstrip('/')
     if not rel or rel.startswith('../'):
         return False
+    parts = [p for p in rel.split('/') if p]
+    if any(_is_always_ignored_semantic_segment(part) for part in parts[:-1]):
+        return False
     ignore_rules = get_workspace_ignore_rules_cached(root)
     fn = Path(rel).name
     if should_ignore_workspace_entry(fn, rel, ignore_rules):
         return False
     sfx = Path(fn).suffix.lower()
-    if not workspace_expose_all_files() and sfx in _INDEX_SKIP_SUFFIXES:
+    if sfx in _INDEX_SKIP_SUFFIXES:
         return False
     candidate = (root / rel).resolve()
     try:

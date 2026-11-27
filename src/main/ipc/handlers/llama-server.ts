@@ -2,7 +2,10 @@ import { ipcMain, type WebContents } from 'electron';
 import { totalmem } from 'node:os';
 import * as path from 'node:path';
 import type { AppConfig } from '../../../shared';
-import { findLlmModelLocation } from '../../../shared';
+import {
+  claudeCliReasoningCaps,
+  findLlmModelLocation,
+} from '../../../shared';
 import { unwrapSecret } from '../../../shared/types/app-config';
 import {
   getManagedChatOpenAiBaseUrl,
@@ -13,6 +16,7 @@ import {
   stopManagedLlamaServers,
   syncWithManagedLlamaOverrides,
 } from '../../llama-server-manager';
+import { getCachedClaudeCliModels } from '../../claude-cli-status';
 import { getCachedChatTemplateReasoning, getCachedLlamaServerNctx } from '../../chat-template-reasoning-cache';
 import { getLlamaServerFlagCatalog } from '../../llama-server-flag-catalog';
 import { readGgufProfile } from '../../utils/gguf-profile';
@@ -131,6 +135,16 @@ export function registerLlamaServerIpc(): void {
     if (anthropic) {
       const caps = await refreshAnthropicReasoningForConnection(anthropic);
       return { ok: true as const, modelId, chatTemplateReasoning: caps ?? null, nCtx: null };
+    }
+    // Claude Code CLI subscription source exposes the live model's effort levels.
+    const claudeCliLoc = findLlmModelLocation(config.llmProviders, modelId);
+    if (claudeCliLoc?.provider.provider === 'claude-cli') {
+      return {
+        ok: true as const,
+        modelId,
+        chatTemplateReasoning: claudeCliReasoningCaps(claudeCliLoc.model.model, getCachedClaudeCliModels()),
+        nCtx: null,
+      };
     }
     // LM Studio reports what each model supports in its model list.
     const lmStudio = findLmStudioConnection(config, modelId);

@@ -81,6 +81,9 @@ export function defaultLlmModelId(provider: LlmConnectionConfig['provider']): st
   if (provider === 'lmstudio' || provider === 'llamacpp') {
     return 'local-model';
   }
+  if (provider === 'claude-cli') {
+    return 'claude-opus-5-5';
+  }
   if (provider === 'openrouter' || provider === 'anthropic' || provider === 'openai-compatible') {
     return '';
   }

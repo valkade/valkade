@@ -2,6 +2,7 @@ import type { LspServersSettings } from '../lsp-settings';
 import type { SubagentsConfig } from '../subagents-config';
 import type { LmStudioSettings } from '../lm-studio-ipc';
 import type { OpenAiCompatSettings } from '../openai-compat';
+import type { ClaudeCliSettings } from '../claude-cli-ipc';
 import type { Workspace } from './workspace';
 import type { TutorialProgress } from './tutorial';
 import type { ScreenshotRetentionSettings } from '../screenshot-retention';
@@ -253,10 +254,11 @@ export interface LlmProviderConfig {
   /**
    * ``llamacpp`` targets llama.cpp’s OpenAI-compatible HTTP server (``llama-server``). ``openrouter`` is OpenRouter’s chat API.
    * ``anthropic`` is the Claude API; its key lives in main's keychain store, never in ``apiKey``.
+   * ``claude-cli`` drives the locally installed Claude Code CLI using the user's Claude subscription (no API key).
    * ``openai-compatible`` is any other server with that API; ValkAde assumes nothing about it beyond
    * ``openAiCompat``, unlike ``llamacpp``, which gets llama-server's own request fields.
    */
-  provider: 'openai' | 'lmstudio' | 'llamacpp' | 'openai-compatible' | 'openrouter' | 'anthropic' | 'python-t2i';
+  provider: 'openai' | 'lmstudio' | 'llamacpp' | 'openai-compatible' | 'openrouter' | 'anthropic' | 'claude-cli' | 'python-t2i';
   baseUrl: string;
   apiKey: SecretValue<string>;
   /**
@@ -271,6 +273,8 @@ export interface LlmProviderConfig {
   embeddingsBaseUrl?: string;
   /** ``openai-compatible``: sent on every request, for servers that don't use ``Authorization: Bearer``. */
   customHeaders?: McpSecretEntry[];
+  /** ``claude-cli``: local Claude Code CLI config dir and ValkAde bridge options. */
+  claudeCli?: ClaudeCliSettings;
   models: LlmModelProfile[];
 }
 
@@ -282,7 +286,7 @@ export interface LlamaManagedRuntimeEndpoints {
 
 /** Single resolved row for Python / UI (provider endpoint + one model preset). `id` is the model preset id. */
 export type LlmConnectionConfig = LlmModelProfile &
-  Pick<LlmProviderConfig, 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl' | 'customHeaders'>;
+  Pick<LlmProviderConfig, 'provider' | 'baseUrl' | 'apiKey' | 'embeddingsModel' | 'embeddingsBaseUrl' | 'customHeaders' | 'claudeCli'>;
 
 const GEMMA_THINKING_MODE_VALUES = new Set<string>(LLM_THINKING_MODE_OPTIONS.map((o) => o.value));
 /**

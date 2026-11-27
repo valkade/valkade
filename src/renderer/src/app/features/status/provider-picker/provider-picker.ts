@@ -19,6 +19,7 @@ import {
   OPENROUTER_DEFAULT_BASE_URL,
   activeConversationModel,
   anthropicSourceLabel,
+  claudeCliSourceLabel,
   effectiveLmStudioContextTokens,
   findLlmModelLocation,
   lmStudioLoadOptions,
@@ -36,6 +37,7 @@ import {
 } from '@shared/index';
 import { subagentSources } from '@shared/subagent-sources';
 import { AnthropicService } from '../../../core/anthropic.service';
+import { ClaudeCliService } from '../../../core/claude-cli.service';
 import { claudeLineLabel, claudeModelOptions, formatClaudeTokens } from '../../../core/claude-models';
 import { ElectronService } from '../../../core/electron.service';
 import { SubagentSourceStatusService, type SourcePhase } from '../../../core/subagent-source-status.service';
@@ -116,6 +118,7 @@ export class ProviderPickerComponent implements OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly electron = inject(ElectronService);
   protected readonly anthropic = inject(AnthropicService);
+  protected readonly claudeCli = inject(ClaudeCliService);
   private readonly sourceStatus = inject(SubagentSourceStatusService);
 
   /** Live app config from shell or home panel. */
@@ -332,6 +335,9 @@ export class ProviderPickerComponent implements OnDestroy {
       const phase = this.sourceStatus.serverPhase({ connectionId: mid });
       return phase === 'running' ? 'on' : phase === 'loading' ? 'starting' : 'off';
     }
+    if (provider.provider === 'claude-cli') {
+      return this.claudeCli.ready() && !this.claudeCli.rateLimited() ? 'on' : this.claudeCli.rateLimited() ? 'error' : 'off';
+    }
     if (provider.provider === 'anthropic') {
       return this.anthropic.configured() && !!(provider.models[0]?.model ?? '').trim() ? 'on' : 'off';
     }
@@ -353,6 +359,18 @@ export class ProviderPickerComponent implements OnDestroy {
       return `${count} up`;
     }
     return '';
+  });
+
+  /** Claude Code (Subscription) rows for the Claude Code right pane (live CLI catalog). */
+  protected readonly claudeCliRows = computed(() => {
+    const item = this.browsedItem();
+    const currentId = item?.provider?.models[0]?.model ?? '';
+    return this.claudeCli.models().map((m) => ({
+      id: m.id,
+      label: m.recommended ? `${m.displayName} (Default)` : m.displayName,
+      meta: m.description || `${formatClaudeTokens(m.contextWindowTokens)} ctx · Subscription`,
+      active: this.activeProvider()?.id === item?.provider?.id && currentId === m.id,
+    }));
   });
 
   /** Claude catalog rows for the Claude right pane. */
@@ -510,10 +528,13 @@ export class ProviderPickerComponent implements OnDestroy {
       void this.refreshInventory(dir);
     });
 
-    // Load Anthropic status when Claude is active or configured so trigger dot stays accurate.
+    // Load Anthropic / Claude CLI status when active so trigger dot stays accurate.
     effect(() => {
-      if (this.activeProvider()?.provider === 'anthropic') {
+      const kind = this.activeProvider()?.provider;
+      if (kind === 'anthropic') {
         void this.anthropic.ensureLoaded();
+      } else if (kind === 'claude-cli') {
+        void this.claudeCli.ensureLoaded();
       }
     });
 
@@ -565,6 +586,9 @@ export class ProviderPickerComponent implements OnDestroy {
         return 'error';
       }
       return 'off';
+    }
+    if (item.kind === 'claude-cli') {
+      return this.claudeCli.ready() && !this.claudeCli.rateLimited() ? 'on' : this.claudeCli.rateLimited() ? 'error' : 'off';
     }
     if (item.kind === 'anthropic') {
       return this.anthropic.configured() ? 'on' : 'off';
@@ -632,6 +656,9 @@ export class ProviderPickerComponent implements OnDestroy {
     this.probeSources(false);
     if (this.railItems().some((i) => i.kind === 'anthropic')) {
       void this.anthropic.ensureLoaded();
+    }
+    if (this.railItems().some((i) => i.kind === 'claude-cli')) {
+      void this.claudeCli.ensureLoaded();
     }
     this.loadBrowsedProviderData(false);
   }
@@ -852,6 +879,25 @@ export class ProviderPickerComponent implements OnDestroy {
 
   // ---- Immediate-swap providers (Claude, OpenRouter, Custom OpenAI) ----
 
+  protected async pickClaudeCliModel(modelId: string): Promise<void> {
+    const provider = this.browsedItem()?.provider;
+    const profileId = provider?.models[0]?.id;
+    if (!provider || !profileId || this.switchingModel()) {
+      return;
+    }
+    this.switchingModel.set(true);
+    try {
+      const ok = await this.claudeCli.setModel(modelId);
+      if (ok && this.activeModelId() !== profileId) {
+        await this.electron.setActiveLlmModel(profileId);
+      }
+    } catch {
+      // ClaudeCliService records error state; avoid unhandled rejection.
+    } finally {
+      this.switchingModel.set(false);
+    }
+  }
+
   protected async pickClaudeModel(modelId: string): Promise<void> {
     const provider = this.browsedItem()?.provider;
     const profileId = provider?.models[0]?.id;
@@ -1036,6 +1082,9 @@ export class ProviderPickerComponent implements OnDestroy {
     if (provider.provider === 'openrouter') {
       return openRouterSourceLabel(provider);
     }
+    if (provider.provider === 'claude-cli') {
+      return claudeCliSourceLabel(provider, this.claudeCli.models());
+    }
     if (provider.provider === 'anthropic') {
       return anthropicSourceLabel(provider);
     }
@@ -1116,6 +1165,14 @@ export class ProviderPickerComponent implements OnDestroy {
         if (localSources.length > 0) {
           void this.sourceStatus.probe(cfg, localSources);
         }
+      }
+      return;
+    }
+    if (item.kind === 'claude-cli') {
+      if (force) {
+        void this.claudeCli.refresh(true);
+      } else {
+        void this.claudeCli.ensureLoaded();
       }
       return;
     }

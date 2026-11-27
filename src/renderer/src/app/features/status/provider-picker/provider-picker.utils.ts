@@ -5,7 +5,9 @@ import type {
 } from '@shared/index';
 import {
   anthropicSourceLabel,
+  claudeCliSourceLabel,
   isPinnedAnthropicProviderId,
+  isPinnedClaudeCliProviderId,
   isPinnedLlamaServerUrlProviderId,
   isPinnedLmStudioProviderId,
   isPinnedOpenRouterProviderId,
@@ -26,7 +28,7 @@ export interface ProviderRailItem {
   id: string;
   label: string;
   group: ProviderRailGroup;
-  kind: 'local-llamacpp' | 'lmstudio' | 'anthropic' | 'openrouter' | 'openai' | 'openai-compatible' | 'remote-llamacpp';
+  kind: 'local-llamacpp' | 'lmstudio' | 'claude-cli' | 'anthropic' | 'openrouter' | 'openai' | 'openai-compatible' | 'remote-llamacpp';
   /** Underlying config entry (null for unified local llama.cpp). */
   provider: LlmProviderConfig | null;
 }
@@ -55,6 +57,7 @@ export function buildProviderRailItems(config: AppConfig | null): ProviderRailIt
   const chatProviders = config.llmProviders.filter((p) => p.provider !== 'python-t2i' && p.models.length > 0);
   const localManaged = chatProviders.filter(isManagedLocalLlamaProvider);
   const lmStudio = chatProviders.filter((p) => isPinnedLmStudioProviderId(p.id) || p.provider === 'lmstudio');
+  const claudeCli = chatProviders.filter((p) => isPinnedClaudeCliProviderId(p.id) || p.provider === 'claude-cli');
   const anthropic = chatProviders.filter((p) => isPinnedAnthropicProviderId(p.id) || p.provider === 'anthropic');
   const openRouter = chatProviders.filter((p) => isPinnedOpenRouterProviderId(p.id) || p.provider === 'openrouter');
   const openAi = chatProviders.filter((p) => p.provider === 'openai');
@@ -86,6 +89,9 @@ export function buildProviderRailItems(config: AppConfig | null): ProviderRailIt
   }
   for (const p of lmStudio) {
     pushProvider(p, 'Local', 'lmstudio');
+  }
+  for (const p of claudeCli) {
+    pushProvider(p, 'Cloud', 'claude-cli');
   }
   for (const p of anthropic) {
     pushProvider(p, 'Cloud', 'anthropic');
@@ -130,6 +136,14 @@ export function formatActiveTriggerLabel(
   }
   if (provider.provider === 'openrouter') {
     const full = openRouterSourceLabel(provider);
+    const prefix = `${provider.name} · `;
+    return {
+      providerLabel: provider.name,
+      modelLabel: full.startsWith(prefix) ? full.slice(prefix.length) : (provider.models[0]?.model?.trim() || 'Choose model'),
+    };
+  }
+  if (provider.provider === 'claude-cli') {
+    const full = claudeCliSourceLabel(provider);
     const prefix = `${provider.name} · `;
     return {
       providerLabel: provider.name,

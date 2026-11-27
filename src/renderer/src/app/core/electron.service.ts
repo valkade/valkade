@@ -52,6 +52,10 @@ import type {
   AnthropicListModelsResult,
   AnthropicSetModelResult,
   AnthropicStatus,
+  ClaudeCliMutationResult,
+  ClaudeCliSettings,
+  ClaudeCliStatus,
+  ClaudeCliStatusResult,
   ChatTemplateReasoningCaps,
   LlmSourcePingResult,
   LmStudioListModelsResult,
@@ -1877,6 +1881,53 @@ export class ElectronService {
 
   anthropicSetModel(payload: { modelId: string }): Promise<AnthropicSetModelResult> {
     return this.api?.anthropicSetModel(payload) ?? Promise.resolve({ ok: false, error: 'API not available' });
+  }
+
+  claudeCliStatus(payload?: { refresh?: boolean }): Promise<ClaudeCliStatusResult> {
+    const fallbackStatus: ClaudeCliStatus = {
+      installed: false,
+      cliPath: '',
+      cliVersion: '',
+      loggedIn: false,
+      authMethod: '',
+      email: '',
+      orgName: '',
+      subscriptionType: '',
+      configDir: '~/.claude',
+      models: [],
+      billingGuardActive: true,
+      usage: {
+        fiveHour: { status: 'unknown' },
+        sevenDay: { status: 'unknown' },
+        window5hTurns: 0,
+        window5hTokens: 0,
+        window5hCacheReadTokens: 0,
+        weeklyTurns: 0,
+        weeklyTokens: 0,
+        weeklyCacheReadTokens: 0,
+        updatedAt: 0,
+      },
+    };
+    return (
+      this.api?.claudeCliStatus(payload) ??
+      Promise.resolve({ ok: false, error: 'API not available', status: fallbackStatus })
+    );
+  }
+
+  claudeCliSetModel(payload: { modelId: string }): Promise<ClaudeCliMutationResult> {
+    return this.api?.claudeCliSetModel(payload) ?? Promise.resolve({ ok: false, error: 'API not available' });
+  }
+
+  claudeCliSetEffort(payload: { effort: string }): Promise<ClaudeCliMutationResult> {
+    return this.api?.claudeCliSetEffort(payload) ?? Promise.resolve({ ok: false, error: 'API not available' });
+  }
+
+  claudeCliUpdateSettings(payload: { settings: Partial<ClaudeCliSettings> }): Promise<ClaudeCliMutationResult> {
+    return this.api?.claudeCliUpdateSettings(payload) ?? Promise.resolve({ ok: false, error: 'API not available' });
+  }
+
+  claudeCliLogin(): Promise<ClaudeCliMutationResult> {
+    return this.api?.claudeCliLogin() ?? Promise.resolve({ ok: false, error: 'API not available' });
   }
 
   lmStudioListModels(payload: { baseUrl: string; apiKey?: string }): Promise<LmStudioListModelsResult> {

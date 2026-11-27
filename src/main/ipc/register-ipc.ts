@@ -18,6 +18,7 @@ import { registerLmStudioIpc } from './handlers/lm-studio';
 import { registerOpenAiCompatIpc } from './handlers/openai-compat';
 import { registerOpenRouterIpc } from './handlers/openrouter';
 import { registerAnthropicIpc } from './handlers/anthropic';
+import { registerClaudeCliIpc } from './handlers/claude-cli';
 import { registerLspStatusIpc } from './handlers/lsp-status';
 import { registerLspEditorExtendedIpc } from './handlers/lsp-editor-extended-ipc';
 import { registerLspDiagnosticsWatchIpc } from './handlers/lsp-diagnostics-watch';
@@ -39,6 +40,7 @@ export function registerAllIpc(): void {
   registerOpenAiCompatIpc();
   registerOpenRouterIpc();
   registerAnthropicIpc();
+  registerClaudeCliIpc();
   registerModelManagerIpc();
   registerDependenciesIpc();
   registerLspStatusIpc();

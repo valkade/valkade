@@ -3,20 +3,28 @@ import { Component, ViewEncapsulation, computed, effect, inject, signal, untrack
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
+  CLAUDE_CLI_AUTOCOMPACT_OPTIONS,
+  CLAUDE_CLI_MODELS,
+  DEFAULT_CLAUDE_CLI_MODEL_ID,
   LLM_THINKING_MODE_OPTIONS,
   OPENROUTER_DEFAULT_BASE_URL,
+  findClaudeCliModel,
   llmComposerEffortOptions,
   llmComposerEffortValue,
   llmEffortControlVisible,
   llmEffortSelectOptionsFromCaps,
   llmThinkingControlVisible,
+  normalizeClaudeCliSettings,
   unwrapSecret,
   type ChatTemplateReasoningCaps,
+  type ClaudeCliSettings,
   type LlmProviderConfig,
+  type LlmReasoningEffort,
 } from '@shared/index';
 import { NgxSpinnerComponent } from 'ngx-spinner';
 import { LucideAngularModule } from 'lucide-angular';
 import { AnthropicService } from '../../../core/anthropic.service';
+import { ClaudeCliService } from '../../../core/claude-cli.service';
 import { claudeModelOptions, formatClaudeDate, formatClaudeTokens } from '../../../core/claude-models';
 import { ElectronService } from '../../../core/electron.service';
 import { PillSelectComponent } from '../../../shared/pill-select/pill-select';
@@ -155,6 +163,161 @@ export class SettingsModels {
   protected readonly formatTokens = formatClaudeTokens;
   protected readonly formatDate = formatClaudeDate;
 
+  protected readonly claudeCli = inject(ClaudeCliService);
+  protected readonly claudeCliConfigDirEditing = signal(false);
+  protected readonly claudeCliConfigDirDraft = signal('');
+  private readonly claudeCliSourceId = computed(() => {
+    const p = this.s.selectedProvider();
+    return p?.provider === 'claude-cli' ? p.id : null;
+  });
+  protected readonly claudeCliSettings = computed<ClaudeCliSettings>(() => {
+    const p = this.s.selectedProvider();
+    return normalizeClaudeCliSettings(p?.provider === 'claude-cli' ? p.claudeCli : undefined);
+  });
+  protected readonly claudeCliModelId = computed(() => {
+    const p = this.s.selectedProvider();
+    return p?.provider === 'claude-cli' ? (p.models[0]?.model || DEFAULT_CLAUDE_CLI_MODEL_ID) : DEFAULT_CLAUDE_CLI_MODEL_ID;
+  });
+  protected readonly claudeCliEffort = computed(() => {
+    const p = this.s.selectedProvider();
+    return p?.provider === 'claude-cli' ? (p.models[0]?.reasoningEffort || 'high') : 'high';
+  });
+  protected readonly claudeCliModelOptions = computed(() => {
+    const live = this.claudeCli.models();
+    const currentId = this.claudeCliModelId();
+    const opts = live.map((m) => ({
+      id: m.id,
+      label: m.recommended ? `${m.displayName} (Recommended)` : m.displayName,
+    }));
+    if (currentId && !opts.some((o) => o.id === currentId)) {
+      opts.unshift({ id: currentId, label: currentId });
+    }
+    return opts;
+  });
+  protected readonly claudeCliEffortOptions = computed(() => {
+    const model = this.claudeCliCurrentModel();
+    return model.effortLevels.map((lvl) => ({
+      id: lvl,
+      label: lvl === 'xhigh' ? 'Extra High' : lvl.charAt(0).toUpperCase() + lvl.slice(1),
+    }));
+  });
+  protected readonly claudeCliCurrentModel = computed(() => {
+    const live = this.claudeCli.models();
+    return findClaudeCliModel(this.claudeCliModelId(), live) ?? live[0] ?? CLAUDE_CLI_MODELS[0];
+  });
+  protected readonly claudeCliAutoCompactOptions = computed(() => {
+    const maxCtx = this.claudeCliCurrentModel().contextWindowTokens || 200_000;
+    return CLAUDE_CLI_AUTOCOMPACT_OPTIONS.filter((o) => o.tokens === 0 || o.tokens <= maxCtx).map((o) => ({
+      id: o.id,
+      label: o.label,
+    }));
+  });
+  protected readonly claudeCliAutoCompactValue = computed(() => {
+    const saved = this.claudeCliSettings().autoCompact;
+    return this.claudeCliAutoCompactOptions().some((o) => o.id === saved) ? saved : 'auto';
+  });
+  protected readonly claudeCliSubscriptionBadge = computed(() => {
+    const raw = (this.claudeCli.status()?.subscriptionType ?? '').trim();
+    if (!raw) {
+      return 'Subscription';
+    }
+    return /^claude\b/i.test(raw) ? raw : `Claude ${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
+  });
+  protected readonly claudeCliResetCountdown = computed(() => {
+    const st = this.claudeCli.status();
+    const target = st?.rateLimitedUntil ?? st?.usage?.fiveHour?.resetsAt ?? 0;
+    return this.formatResetCountdown(target);
+  });
+  protected formatResetCountdown(targetMs: number | undefined): string {
+    if (!targetMs || targetMs <= Date.now()) {
+      return '';
+    }
+    const mins = Math.max(1, Math.ceil((targetMs - Date.now()) / 60_000));
+    const days = Math.floor(mins / (60 * 24));
+    const hrs = Math.floor((mins % (60 * 24)) / 60);
+    const rem = mins % 60;
+    if (days > 0) {
+      return `${days}d ${hrs}h`;
+    }
+    return hrs > 0 ? `${hrs}h ${rem}m` : `${rem}m`;
+  }
+  protected claudeCliWindowStatusLabel(status: 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'): string {
+    switch (status) {
+      case 'allowed':
+        return 'Within limit';
+      case 'allowed_warning':
+        return 'Near limit';
+      case 'rejected':
+        return 'Limit reached';
+      default:
+        return 'Updates on turn';
+    }
+  }
+  protected readonly claudeCliCheckedAt = computed(() => {
+    const at = this.claudeCli.status()?.checkedAt;
+    return at ? new Date(at).toLocaleTimeString(undefined, { timeStyle: 'short' }) : '';
+  });
+
+  protected beginClaudeCliDirEdit(): void {
+    this.claudeCliConfigDirDraft.set(this.claudeCliSettings().configDir || '~/.claude');
+    this.claudeCliConfigDirEditing.set(true);
+  }
+
+  protected cancelClaudeCliDirEdit(): void {
+    this.claudeCliConfigDirEditing.set(false);
+    this.claudeCliConfigDirDraft.set('');
+  }
+
+  protected async saveClaudeCliDir(): Promise<void> {
+    const raw = this.claudeCliConfigDirDraft().trim();
+    const nextDir = raw === '~/.claude' ? '' : raw;
+    if (await this.claudeCli.updateSettings({ configDir: nextDir })) {
+      this.s.mirrorClaudeCliSettings({ configDir: nextDir });
+      this.cancelClaudeCliDirEdit();
+    }
+  }
+
+  protected async pickClaudeCliModel(modelId: string): Promise<void> {
+    const model = findClaudeCliModel(modelId, this.claudeCli.models());
+    if (!model || modelId === this.claudeCliModelId()) {
+      return;
+    }
+    if (await this.claudeCli.setModel(modelId)) {
+      this.s.mirrorClaudeCliModel(model);
+    }
+  }
+
+  protected async pickClaudeCliEffort(effort: string): Promise<void> {
+    if (!effort || effort === this.claudeCliEffort()) {
+      return;
+    }
+    if (await this.claudeCli.setEffort(effort)) {
+      this.s.mirrorClaudeCliEffort(effort as LlmReasoningEffort);
+    }
+  }
+
+  protected async pickClaudeCliAutoCompact(autoCompact: string): Promise<void> {
+    if (!autoCompact || autoCompact === this.claudeCliSettings().autoCompact) {
+      return;
+    }
+    if (await this.claudeCli.updateSettings({ autoCompact })) {
+      this.s.mirrorClaudeCliSettings({ autoCompact });
+    }
+  }
+
+  protected async toggleClaudeCliSetting(
+    key: 'fastMode' | 'routeApprovals' | 'captureTurnDiffs' | 'promptIdleCompaction' | 'bridgeWorkspaceTools',
+    value: boolean,
+  ): Promise<void> {
+    if (await this.claudeCli.updateSettings({ [key]: value })) {
+      this.s.mirrorClaudeCliSettings({ [key]: value });
+    }
+  }
+
+  protected async launchClaudeCliLogin(): Promise<void> {
+    await this.claudeCli.launchLogin();
+  }
+
   protected beginClaudeEdit(): void {
     this.claude.error.set('');
     this.claudeKeyDraft.set('');
@@ -279,6 +442,16 @@ export class SettingsModels {
         this.cancelClaudeEdit();
         if (sourceId) {
           void this.claude.ensureLoaded();
+        }
+      });
+    });
+    // Opening the Claude Code (Subscription) card probes local CLI status and closes stale dir edits.
+    effect(() => {
+      const sourceId = this.claudeCliSourceId();
+      untracked(() => {
+        this.cancelClaudeCliDirEdit();
+        if (sourceId) {
+          void this.claudeCli.ensureLoaded();
         }
       });
     });

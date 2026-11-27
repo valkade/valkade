@@ -9,6 +9,7 @@ import type {
 import { resolveActiveLlmConnection, unwrapSecret } from '@shared/index';
 import { filter, merge } from 'rxjs';
 import { AnthropicService } from '../../../core/anthropic.service';
+import { ClaudeCliService } from '../../../core/claude-cli.service';
 import { ElectronService } from '../../../core/electron.service';
 import {
   computeStatusPollIntervalMs,
@@ -37,6 +38,7 @@ import {
 export class LlamaStatusIndicator {
   private readonly electron = inject(ElectronService);
   private readonly anthropic = inject(AnthropicService);
+  private readonly claudeCli = inject(ClaudeCliService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Current app config (from shell). */
@@ -80,10 +82,10 @@ export class LlamaStatusIndicator {
     return !!cfg && !!cfg.activeLlmModelId?.trim() && !!this.activeProvider();
   });
 
-  /** Model dot: managed llama.cpp health, or OpenRouter / Claude once a model and key are saved. */
+  /** Model dot: managed llama.cpp health, or OpenRouter / Claude / Claude Code once configured. */
   protected readonly showModelDot = computed(() => {
     const provider = this.activeProvider();
-    return provider === 'llamacpp' || provider === 'openrouter' || provider === 'anthropic';
+    return provider === 'llamacpp' || provider === 'openrouter' || provider === 'anthropic' || provider === 'claude-cli';
   });
 
   private readonly activeConnection = computed(() => {
@@ -105,6 +107,11 @@ export class LlamaStatusIndicator {
     return conn?.provider === 'anthropic' && !!conn.model.trim() && this.anthropic.configured();
   });
 
+  private readonly claudeCliConnected = computed(() => {
+    const conn = this.activeConnection();
+    return conn?.provider === 'claude-cli' && this.claudeCli.ready() && !this.claudeCli.rateLimited();
+  });
+
   protected readonly modelDot = computed((): LlamaStatusDotState => {
     if (this.activeProvider() === 'openrouter') {
       return this.openRouterConnected() ? 'green' : 'gray';
@@ -112,11 +119,17 @@ export class LlamaStatusIndicator {
     if (this.activeProvider() === 'anthropic') {
       return this.claudeConnected() ? 'green' : 'gray';
     }
+    if (this.activeProvider() === 'claude-cli') {
+      if (this.claudeCli.rateLimited()) {
+        return 'red';
+      }
+      return this.claudeCliConnected() ? 'green' : 'gray';
+    }
     return modelStatusDotState(this.modelWarming(), this.status());
   });
 
   protected readonly modelLabel = computed(() =>
-    this.openRouterConnected() || this.claudeConnected() ? 'Connected' : 'Model',
+    this.openRouterConnected() || this.claudeConnected() || this.claudeCliConnected() ? 'Connected' : 'Model',
   );
 
   protected readonly modelSummary = computed(() =>
@@ -150,6 +163,15 @@ export class LlamaStatusIndicator {
     if (this.activeProvider() === 'anthropic') {
       const conn = this.activeConnection();
       return this.claudeConnected() && conn ? `Claude — connected (${conn.model})` : 'Claude — set a model and API key';
+    }
+    if (this.activeProvider() === 'claude-cli') {
+      const conn = this.activeConnection();
+      if (this.claudeCli.rateLimited()) {
+        return 'Claude Code — subscription limit reached';
+      }
+      return this.claudeCliConnected() && conn
+        ? `Claude Code — subscription ready (${conn.model})`
+        : 'Claude Code — sign in with claude auth login';
     }
     const warm = this.modelWarming();
     if (warm === 'downloading') {
@@ -197,8 +219,11 @@ export class LlamaStatusIndicator {
 
   constructor() {
     effect(() => {
-      if (this.activeProvider() === 'anthropic') {
+      const p = this.activeProvider();
+      if (p === 'anthropic') {
         void this.anthropic.ensureLoaded();
+      } else if (p === 'claude-cli') {
+        void this.claudeCli.ensureLoaded();
       }
     });
     this.destroyRef.onDestroy(() => {

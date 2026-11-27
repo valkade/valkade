@@ -105,6 +105,9 @@ export function modelStatusSummary(args: {
   if (provider === 'openrouter' || provider === 'anthropic') {
     return dot === 'green' ? `Connected · ${model}` : 'Needs a model and API key';
   }
+  if (provider === 'claude-cli') {
+    return dot === 'green' ? `Connected · ${model}` : 'Needs Claude CLI sign-in';
+  }
   if (provider !== 'llamacpp') {
     return 'Not checked for this source';
   }

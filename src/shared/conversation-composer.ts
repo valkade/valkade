@@ -124,7 +124,10 @@ export function activeConversationModel(config: Pick<AppConfig, 'activeLlmModelI
     return {};
   }
   const provider = config.llmProviders.find((p) => p.models.some((m) => m.id === modelId));
-  const claudeModel = provider?.provider === 'anthropic' ? provider.models.find((m) => m.id === modelId)?.model : undefined;
+  const claudeModel =
+    provider?.provider === 'anthropic' || provider?.provider === 'claude-cli'
+      ? provider.models.find((m) => m.id === modelId)?.model
+      : undefined;
   return claudeModel ? { modelId, claudeModel } : { modelId };
 }
 

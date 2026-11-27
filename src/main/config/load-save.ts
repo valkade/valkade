@@ -61,7 +61,9 @@ import {
   DEFAULT_URL_SOURCE_NAME,
   PINNED_OPENROUTER_PROVIDER_ID,
   PINNED_ANTHROPIC_PROVIDER_ID,
+  PINNED_CLAUDE_CLI_PROVIDER_ID,
   OPENROUTER_DEFAULT_BASE_URL,
+  normalizeClaudeCliSettings,
 } from '../../shared';
 import {
   coerceSecretValue,
@@ -94,6 +96,7 @@ import {
   createPinnedLlamaServerUrlProvider,
   createPinnedOpenRouterProvider,
   createPinnedAnthropicProvider,
+  createPinnedClaudeCliProvider,
   getDefaultAudioTranscription,
   getDefaultHealthMonitor,
   getDefaultLlmProviders,
@@ -589,8 +592,8 @@ function exposeSecretsForConsumers(config: AppConfig): AppConfig {
 function serializeConfigForDisk(config: AppConfig): Record<string, unknown> {
   const providers = (config.llmProviders ?? []).map((p) => ({
     ...p,
-    // The Claude key lives in its own keychain file (anthropic-key-store), never in config.json.
-    apiKey: p.provider === 'anthropic' ? '' : encryptSecretForDisk(unwrapSecret(p.apiKey)),
+    // Claude keys live outside config.json; Claude Code CLI never uses an API key.
+    apiKey: p.provider === 'anthropic' || p.provider === 'claude-cli' ? '' : encryptSecretForDisk(unwrapSecret(p.apiKey)),
     ...(p.customHeaders ? { customHeaders: encryptMcpSecretEntries(p.customHeaders) } : {}),
     models: p.models,
   }));
@@ -982,7 +985,9 @@ function normalizeLlmProvidersTree(providers: LlmProviderConfig[]): boolean {
               ? 'OpenRouter'
               : p.provider === 'anthropic'
                 ? 'Claude'
-                : 'OpenAI';
+                : p.provider === 'claude-cli'
+                  ? 'Claude Code'
+                  : 'OpenAI';
       migrated = true;
     }
     if (
@@ -991,7 +996,8 @@ function normalizeLlmProvidersTree(providers: LlmProviderConfig[]): boolean {
       p.provider !== 'llamacpp' &&
       p.provider !== 'openai-compatible' &&
       p.provider !== 'openrouter' &&
-      p.provider !== 'anthropic'
+      p.provider !== 'anthropic' &&
+      p.provider !== 'claude-cli'
     ) {
       p.provider = 'openai';
       migrated = true;
@@ -1007,8 +1013,8 @@ function normalizeLlmProvidersTree(providers: LlmProviderConfig[]): boolean {
               : '';
       migrated = true;
     }
-    if (p.provider === 'anthropic') {
-      // Never carried in config (see anthropic-key-store); drop anything a client sent.
+    if (p.provider === 'anthropic' || p.provider === 'claude-cli') {
+      // Never carried in config (keychain-only for anthropic; CLI subscription for claude-cli).
       if (p.apiKey === undefined || unwrapSecret(p.apiKey) !== '') {
         migrated = true;
       }
@@ -1027,6 +1033,13 @@ function normalizeLlmProvidersTree(providers: LlmProviderConfig[]): boolean {
       const headers = normalizeMcpSecretEntries(p.customHeaders);
       p.customHeaders = headers.entries;
       migrated = migrated || headers.migrated;
+    }
+    if (p.provider === 'claude-cli') {
+      const normalized = normalizeClaudeCliSettings(p.claudeCli);
+      if (JSON.stringify(normalized) !== JSON.stringify(p.claudeCli)) {
+        p.claudeCli = normalized;
+        migrated = true;
+      }
     }
     if (!Array.isArray(p.models) || p.models.length === 0) {
       const mid = defaultLlmModelId(p.provider);
@@ -1189,6 +1202,35 @@ function ensurePinnedAnthropicProvider(providers: LlmProviderConfig[]): boolean 
   const openRouterIdx = providers.findIndex((p) => p.id === PINNED_OPENROUTER_PROVIDER_ID);
   const insert = openRouterIdx >= 0 ? openRouterIdx + 1 : providers.length;
   providers.splice(insert, 0, createPinnedAnthropicProvider());
+  return true;
+}
+
+/**
+ * Ensure the pinned Claude Code (Subscription) row exists after Claude (API), with its fixed
+ * provider and name. Does not change the active model.
+ */
+function ensurePinnedClaudeCliProvider(providers: LlmProviderConfig[]): boolean {
+  const existing = providers.find((p) => p.id === PINNED_CLAUDE_CLI_PROVIDER_ID);
+  if (existing) {
+    let changed = false;
+    if (existing.provider !== 'claude-cli') {
+      existing.provider = 'claude-cli';
+      changed = true;
+    }
+    if (existing.name !== 'Claude Code') {
+      existing.name = 'Claude Code';
+      changed = true;
+    }
+    const normalized = normalizeClaudeCliSettings(existing.claudeCli);
+    if (JSON.stringify(normalized) !== JSON.stringify(existing.claudeCli)) {
+      existing.claudeCli = normalized;
+      changed = true;
+    }
+    return changed;
+  }
+  const anthropicIdx = providers.findIndex((p) => p.id === PINNED_ANTHROPIC_PROVIDER_ID);
+  const insert = anthropicIdx >= 0 ? anthropicIdx + 1 : providers.length;
+  providers.splice(insert, 0, createPinnedClaudeCliProvider());
   return true;
 }
 
@@ -1596,6 +1638,10 @@ export function migrateConfig(config: AppConfig): AppConfig {
   }
 
   if (ensurePinnedAnthropicProvider(newConfig.llmProviders)) {
+    migrated = true;
+  }
+
+  if (ensurePinnedClaudeCliProvider(newConfig.llmProviders)) {
     migrated = true;
   }
 
@@ -2456,26 +2502,50 @@ async function readTutorialConfigDocument(): Promise<Record<string, unknown>> {
 }
 
 /**
- * The Claude model is set through ``anthropic:set-model`` (Settings and the composer), so a
- * Settings save drafted before a composer pick must not roll it back.
+ * The Claude API and Claude Code CLI models/settings are set through dedicated IPC handlers
+ * (`anthropic:set-model`, `claude-cli:*`), so a stale Settings draft must not roll them back.
  */
 function keepDiskClaudeModel(disk: LlmProviderConfig[], client: LlmProviderConfig[]): LlmProviderConfig[] {
-  const diskModel = disk.find((p) => p.id === PINNED_ANTHROPIC_PROVIDER_ID)?.models[0];
-  if (!diskModel) {
+  const diskAnthropic = disk.find((p) => p.id === PINNED_ANTHROPIC_PROVIDER_ID)?.models[0];
+  const diskCli = disk.find((p) => p.id === PINNED_CLAUDE_CLI_PROVIDER_ID);
+  const diskCliModel = diskCli?.models[0];
+  if (!diskAnthropic && !diskCli) {
     return client;
   }
   return client.map((p) => {
-    if (p.id !== PINNED_ANTHROPIC_PROVIDER_ID || !p.models[0]) {
-      return p;
+    if (p.id === PINNED_ANTHROPIC_PROVIDER_ID && diskAnthropic && p.models[0]) {
+      const [first, ...rest] = p.models;
+      return {
+        ...p,
+        models: [
+          {
+            ...first,
+            model: diskAnthropic.model,
+            name: diskAnthropic.name,
+            contextWindowTokens: diskAnthropic.contextWindowTokens,
+          },
+          ...rest,
+        ],
+      };
     }
-    const [first, ...rest] = p.models;
-    return {
-      ...p,
-      models: [
-        { ...first, model: diskModel.model, name: diskModel.name, contextWindowTokens: diskModel.contextWindowTokens },
-        ...rest,
-      ],
-    };
+    if (p.id === PINNED_CLAUDE_CLI_PROVIDER_ID && diskCli && diskCliModel && p.models[0]) {
+      const [first, ...rest] = p.models;
+      return {
+        ...p,
+        ...(diskCli.claudeCli ? { claudeCli: diskCli.claudeCli } : {}),
+        models: [
+          {
+            ...first,
+            model: diskCliModel.model,
+            name: diskCliModel.name,
+            contextWindowTokens: diskCliModel.contextWindowTokens,
+            reasoningEffort: diskCliModel.reasoningEffort,
+          },
+          ...rest,
+        ],
+      };
+    }
+    return p;
   });
 }
 

@@ -1533,7 +1533,11 @@ export class App implements OnInit, OnDestroy {
         const after = this.appConfig();
         const onClaude = after ? activeConversationModel({ ...after, activeLlmModelId: wanted.modelId ?? '' }) : {};
         if (onClaude.claudeModel !== wanted.claudeModel) {
-          ok = (await this.electron.anthropicSetModel({ modelId: wanted.claudeModel })).ok;
+          const targetProvider = after?.llmProviders.find((p) => p.models.some((m) => m.id === wanted.modelId));
+          ok =
+            targetProvider?.provider === 'claude-cli'
+              ? (await this.electron.claudeCliSetModel({ modelId: wanted.claudeModel })).ok
+              : (await this.electron.anthropicSetModel({ modelId: wanted.claudeModel })).ok;
         }
       }
     } catch (err) {
